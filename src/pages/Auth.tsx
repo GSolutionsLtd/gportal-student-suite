@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,14 @@ import {
   EyeOff,
   ArrowLeft,
   Mail,
-  Lock
+  Lock,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UserRole, ROLE_LABELS } from "@/types/auth";
+import { UserRole, ROLE_LABELS, ROLE_ROUTES } from "@/types/auth";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
 
 const roleIcons: Record<UserRole, typeof UserCog> = {
   super_admin: UserCog,
@@ -33,10 +36,28 @@ const roleColors: Record<UserRole, string> = {
   student: "bg-warning/10 text-warning border-warning/20",
 };
 
+// Validation schemas
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const signupSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const { user, userRole, signIn, signUp, isLoading: authLoading } = useAuth();
   
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -44,6 +65,7 @@ export default function Auth() {
     (searchParams.get("role") as UserRole) || null
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
     email: "",
@@ -52,22 +74,46 @@ export default function Auth() {
     confirmPassword: "",
   });
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user && userRole) {
+      const from = (location.state as any)?.from?.pathname || ROLE_ROUTES[userRole];
+      navigate(from, { replace: true });
+    }
+  }, [user, userRole, authLoading, navigate, location]);
+
+  const validateForm = () => {
+    try {
+      if (isLogin) {
+        loginSchema.parse(formData);
+      } else {
+        signupSchema.parse(formData);
+      }
+      setErrors({});
+      return true;
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        err.errors.forEach((error) => {
+          if (error.path[0]) {
+            newErrors[error.path[0] as string] = error.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedRole) {
+    if (!validateForm()) return;
+
+    if (!isLogin && !selectedRole) {
       toast({
         title: "Role Required",
-        description: "Please select your role to continue.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match. Please try again.",
+        description: "Please select your role to create an account.",
         variant: "destructive",
       });
       return;
@@ -75,25 +121,73 @@ export default function Auth() {
 
     setIsLoading(true);
     
-    // TODO: Implement actual authentication with Supabase
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      if (isLogin) {
+        const { error } = await signIn(formData.email, formData.password);
+        
+        if (error) {
+          let message = error.message;
+          if (error.message.includes("Invalid login credentials")) {
+            message = "Invalid email or password. Please try again.";
+          }
+          toast({
+            title: "Sign In Failed",
+            description: message,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
+        });
+      } else {
+        const { error } = await signUp(
+          formData.email, 
+          formData.password, 
+          formData.fullName, 
+          selectedRole!
+        );
+        
+        if (error) {
+          let message = error.message;
+          if (error.message.includes("User already registered")) {
+            message = "An account with this email already exists. Please sign in.";
+          }
+          toast({
+            title: "Sign Up Failed",
+            description: message,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        toast({
+          title: "Account created!",
+          description: `Welcome! Your ${ROLE_LABELS[selectedRole!]} account has been created.`,
+        });
+      }
+    } catch (err) {
       toast({
-        title: isLogin ? "Welcome back!" : "Account created!",
-        description: `Signed in as ${ROLE_LABELS[selectedRole]}`,
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
       });
-      // Navigate to appropriate dashboard
-      const dashboardRoutes: Record<UserRole, string> = {
-        super_admin: "/super-admin",
-        admin: "/admin",
-        teacher: "/teacher",
-        student: "/student",
-      };
-      navigate(dashboardRoutes[selectedRole]);
-    }, 1500);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const roles: UserRole[] = ["super_admin", "admin", "teacher", "student"];
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -166,45 +260,53 @@ export default function Auth() {
               </p>
             </div>
 
-            {/* Role Selection */}
-            <div className="mb-6">
-              <Label className="text-sm font-medium mb-3 block">Select your role</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {roles.map((role) => {
-                  const Icon = roleIcons[role];
-                  return (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setSelectedRole(role)}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg border-2 transition-all duration-200",
-                        selectedRole === role
-                          ? cn(roleColors[role], "border-current")
-                          : "border-border hover:border-muted-foreground/30 bg-card"
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-sm font-medium">{ROLE_LABELS[role]}</span>
-                    </button>
-                  );
-                })}
+            {/* Role Selection - Only for signup */}
+            {!isLogin && (
+              <div className="mb-6">
+                <Label className="text-sm font-medium mb-3 block">Select your role</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {roles.map((role) => {
+                    const Icon = roleIcons[role];
+                    return (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => setSelectedRole(role)}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border-2 transition-all duration-200",
+                          selectedRole === role
+                            ? cn(roleColors[role], "border-current")
+                            : "border-border hover:border-muted-foreground/30 bg-card"
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span className="text-sm font-medium">{ROLE_LABELS[role]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <div>
                   <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    required={!isLogin}
-                  />
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Enter your full name"
+                      className={cn("pl-10", errors.fullName && "border-destructive")}
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    />
+                  </div>
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive mt-1">{errors.fullName}</p>
+                  )}
                 </div>
               )}
 
@@ -216,12 +318,14 @@ export default function Auth() {
                     id="email"
                     type="email"
                     placeholder="Enter your email"
-                    className="pl-10"
+                    className={cn("pl-10", errors.email && "border-destructive")}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
                   />
                 </div>
+                {errors.email && (
+                  <p className="text-sm text-destructive mt-1">{errors.email}</p>
+                )}
               </div>
 
               <div>
@@ -232,10 +336,9 @@ export default function Auth() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    className="pl-10 pr-10"
+                    className={cn("pl-10 pr-10", errors.password && "border-destructive")}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
                   />
                   <button
                     type="button"
@@ -245,6 +348,9 @@ export default function Auth() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {errors.password && (
+                  <p className="text-sm text-destructive mt-1">{errors.password}</p>
+                )}
               </div>
 
               {!isLogin && (
@@ -256,12 +362,14 @@ export default function Auth() {
                       id="confirmPassword"
                       type={showPassword ? "text" : "password"}
                       placeholder="Confirm your password"
-                      className="pl-10"
+                      className={cn("pl-10", errors.confirmPassword && "border-destructive")}
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      required={!isLogin}
                     />
                   </div>
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive mt-1">{errors.confirmPassword}</p>
+                  )}
                 </div>
               )}
 
@@ -286,7 +394,10 @@ export default function Auth() {
               {isLogin ? "Don't have an account? " : "Already have an account? "}
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setErrors({});
+                }}
                 className="text-primary font-medium hover:underline"
               >
                 {isLogin ? "Sign up" : "Sign in"}

@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserRole, ROLE_LABELS } from "@/types/auth";
+import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard,
   Users,
@@ -24,6 +25,7 @@ import {
   Shield,
   Calendar,
   Layers,
+  Loader2,
 } from "lucide-react";
 
 interface NavItem {
@@ -80,8 +82,10 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ role }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile, signOut, isLoading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const navItems = roleNavItems[role];
 
@@ -96,6 +100,21 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
   const isActive = (href: string) => location.pathname === href;
   const isParentActive = (item: NavItem) =>
     item.children?.some((child) => location.pathname === child.href);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut();
+    navigate("/");
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -171,12 +190,12 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
           {/* User Section */}
           <div className="p-4 border-t border-sidebar-border">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-10 w-10 rounded-full bg-sidebar-accent flex items-center justify-center">
-                <Users className="h-5 w-5 text-sidebar-accent-foreground" />
+              <div className="h-10 w-10 rounded-full bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-medium">
+                {profile ? getInitials(profile.full_name) : <Users className="h-5 w-5" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  John Doe
+                  {profile?.full_name || "Loading..."}
                 </p>
                 <p className="text-xs text-sidebar-foreground/60 truncate">
                   {ROLE_LABELS[role]}
@@ -187,9 +206,14 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
               variant="ghost"
               size="sm"
               className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-              onClick={() => navigate("/")}
+              onClick={handleSignOut}
+              disabled={isSigningOut}
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              {isSigningOut ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <LogOut className="h-4 w-4 mr-2" />
+              )}
               Sign Out
             </Button>
           </div>
