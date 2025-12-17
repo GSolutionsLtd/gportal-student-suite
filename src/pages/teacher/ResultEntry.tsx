@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,7 +25,8 @@ import {
   Send, 
   Loader2,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Clock
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -79,6 +80,9 @@ export default function ResultEntry() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<string>("");
@@ -93,13 +97,21 @@ export default function ResultEntry() {
   const [resultStatus, setResultStatus] = useState<string>("draft");
   const [resultId, setResultId] = useState<string | null>(null);
 
+  // Refs for auto-save
+  const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+
+  // Keep ref in sync
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+
   // Fetch teacher assignments
   useEffect(() => {
     async function fetchAssignments() {
       if (!user) return;
 
       try {
-        // Get teacher record
         const { data: teacher, error: teacherError } = await supabase
           .from("teachers")
           .select("id")
@@ -112,7 +124,6 @@ export default function ResultEntry() {
           return;
         }
 
-        // Get current session and term
         const { data: currentSession } = await supabase
           .from("academic_sessions")
           .select("id")
@@ -129,7 +140,6 @@ export default function ResultEntry() {
           setCurrentTerm(term);
         }
 
-        // Get score weights for current session
         if (currentSession) {
           const { data: weights } = await supabase
             .from("score_weights")
@@ -146,7 +156,6 @@ export default function ResultEntry() {
           }
         }
 
-        // Get teacher assignments with class and subject info
         const { data: assignmentsData, error: assignmentsError } = await supabase
           .from("teacher_subjects")
           .select(`
@@ -164,7 +173,6 @@ export default function ResultEntry() {
 
         if (assignmentsError) throw assignmentsError;
         
-        // Type assertion for the nested data
         const typedAssignments = (assignmentsData || []).map((a: any) => ({
           id: a.id,
           class_arm_id: a.class_arm_id,
@@ -193,8 +201,10 @@ export default function ResultEntry() {
       if (!assignment) return;
 
       setLoading(true);
+      setHasUnsavedChanges(false);
+      setLastSavedAt(null);
+      
       try {
-        // Fetch students in the class arm
         const { data: studentsData, error: studentsError } = await supabase
           .from("students")
           .select("id, admission_number, first_name, last_name, middle_name")
@@ -205,7 +215,6 @@ export default function ResultEntry() {
         if (studentsError) throw studentsError;
         setStudents(studentsData || []);
 
-        // Initialize scores for all students
         const initialScores: Record<string, ScoreEntry> = {};
         (studentsData || []).forEach(student => {
           initialScores[student.id] = {
@@ -217,7 +226,6 @@ export default function ResultEntry() {
           };
         });
 
-        // Check for existing results
         const { data: existingResults, error: resultsError } = await supabase
           .from("results")
           .select(`
@@ -239,7 +247,6 @@ export default function ResultEntry() {
 
         if (resultsError) throw resultsError;
 
-        // Populate existing scores
         if (existingResults && existingResults.length > 0) {
           existingResults.forEach((result: any) => {
             const component = result.result_components?.find(
@@ -255,7 +262,6 @@ export default function ResultEntry() {
                 result_component_id: component.id,
               };
             }
-            // Use the first result's status as the overall status
             if (result.status) {
               setResultStatus(result.status);
               setResultId(result.id);
@@ -288,7 +294,6 @@ export default function ResultEntry() {
     const t2 = test2_score || 0;
     const exam = exam_score || 0;
 
-    // Weighted calculation: scores are entered as raw values, weights as percentages
     const total = 
       (t1 * scoreWeights.test1_weight / 100) +
       (t2 * scoreWeights.test2_weight / 100) +
@@ -309,26 +314,30 @@ export default function ResultEntry() {
           [field]: numValue,
         },
       };
-      // Recalculate total
       updated[studentId].total_score = calculateTotal(updated[studentId]);
       return updated;
     });
+    setHasUnsavedChanges(true);
   };
 
-  // Save scores as draft
-  const handleSave = async () => {
-    if (!selectedAssignment || !currentTerm) return;
+  // Save scores as draft (used for manual save and auto-save)
+  const saveScores = useCallback(async (isAutoSave = false) => {
+    if (!selectedAssignment || !currentTerm || students.length === 0) return false;
     
     const assignment = assignments.find(a => a.id === selectedAssignment);
-    if (!assignment) return;
+    if (!assignment) return false;
 
-    setSaving(true);
+    if (isAutoSave) {
+      setAutoSaving(true);
+    } else {
+      setSaving(true);
+    }
+
     try {
       for (const student of students) {
         const entry = scores[student.id];
         if (!entry) continue;
 
-        // Check if result exists for this student
         let { data: existingResult } = await supabase
           .from("results")
           .select("id")
@@ -337,10 +346,9 @@ export default function ResultEntry() {
           .eq("class_arm_id", assignment.class_arm_id)
           .maybeSingle();
 
-        let resultId = existingResult?.id;
+        let resultIdLocal = existingResult?.id;
 
-        // Create result if doesn't exist
-        if (!resultId) {
+        if (!resultIdLocal) {
           const { data: newResult, error: resultError } = await supabase
             .from("results")
             .insert({
@@ -353,12 +361,10 @@ export default function ResultEntry() {
             .single();
 
           if (resultError) throw resultError;
-          resultId = newResult.id;
+          resultIdLocal = newResult.id;
         }
 
-        // Upsert result component
         if (entry.result_component_id) {
-          // Update existing
           const { error } = await supabase
             .from("result_components")
             .update({
@@ -373,11 +379,10 @@ export default function ResultEntry() {
 
           if (error) throw error;
         } else {
-          // Insert new
           const { data: newComponent, error } = await supabase
             .from("result_components")
             .insert({
-              result_id: resultId,
+              result_id: resultIdLocal,
               subject_id: assignment.subject_id,
               test1_score: entry.test1_score,
               test2_score: entry.test2_score,
@@ -390,7 +395,6 @@ export default function ResultEntry() {
 
           if (error) throw error;
           
-          // Update local state with new component id
           setScores(prev => ({
             ...prev,
             [student.id]: {
@@ -401,13 +405,56 @@ export default function ResultEntry() {
         }
       }
 
-      toast({ title: "Success", description: "Scores saved as draft" });
+      setLastSavedAt(new Date());
+      setHasUnsavedChanges(false);
       setResultStatus("draft");
+      
+      if (!isAutoSave) {
+        toast({ title: "Success", description: "Scores saved as draft" });
+      }
+      
+      return true;
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      if (!isAutoSave) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
+      return false;
     } finally {
-      setSaving(false);
+      if (isAutoSave) {
+        setAutoSaving(false);
+      } else {
+        setSaving(false);
+      }
     }
+  }, [selectedAssignment, currentTerm, students, scores, assignments, user?.id, toast]);
+
+  // Auto-save effect
+  useEffect(() => {
+    // Clear any existing interval
+    if (autoSaveIntervalRef.current) {
+      clearInterval(autoSaveIntervalRef.current);
+    }
+
+    // Only set up auto-save if we have students and are in editable state
+    if (selectedAssignment && students.length > 0 && 
+        resultStatus !== "submitted" && resultStatus !== "approved" && resultStatus !== "published") {
+      autoSaveIntervalRef.current = setInterval(async () => {
+        if (hasUnsavedChangesRef.current && !saving && !submitting) {
+          await saveScores(true);
+        }
+      }, 30000); // 30 seconds
+    }
+
+    return () => {
+      if (autoSaveIntervalRef.current) {
+        clearInterval(autoSaveIntervalRef.current);
+      }
+    };
+  }, [selectedAssignment, students.length, resultStatus, saving, submitting, saveScores]);
+
+  // Handle manual save
+  const handleSave = async () => {
+    await saveScores(false);
   };
 
   // Submit scores for approval
@@ -417,7 +464,6 @@ export default function ResultEntry() {
     const assignment = assignments.find(a => a.id === selectedAssignment);
     if (!assignment) return;
 
-    // Validate all scores are entered
     const incomplete = students.some(s => {
       const entry = scores[s.id];
       return !entry || entry.test1_score === null || entry.test2_score === null || entry.exam_score === null;
@@ -434,10 +480,8 @@ export default function ResultEntry() {
 
     setSubmitting(true);
     try {
-      // First save all scores
-      await handleSave();
+      await saveScores(false);
 
-      // Update all results to submitted status
       const { error } = await supabase
         .from("results")
         .update({
@@ -453,6 +497,7 @@ export default function ResultEntry() {
 
       toast({ title: "Success", description: "Results submitted for approval" });
       setResultStatus("submitted");
+      setHasUnsavedChanges(false);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -461,6 +506,11 @@ export default function ResultEntry() {
   };
 
   const selectedAssignmentData = assignments.find(a => a.id === selectedAssignment);
+
+  // Format time for display
+  const formatLastSaved = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <div className="space-y-6">
@@ -475,6 +525,27 @@ export default function ResultEntry() {
             {currentTerm ? currentTerm.name : "No active term"}
           </p>
         </div>
+        {/* Auto-save indicator */}
+        {selectedAssignment && students.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {autoSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Auto-saving...</span>
+              </>
+            ) : hasUnsavedChanges ? (
+              <>
+                <Clock className="h-4 w-4" />
+                <span>Unsaved changes</span>
+              </>
+            ) : lastSavedAt ? (
+              <>
+                <CheckCircle className="h-4 w-4 text-success" />
+                <span>Saved at {formatLastSaved(lastSavedAt)}</span>
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* Selection */}
@@ -644,30 +715,35 @@ export default function ResultEntry() {
 
           {/* Actions */}
           {students.length > 0 && resultStatus !== "submitted" && resultStatus !== "approved" && resultStatus !== "published" && (
-            <div className="flex items-center justify-end gap-3 p-4 border-t border-border bg-muted/30">
-              <Button
-                variant="outline"
-                onClick={handleSave}
-                disabled={saving || submitting}
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Save Draft
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={saving || submitting}
-              >
-                {submitting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
-                Submit for Approval
-              </Button>
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/30">
+              <p className="text-xs text-muted-foreground">
+                Auto-saves every 30 seconds when changes are made
+              </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={saving || submitting || autoSaving}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  Save Draft
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={saving || submitting || autoSaving}
+                >
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  Submit for Approval
+                </Button>
+              </div>
             </div>
           )}
         </div>
