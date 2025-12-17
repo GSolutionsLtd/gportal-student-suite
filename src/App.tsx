@@ -21,6 +21,7 @@ import { DashboardLayout } from "./components/layouts/DashboardLayout";
 import SuperAdminDashboard from "./pages/dashboards/SuperAdminDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
+import TeacherResultEntry from "./pages/teacher/ResultEntry";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
               }
             >
               <Route index element={<TeacherDashboard />} />
+              <Route path="results" element={<TeacherResultEntry />} />
             </Route>
 
             {/* Student Routes */}
