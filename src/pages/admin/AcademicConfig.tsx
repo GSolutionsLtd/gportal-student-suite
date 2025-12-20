@@ -6,7 +6,8 @@ import { ClassesTab } from "@/components/admin/academic/ClassesTab";
 import { ClassArmsTab } from "@/components/admin/academic/ClassArmsTab";
 import { SubjectsTab } from "@/components/admin/academic/SubjectsTab";
 import { GradingScalesTab } from "@/components/admin/academic/GradingScalesTab";
-import { Calendar, BookOpen, Users, Layers, GraduationCap, Award } from "lucide-react";
+import { ScoreWeightsTab } from "@/components/admin/academic/ScoreWeightsTab";
+import { Calendar, BookOpen, Users, Layers, GraduationCap, Award, Percent } from "lucide-react";
 
 const AcademicConfig = () => {
   const [activeTab, setActiveTab] = useState("sessions");
@@ -21,7 +22,7 @@ const AcademicConfig = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 h-auto gap-2">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 h-auto gap-2">
           <TabsTrigger value="sessions" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Sessions</span>
@@ -46,6 +47,10 @@ const AcademicConfig = () => {
             <Award className="h-4 w-4" />
             <span className="hidden sm:inline">Grading</span>
           </TabsTrigger>
+          <TabsTrigger value="weights" className="flex items-center gap-2">
+            <Percent className="h-4 w-4" />
+            <span className="hidden sm:inline">Weights</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="sessions">
@@ -65,6 +70,9 @@ const AcademicConfig = () => {
         </TabsContent>
         <TabsContent value="grading">
           <GradingScalesTab />
+        </TabsContent>
+        <TabsContent value="weights">
+          <ScoreWeightsTab />
         </TabsContent>
       </Tabs>
     </div>
