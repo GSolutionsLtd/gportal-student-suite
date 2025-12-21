@@ -25,6 +25,7 @@ import TeacherResultEntry from "./pages/teacher/ResultEntry";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import AdminResultApproval from "./pages/admin/ResultApproval";
 import AcademicConfig from "./pages/admin/AcademicConfig";
+import TeacherManagement from "./pages/admin/TeacherManagement";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route index element={<AdminDashboard />} />
               <Route path="results" element={<AdminResultApproval />} />
               <Route path="academic" element={<AcademicConfig />} />
+              <Route path="teachers" element={<TeacherManagement />} />
             </Route>
 
             {/* Teacher Routes */}
