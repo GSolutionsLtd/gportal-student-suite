@@ -27,6 +27,7 @@ import AdminResultApproval from "./pages/admin/ResultApproval";
 import AcademicConfig from "./pages/admin/AcademicConfig";
 import TeacherManagement from "./pages/admin/TeacherManagement";
 import PinManagement from "./pages/admin/PinManagement";
+import StudentManagement from "./pages/admin/StudentManagement";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="academic" element={<AcademicConfig />} />
               <Route path="teachers" element={<TeacherManagement />} />
               <Route path="pins" element={<PinManagement />} />
+              <Route path="students" element={<StudentManagement />} />
             </Route>
 
             {/* Teacher Routes */}
