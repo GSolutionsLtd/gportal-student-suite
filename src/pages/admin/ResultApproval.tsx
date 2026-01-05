@@ -3,10 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -34,7 +42,11 @@ import {
   AlertCircle,
   Send,
   CheckCheck,
+  Search,
+  Filter,
+  Calendar,
 } from "lucide-react";
+import { format } from "date-fns";
 
 interface ResultItem {
   id: string;
@@ -82,12 +94,26 @@ interface ResultItem {
   }[];
 }
 
+interface ClassArm {
+  id: string;
+  name: string;
+  class: { name: string };
+}
+
+interface Term {
+  id: string;
+  name: string;
+  session: { name: string };
+}
+
 export default function ResultApproval() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [submittedResults, setSubmittedResults] = useState<ResultItem[]>([]);
   const [approvedResults, setApprovedResults] = useState<ResultItem[]>([]);
+  const [filteredSubmitted, setFilteredSubmitted] = useState<ResultItem[]>([]);
+  const [filteredApproved, setFilteredApproved] = useState<ResultItem[]>([]);
   const [selectedResult, setSelectedResult] = useState<ResultItem | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -97,9 +123,59 @@ export default function ResultApproval() {
   const [selectedApprovedIds, setSelectedApprovedIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("pending");
 
+  // Filters
+  const [classArms, setClassArms] = useState<ClassArm[]>([]);
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClassArm, setSelectedClassArm] = useState<string>("all");
+  const [selectedTerm, setSelectedTerm] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+
   useEffect(() => {
+    fetchFiltersData();
     fetchResults();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [submittedResults, approvedResults, searchQuery, selectedClassArm, selectedTerm, dateFrom, dateTo]);
+
+  const fetchFiltersData = async () => {
+    const [{ data: classArmsData }, { data: termsData }] = await Promise.all([
+      supabase.from("class_arms").select("id, name, class:classes(name)").eq("is_active", true),
+      supabase.from("terms").select("id, name, session:academic_sessions(name)").order("created_at", { ascending: false }),
+    ]);
+    setClassArms((classArmsData as ClassArm[]) || []);
+    setTerms((termsData as Term[]) || []);
+  };
+
+  const applyFilters = () => {
+    const filterResults = (results: ResultItem[]) => {
+      return results.filter((result) => {
+        const matchesSearch =
+          searchQuery === "" ||
+          result.student.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          result.student.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          result.student.admission_number.toLowerCase().includes(searchQuery.toLowerCase());
+
+        const matchesClass = selectedClassArm === "all" || result.class_arm_id === selectedClassArm;
+        const matchesTerm = selectedTerm === "all" || result.term_id === selectedTerm;
+
+        let matchesDate = true;
+        if (result.submitted_at) {
+          const submittedDate = new Date(result.submitted_at);
+          if (dateFrom) matchesDate = matchesDate && submittedDate >= new Date(dateFrom);
+          if (dateTo) matchesDate = matchesDate && submittedDate <= new Date(dateTo + "T23:59:59");
+        }
+
+        return matchesSearch && matchesClass && matchesTerm && matchesDate;
+      });
+    };
+
+    setFilteredSubmitted(filterResults(submittedResults));
+    setFilteredApproved(filterResults(approvedResults));
+  };
 
   const fetchResults = async () => {
     try {
@@ -110,21 +186,10 @@ export default function ResultApproval() {
     }
   };
 
-  const fetchResultsByStatus = async (status: "submitted" | "approved" | "published" | "draft" | "rejected"): Promise<ResultItem[]> => {
+  const fetchResultsByStatus = async (status: "submitted" | "approved"): Promise<ResultItem[]> => {
     const { data: results, error } = await supabase
       .from("results")
-      .select(`
-        id,
-        student_id,
-        term_id,
-        class_arm_id,
-        status,
-        total_score,
-        average_score,
-        submitted_at,
-        submitted_by,
-        approved_at
-      `)
+      .select("id, student_id, term_id, class_arm_id, status, total_score, average_score, submitted_at, submitted_by, approved_at")
       .eq("status", status)
       .order("submitted_at", { ascending: false });
 
@@ -133,46 +198,22 @@ export default function ResultApproval() {
 
     const enrichedResults = await Promise.all(
       results.map(async (result) => {
-        const { data: student } = await supabase
-          .from("students")
-          .select("first_name, last_name, admission_number")
-          .eq("id", result.student_id)
-          .maybeSingle();
-
-        const { data: term } = await supabase
-          .from("terms")
-          .select("name, session:academic_sessions(name)")
-          .eq("id", result.term_id)
-          .maybeSingle();
-
-        const { data: classArm } = await supabase
-          .from("class_arms")
-          .select("name, class:classes(name)")
-          .eq("id", result.class_arm_id)
-          .maybeSingle();
+        const [{ data: student }, { data: term }, { data: classArm }, { data: components }] = await Promise.all([
+          supabase.from("students").select("first_name, last_name, admission_number").eq("id", result.student_id).maybeSingle(),
+          supabase.from("terms").select("name, session:academic_sessions(name)").eq("id", result.term_id).maybeSingle(),
+          supabase.from("class_arms").select("name, class:classes(name)").eq("id", result.class_arm_id).maybeSingle(),
+          supabase.from("result_components").select("id, subject_id, test1_score, test2_score, exam_score, total_score, grade").eq("result_id", result.id),
+        ]);
 
         let submitter = null;
         if (result.submitted_by) {
-          const { data: submitterData } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", result.submitted_by)
-            .maybeSingle();
+          const { data: submitterData } = await supabase.from("profiles").select("full_name").eq("id", result.submitted_by).maybeSingle();
           submitter = submitterData;
         }
 
-        const { data: components } = await supabase
-          .from("result_components")
-          .select(`id, subject_id, test1_score, test2_score, exam_score, total_score, grade`)
-          .eq("result_id", result.id);
-
         const enrichedComponents = await Promise.all(
           (components || []).map(async (comp) => {
-            const { data: subject } = await supabase
-              .from("subjects")
-              .select("name, code")
-              .eq("id", comp.subject_id)
-              .maybeSingle();
+            const { data: subject } = await supabase.from("subjects").select("name, code").eq("id", comp.subject_id).maybeSingle();
             return { ...comp, subject: subject || { name: "Unknown", code: "N/A" } };
           })
         );
@@ -221,10 +262,7 @@ export default function ResultApproval() {
 
       if (error) throw error;
 
-      toast({
-        title: "Result Approved",
-        description: `Result for ${result.student.first_name} ${result.student.last_name} has been approved.`,
-      });
+      toast({ title: "Result Approved", description: `Result for ${result.student.first_name} ${result.student.last_name} has been approved.` });
       fetchResults();
     } catch (error) {
       console.error("Error approving result:", error);
@@ -248,11 +286,7 @@ export default function ResultApproval() {
 
       if (error) throw error;
 
-      toast({
-        title: "Results Approved",
-        description: `${ids.length} result(s) have been approved.`,
-      });
-
+      toast({ title: "Results Approved", description: `${ids.length} result(s) have been approved.` });
       setSelectedIds(new Set());
       fetchResults();
     } catch (error) {
@@ -273,10 +307,7 @@ export default function ResultApproval() {
 
       if (error) throw error;
 
-      toast({
-        title: "Result Published",
-        description: `Result for ${result.student.first_name} ${result.student.last_name} is now visible to the student.`,
-      });
+      toast({ title: "Result Published", description: `Result for ${result.student.first_name} ${result.student.last_name} is now visible to the student.` });
       fetchResults();
     } catch (error) {
       console.error("Error publishing result:", error);
@@ -300,11 +331,7 @@ export default function ResultApproval() {
 
       if (error) throw error;
 
-      toast({
-        title: "Results Published",
-        description: `${ids.length} result(s) are now visible to students.`,
-      });
-
+      toast({ title: "Results Published", description: `${ids.length} result(s) are now visible to students.` });
       setSelectedApprovedIds(new Set());
       fetchResults();
     } catch (error) {
@@ -322,16 +349,12 @@ export default function ResultApproval() {
       setProcessing(true);
       const { error } = await supabase
         .from("results")
-        .update({ status: "draft", remarks: rejectReason })
+        .update({ status: "rejected", remarks: rejectReason })
         .eq("id", selectedResult.id);
 
       if (error) throw error;
 
-      toast({
-        title: "Result Rejected",
-        description: `Result for ${selectedResult.student.first_name} ${selectedResult.student.last_name} has been rejected.`,
-      });
-
+      toast({ title: "Result Rejected", description: `Result for ${selectedResult.student.first_name} ${selectedResult.student.last_name} has been rejected.` });
       setRejectDialogOpen(false);
       setRejectReason("");
       setSelectedResult(null);
@@ -372,6 +395,14 @@ export default function ResultApproval() {
   const openRejectDialog = (result: ResultItem) => {
     setSelectedResult(result);
     setRejectDialogOpen(true);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedClassArm("all");
+    setSelectedTerm("all");
+    setDateFrom("");
+    setDateTo("");
   };
 
   if (loading) {
@@ -426,16 +457,74 @@ export default function ResultApproval() {
         </Card>
       </div>
 
+      {/* Filters */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search student..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={selectedClassArm} onValueChange={setSelectedClassArm}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                {classArms.map((ca) => (
+                  <SelectItem key={ca.id} value={ca.id}>
+                    {ca.class.name} - {ca.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Terms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Terms</SelectItem>
+                {terms.map((term) => (
+                  <SelectItem key={term.id} value={term.id}>
+                    {term.name} - {term.session.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2">
+              <Input type="date" placeholder="From" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Input type="date" placeholder="To" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pending" className="gap-2">
             <Clock className="h-4 w-4" />
-            Pending ({submittedResults.length})
+            Pending ({filteredSubmitted.length})
           </TabsTrigger>
           <TabsTrigger value="approved" className="gap-2">
             <CheckCircle className="h-4 w-4" />
-            Approved ({approvedResults.length})
+            Approved ({filteredApproved.length})
           </TabsTrigger>
         </TabsList>
 
@@ -455,7 +544,7 @@ export default function ResultApproval() {
               )}
             </CardHeader>
             <CardContent>
-              {submittedResults.length === 0 ? (
+              {filteredSubmitted.length === 0 ? (
                 <div className="text-center py-12">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium">No pending results</h3>
@@ -467,26 +556,24 @@ export default function ResultApproval() {
                     <TableRow>
                       <TableHead className="w-12">
                         <Checkbox
-                          checked={selectedIds.size === submittedResults.length && submittedResults.length > 0}
-                          onCheckedChange={() => toggleSelectAll(submittedResults, false)}
+                          checked={selectedIds.size === filteredSubmitted.length && filteredSubmitted.length > 0}
+                          onCheckedChange={() => toggleSelectAll(filteredSubmitted, false)}
                         />
                       </TableHead>
                       <TableHead>Student</TableHead>
                       <TableHead>Class</TableHead>
                       <TableHead>Term</TableHead>
                       <TableHead>Submitted By</TableHead>
+                      <TableHead>Submitted At</TableHead>
                       <TableHead>Average</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {submittedResults.map((result) => (
+                    {filteredSubmitted.map((result) => (
                       <TableRow key={result.id}>
                         <TableCell>
-                          <Checkbox
-                            checked={selectedIds.has(result.id)}
-                            onCheckedChange={() => toggleSelect(result.id, false)}
-                          />
+                          <Checkbox checked={selectedIds.has(result.id)} onCheckedChange={() => toggleSelect(result.id, false)} />
                         </TableCell>
                         <TableCell>
                           <div>
@@ -501,33 +588,22 @@ export default function ResultApproval() {
                             <p className="text-sm text-muted-foreground">{result.term.session?.name}</p>
                           </div>
                         </TableCell>
-                        <TableCell>{result.submitter?.full_name || "Unknown"}</TableCell>
+                        <TableCell>{result.submitter?.full_name || "-"}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{result.average_score?.toFixed(1) || "-"}%</Badge>
+                          {result.submitted_at ? format(new Date(result.submitted_at), "MMM d, yyyy HH:mm") : "-"}
                         </TableCell>
                         <TableCell>
+                          <Badge variant="outline">{result.average_score ? `${Number(result.average_score).toFixed(1)}%` : "-"}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)} title="View">
+                            <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-success hover:text-success hover:bg-success/10"
-                              onClick={() => handleApprove(result)}
-                              disabled={processing}
-                              title="Approve"
-                            >
+                            <Button variant="ghost" size="icon" className="text-success hover:text-success" onClick={() => handleApprove(result)} disabled={processing}>
                               <CheckCircle className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => openRejectDialog(result)}
-                              disabled={processing}
-                              title="Reject"
-                            >
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => openRejectDialog(result)}>
                               <XCircle className="h-4 w-4" />
                             </Button>
                           </div>
@@ -557,11 +633,11 @@ export default function ResultApproval() {
               )}
             </CardHeader>
             <CardContent>
-              {approvedResults.length === 0 ? (
+              {filteredApproved.length === 0 ? (
                 <div className="text-center py-12">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium">No approved results</h3>
-                  <p className="text-muted-foreground">Approve results from the pending tab to publish them.</p>
+                  <p className="text-muted-foreground">Approve results to publish them for students.</p>
                 </div>
               ) : (
                 <Table>
@@ -569,8 +645,8 @@ export default function ResultApproval() {
                     <TableRow>
                       <TableHead className="w-12">
                         <Checkbox
-                          checked={selectedApprovedIds.size === approvedResults.length && approvedResults.length > 0}
-                          onCheckedChange={() => toggleSelectAll(approvedResults, true)}
+                          checked={selectedApprovedIds.size === filteredApproved.length && filteredApproved.length > 0}
+                          onCheckedChange={() => toggleSelectAll(filteredApproved, true)}
                         />
                       </TableHead>
                       <TableHead>Student</TableHead>
@@ -582,13 +658,10 @@ export default function ResultApproval() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {approvedResults.map((result) => (
+                    {filteredApproved.map((result) => (
                       <TableRow key={result.id}>
                         <TableCell>
-                          <Checkbox
-                            checked={selectedApprovedIds.has(result.id)}
-                            onCheckedChange={() => toggleSelect(result.id, true)}
-                          />
+                          <Checkbox checked={selectedApprovedIds.has(result.id)} onCheckedChange={() => toggleSelect(result.id, true)} />
                         </TableCell>
                         <TableCell>
                           <div>
@@ -604,25 +677,19 @@ export default function ResultApproval() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {result.approved_at ? new Date(result.approved_at).toLocaleDateString() : "N/A"}
+                          {result.approved_at ? format(new Date(result.approved_at), "MMM d, yyyy HH:mm") : "-"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{result.average_score?.toFixed(1) || "-"}%</Badge>
+                          <Badge variant="outline">{result.average_score ? `${Number(result.average_score).toFixed(1)}%` : "-"}</Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)} title="View">
+                            <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-primary hover:text-primary hover:bg-primary/10"
-                              onClick={() => handlePublish(result)}
-                              disabled={processing}
-                              title="Publish"
-                            >
-                              <Send className="h-4 w-4" />
+                            <Button size="sm" onClick={() => handlePublish(result)} disabled={processing} className="gap-1">
+                              <Send className="h-3 w-3" />
+                              Publish
                             </Button>
                           </div>
                         </TableCell>
@@ -636,44 +703,35 @@ export default function ResultApproval() {
         </TabsContent>
       </Tabs>
 
-      {/* View Details Dialog */}
+      {/* View Result Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Result Details</DialogTitle>
             <DialogDescription>
-              {selectedResult && (
-                <>
-                  {selectedResult.student.first_name} {selectedResult.student.last_name} -{" "}
-                  {selectedResult.class_arm.class?.name} ({selectedResult.class_arm.name})
-                </>
-              )}
+              {selectedResult && `${selectedResult.student.first_name} ${selectedResult.student.last_name} - ${selectedResult.term.name}`}
             </DialogDescription>
           </DialogHeader>
-
           {selectedResult && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Admission No:</span>{" "}
-                  <span className="font-medium">{selectedResult.student.admission_number}</span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-3 rounded-lg bg-secondary">
+                  <p className="text-xs text-muted-foreground">Admission No.</p>
+                  <p className="font-medium">{selectedResult.student.admission_number}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Term:</span>{" "}
-                  <span className="font-medium">
-                    {selectedResult.term.name} ({selectedResult.term.session?.name})
-                  </span>
+                <div className="p-3 rounded-lg bg-secondary">
+                  <p className="text-xs text-muted-foreground">Class</p>
+                  <p className="font-medium">{selectedResult.class_arm.class?.name} - {selectedResult.class_arm.name}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Total Score:</span>{" "}
-                  <span className="font-medium">{selectedResult.total_score || "-"}</span>
+                <div className="p-3 rounded-lg bg-secondary">
+                  <p className="text-xs text-muted-foreground">Total Score</p>
+                  <p className="font-medium">{selectedResult.total_score ?? "-"}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Average:</span>{" "}
-                  <span className="font-medium">{selectedResult.average_score?.toFixed(2) || "-"}%</span>
+                <div className="p-3 rounded-lg bg-secondary">
+                  <p className="text-xs text-muted-foreground">Average</p>
+                  <p className="font-medium">{selectedResult.average_score ? `${Number(selectedResult.average_score).toFixed(1)}%` : "-"}</p>
                 </div>
               </div>
-
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -688,16 +746,11 @@ export default function ResultApproval() {
                 <TableBody>
                   {selectedResult.components.map((comp) => (
                     <TableRow key={comp.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{comp.subject.name}</p>
-                          <p className="text-xs text-muted-foreground">{comp.subject.code}</p>
-                        </div>
-                      </TableCell>
+                      <TableCell className="font-medium">{comp.subject.name}</TableCell>
                       <TableCell className="text-center">{comp.test1_score ?? "-"}</TableCell>
                       <TableCell className="text-center">{comp.test2_score ?? "-"}</TableCell>
                       <TableCell className="text-center">{comp.exam_score ?? "-"}</TableCell>
-                      <TableCell className="text-center font-medium">{comp.total_score?.toFixed(1) ?? "-"}</TableCell>
+                      <TableCell className="text-center font-medium">{comp.total_score ?? "-"}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline">{comp.grade || "-"}</Badge>
                       </TableCell>
@@ -707,47 +760,8 @@ export default function ResultApproval() {
               </Table>
             </div>
           )}
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-              Close
-            </Button>
-            {selectedResult?.status === "submitted" && (
-              <>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    if (selectedResult) openRejectDialog(selectedResult);
-                  }}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (selectedResult) handleApprove(selectedResult);
-                    setViewDialogOpen(false);
-                  }}
-                  disabled={processing}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-              </>
-            )}
-            {selectedResult?.status === "approved" && (
-              <Button
-                onClick={() => {
-                  if (selectedResult) handlePublish(selectedResult);
-                  setViewDialogOpen(false);
-                }}
-                disabled={processing}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Publish
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -758,23 +772,19 @@ export default function ResultApproval() {
           <DialogHeader>
             <DialogTitle>Reject Result</DialogTitle>
             <DialogDescription>
-              Provide a reason for rejecting this result. The teacher will see this feedback.
+              Provide a reason for rejecting this result. The teacher will be notified.
             </DialogDescription>
           </DialogHeader>
-
           <Textarea
-            placeholder="Enter reason for rejection..."
+            placeholder="Enter rejection reason..."
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             rows={4}
           />
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRejectDialogOpen(false); setRejectReason(""); }}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!rejectReason.trim() || processing}>
-              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={processing || !rejectReason.trim()}>
+              {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Reject Result
             </Button>
           </DialogFooter>

@@ -44,34 +44,19 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   ],
   admin: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
-    { 
-      label: "Academic Setup", 
-      icon: Calendar, 
-      href: "/admin/academic",
-      children: [
-        { label: "Sessions", href: "/admin/academic/sessions" },
-        { label: "Terms", href: "/admin/academic/terms" },
-        { label: "Classes", href: "/admin/academic/classes" },
-        { label: "Subjects", href: "/admin/academic/subjects" },
-        { label: "Grading", href: "/admin/academic/grading" },
-      ]
-    },
+    { label: "Academic Setup", icon: Calendar, href: "/admin/academic" },
     { label: "Students", icon: GraduationCap, href: "/admin/students" },
     { label: "Teachers", icon: School, href: "/admin/teachers" },
     { label: "Result Approval", icon: FileCheck, href: "/admin/results" },
     { label: "PIN Management", icon: Key, href: "/admin/pins" },
-    { label: "Reports", icon: BarChart3, href: "/admin/reports" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },
-    { label: "My Classes", icon: Layers, href: "/teacher/classes" },
     { label: "Result Entry", icon: ClipboardList, href: "/teacher/results" },
-    { label: "Submissions", icon: FileCheck, href: "/teacher/submissions" },
   ],
   student: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/student" },
     { label: "My Results", icon: ClipboardList, href: "/student/results" },
-    { label: "Profile", icon: Users, href: "/student/profile" },
   ],
 };
 

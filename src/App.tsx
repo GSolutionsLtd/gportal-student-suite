@@ -23,6 +23,7 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
 import TeacherResultEntry from "./pages/teacher/ResultEntry";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
+import StudentMyResults from "./pages/student/MyResults";
 import AdminResultApproval from "./pages/admin/ResultApproval";
 import AcademicConfig from "./pages/admin/AcademicConfig";
 import TeacherManagement from "./pages/admin/TeacherManagement";
@@ -96,6 +97,7 @@ const App = () => (
               }
             >
               <Route index element={<StudentDashboard />} />
+              <Route path="results" element={<StudentMyResults />} />
             </Route>
 
             {/* Catch-all */}
