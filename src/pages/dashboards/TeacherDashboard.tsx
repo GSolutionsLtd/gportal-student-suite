@@ -1,60 +1,311 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   Users, 
   BookOpen,
   ClipboardList,
-  FileCheck,
   Clock,
   CheckCircle,
   AlertCircle,
-  Edit
+  Edit,
+  Loader2,
+  Layers,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+
+interface ClassAssignment {
+  id: string;
+  classArmName: string;
+  className: string;
+  subjectName: string;
+  studentCount: number;
+  status: "not_started" | "in_progress" | "submitted" | "approved";
+}
+
+interface RecentSubmission {
+  id: string;
+  className: string;
+  subjectName: string;
+  submittedAt: string;
+  status: string;
+}
 
 export default function TeacherDashboard() {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [assignments, setAssignments] = useState<ClassAssignment[]>([]);
+  const [recentSubmissions, setRecentSubmissions] = useState<RecentSubmission[]>([]);
+  const [stats, setStats] = useState({
+    assignedClasses: 0,
+    subjectsTaught: 0,
+    resultsSubmitted: 0,
+    pendingEntry: 0,
+  });
+
+  useEffect(() => {
+    fetchTeacherData();
+  }, [user]);
+
+  const fetchTeacherData = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+
+      // Get teacher record
+      const { data: teacher, error: teacherError } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (teacherError) throw teacherError;
+      if (!teacher) {
+        setLoading(false);
+        return;
+      }
+
+      // Get current session
+      const { data: currentSession } = await supabase
+        .from("academic_sessions")
+        .select("id")
+        .eq("is_current", true)
+        .maybeSingle();
+
+      if (!currentSession) {
+        setLoading(false);
+        return;
+      }
+
+      // Get current term
+      const { data: currentTerm } = await supabase
+        .from("terms")
+        .select("id")
+        .eq("is_current", true)
+        .maybeSingle();
+
+      // Get teacher assignments for current session
+      const { data: teacherSubjects, error: assignError } = await supabase
+        .from("teacher_subjects")
+        .select("id, class_arm_id, subject_id")
+        .eq("teacher_id", teacher.id)
+        .eq("session_id", currentSession.id);
+
+      if (assignError) throw assignError;
+      if (!teacherSubjects || teacherSubjects.length === 0) {
+        setAssignments([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique subjects count
+      const uniqueSubjects = new Set(teacherSubjects.map((ts) => ts.subject_id));
+
+      // Enrich assignments with details
+      const enrichedAssignments = await Promise.all(
+        teacherSubjects.slice(0, 8).map(async (ts) => {
+          const [{ data: classArm }, { data: subject }] = await Promise.all([
+            supabase.from("class_arms").select("id, name, class:classes(name)").eq("id", ts.class_arm_id).maybeSingle(),
+            supabase.from("subjects").select("id, name").eq("id", ts.subject_id).maybeSingle(),
+          ]);
+
+          // Get student count
+          const { count: studentCount } = await supabase
+            .from("students")
+            .select("id", { count: "exact", head: true })
+            .eq("current_class_arm_id", ts.class_arm_id)
+            .eq("is_active", true);
+
+          // Determine status based on results
+          let status: ClassAssignment["status"] = "not_started";
+          if (currentTerm) {
+            const { data: results } = await supabase
+              .from("results")
+              .select("id, status")
+              .eq("class_arm_id", ts.class_arm_id)
+              .eq("term_id", currentTerm.id);
+
+            if (results && results.length > 0) {
+              const resultIds = results.map((r) => r.id);
+              const { count: componentCount } = await supabase
+                .from("result_components")
+                .select("id", { count: "exact", head: true })
+                .eq("subject_id", ts.subject_id)
+                .in("result_id", resultIds);
+
+              if (componentCount && componentCount > 0) {
+                const submittedResults = results.filter((r) => r.status === "submitted" || r.status === "approved" || r.status === "published");
+                if (submittedResults.length === results.length) {
+                  const approvedResults = results.filter((r) => r.status === "approved" || r.status === "published");
+                  status = approvedResults.length > 0 ? "approved" : "submitted";
+                } else if (componentCount < (studentCount || 0)) {
+                  status = "in_progress";
+                } else {
+                  status = "in_progress";
+                }
+              }
+            }
+          }
+
+          return {
+            id: ts.id,
+            classArmName: classArm?.name || "Unknown",
+            className: classArm?.class?.name || "Unknown",
+            subjectName: subject?.name || "Unknown",
+            studentCount: studentCount || 0,
+            status,
+          };
+        })
+      );
+
+      setAssignments(enrichedAssignments);
+
+      // Calculate stats
+      const submittedCount = enrichedAssignments.filter((a) => a.status === "submitted" || a.status === "approved").length;
+      const pendingCount = enrichedAssignments.filter((a) => a.status === "not_started" || a.status === "in_progress").length;
+
+      setStats({
+        assignedClasses: teacherSubjects.length,
+        subjectsTaught: uniqueSubjects.size,
+        resultsSubmitted: submittedCount,
+        pendingEntry: pendingCount,
+      });
+
+      // Get recent submissions
+      if (currentTerm) {
+        const classArmIds = teacherSubjects.map((ts) => ts.class_arm_id);
+        const { data: submissions } = await supabase
+          .from("results")
+          .select("id, class_arm_id, submitted_at, status")
+          .in("class_arm_id", classArmIds)
+          .eq("term_id", currentTerm.id)
+          .not("submitted_at", "is", null)
+          .order("submitted_at", { ascending: false })
+          .limit(5);
+
+        if (submissions) {
+          const recentSubs = await Promise.all(
+            submissions.map(async (sub) => {
+              const assignment = teacherSubjects.find((ts) => ts.class_arm_id === sub.class_arm_id);
+              const [{ data: classArm }, { data: subject }] = await Promise.all([
+                supabase.from("class_arms").select("name, class:classes(name)").eq("id", sub.class_arm_id).maybeSingle(),
+                assignment ? supabase.from("subjects").select("name").eq("id", assignment.subject_id).maybeSingle() : Promise.resolve({ data: null }),
+              ]);
+
+              return {
+                id: sub.id,
+                className: `${classArm?.class?.name} ${classArm?.name}`,
+                subjectName: subject?.name || "Unknown",
+                submittedAt: sub.submitted_at || "",
+                status: sub.status,
+              };
+            })
+          );
+          setRecentSubmissions(recentSubs);
+        }
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status: ClassAssignment["status"]) => {
+    switch (status) {
+      case "submitted":
+        return (
+          <Badge variant="secondary" className="bg-accent text-accent-foreground">
+            <Clock className="h-3 w-3 mr-1" />
+            Submitted
+          </Badge>
+        );
+      case "approved":
+        return (
+          <Badge variant="default" className="bg-success hover:bg-success/90">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Approved
+          </Badge>
+        );
+      case "in_progress":
+        return (
+          <Badge variant="outline" className="border-warning text-warning">
+            <Clock className="h-3 w-3 mr-1" />
+            Draft
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Not Started
+          </Badge>
+        );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Teacher Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, Mrs. Johnson</p>
+          <p className="text-muted-foreground">Welcome back, {profile?.full_name || "Teacher"}</p>
         </div>
-        <Button onClick={() => navigate("/teacher/results")}>
-          <Edit className="h-4 w-4 mr-2" />
-          Enter Results
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/teacher/classes")}>
+            <Layers className="h-4 w-4 mr-2" />
+            My Classes
+          </Button>
+          <Button onClick={() => navigate("/teacher/results")}>
+            <Edit className="h-4 w-4 mr-2" />
+            Enter Results
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Assigned Classes"
-          value="4"
+          value={stats.assignedClasses.toString()}
           subtitle="This term"
           icon={Users}
           color="primary"
         />
         <StatCard
           title="Subjects Taught"
-          value="2"
-          subtitle="Mathematics & Physics"
+          value={stats.subjectsTaught.toString()}
+          subtitle="Unique subjects"
           icon={BookOpen}
           color="accent"
         />
         <StatCard
           title="Results Submitted"
-          value="3"
-          subtitle="Out of 8 required"
+          value={stats.resultsSubmitted.toString()}
+          subtitle={`Out of ${stats.assignedClasses} required`}
           icon={ClipboardList}
           color="success"
         />
         <StatCard
           title="Pending Entry"
-          value="5"
+          value={stats.pendingEntry.toString()}
           subtitle="Classes remaining"
           icon={Clock}
           color="warning"
@@ -63,86 +314,70 @@ export default function TeacherDashboard() {
 
       {/* Classes Overview */}
       <div className="bg-card rounded-xl border border-border p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">My Classes & Subjects</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          {[
-            { class: "JSS 1A", subject: "Mathematics", students: 45, status: "submitted" },
-            { class: "JSS 1B", subject: "Mathematics", students: 42, status: "draft" },
-            { class: "JSS 2A", subject: "Mathematics", students: 38, status: "pending" },
-            { class: "JSS 2B", subject: "Mathematics", students: 40, status: "submitted" },
-            { class: "SS 1A", subject: "Physics", students: 35, status: "pending" },
-            { class: "SS 1B", subject: "Physics", students: 32, status: "pending" },
-            { class: "SS 2A", subject: "Physics", students: 28, status: "draft" },
-            { class: "SS 2B", subject: "Physics", students: 30, status: "submitted" },
-          ].map((item, index) => (
-            <div 
-              key={index} 
-              className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
-              onClick={() => navigate("/teacher/results")}
-            >
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BookOpen className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{item.class}</p>
-                  <p className="text-sm text-muted-foreground">{item.subject} • {item.students} students</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {item.status === "submitted" && (
-                  <span className="flex items-center gap-1 text-xs font-medium text-success bg-success/10 px-2 py-1 rounded-full">
-                    <CheckCircle className="h-3 w-3" />
-                    Submitted
-                  </span>
-                )}
-                {item.status === "draft" && (
-                  <span className="flex items-center gap-1 text-xs font-medium text-warning bg-warning/10 px-2 py-1 rounded-full">
-                    <Clock className="h-3 w-3" />
-                    Draft
-                  </span>
-                )}
-                {item.status === "pending" && (
-                  <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-full">
-                    <AlertCircle className="h-3 w-3" />
-                    Not Started
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground">My Classes & Subjects</h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/teacher/classes")}>
+            View All
+          </Button>
         </div>
+        {assignments.length === 0 ? (
+          <div className="text-center py-8">
+            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No classes assigned yet.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {assignments.map((item) => (
+              <div 
+                key={item.id} 
+                className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
+                onClick={() => navigate("/teacher/results")}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{item.className} - {item.classArmName}</p>
+                    <p className="text-sm text-muted-foreground">{item.subjectName} • {item.studentCount} students</p>
+                  </div>
+                </div>
+                {getStatusBadge(item.status)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recent Submissions */}
-      <div className="bg-card rounded-xl border border-border p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Recent Submissions</h2>
-        <div className="space-y-3">
-          {[
-            { class: "SS 2B", subject: "Physics", date: "Today, 2:30 PM", status: "approved" },
-            { class: "JSS 1A", subject: "Mathematics", date: "Yesterday, 10:15 AM", status: "approved" },
-            { class: "JSS 2B", subject: "Mathematics", date: "Dec 10, 4:45 PM", status: "pending" },
-          ].map((item, index) => (
-            <div key={index} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-              <div>
-                <p className="font-medium text-foreground">{item.class} - {item.subject}</p>
-                <p className="text-sm text-muted-foreground">{item.date}</p>
+      {recentSubmissions.length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Recent Submissions</h2>
+          <div className="space-y-3">
+            {recentSubmissions.map((item) => (
+              <div key={item.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                <div>
+                  <p className="font-medium text-foreground">{item.className} - {item.subjectName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {item.submittedAt ? format(new Date(item.submittedAt), "MMM d, yyyy h:mm a") : "-"}
+                  </p>
+                </div>
+                {item.status === "approved" || item.status === "published" ? (
+                  <span className="flex items-center gap-1 text-sm text-success">
+                    <CheckCircle className="h-4 w-4" />
+                    Approved
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-sm text-warning">
+                    <Clock className="h-4 w-4" />
+                    Pending Review
+                  </span>
+                )}
               </div>
-              {item.status === "approved" ? (
-                <span className="flex items-center gap-1 text-sm text-success">
-                  <CheckCircle className="h-4 w-4" />
-                  Approved
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-sm text-warning">
-                  <Clock className="h-4 w-4" />
-                  Pending Review
-                </span>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
