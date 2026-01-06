@@ -252,6 +252,17 @@ export default function ResultApproval() {
     }
   };
 
+  const sendNotification = async (type: "approved" | "published", resultIds: string[]) => {
+    try {
+      const { error } = await supabase.functions.invoke("send-result-notification", {
+        body: { type, resultIds },
+      });
+      if (error) console.error("Failed to send notification:", error);
+    } catch (err) {
+      console.error("Notification error:", err);
+    }
+  };
+
   const handleApprove = async (result: ResultItem) => {
     try {
       setProcessing(true);
@@ -261,6 +272,9 @@ export default function ResultApproval() {
         .eq("id", result.id);
 
       if (error) throw error;
+
+      // Send email notification
+      sendNotification("approved", [result.id]);
 
       toast({ title: "Result Approved", description: `Result for ${result.student.first_name} ${result.student.last_name} has been approved.` });
       fetchResults();
@@ -286,6 +300,9 @@ export default function ResultApproval() {
 
       if (error) throw error;
 
+      // Send email notifications
+      sendNotification("approved", ids);
+
       toast({ title: "Results Approved", description: `${ids.length} result(s) have been approved.` });
       setSelectedIds(new Set());
       fetchResults();
@@ -306,6 +323,9 @@ export default function ResultApproval() {
         .eq("id", result.id);
 
       if (error) throw error;
+
+      // Send email notification
+      sendNotification("published", [result.id]);
 
       toast({ title: "Result Published", description: `Result for ${result.student.first_name} ${result.student.last_name} is now visible to the student.` });
       fetchResults();
@@ -330,6 +350,9 @@ export default function ResultApproval() {
         .in("id", ids);
 
       if (error) throw error;
+
+      // Send email notifications
+      sendNotification("published", ids);
 
       toast({ title: "Results Published", description: `${ids.length} result(s) are now visible to students.` });
       setSelectedApprovedIds(new Set());
