@@ -31,6 +31,13 @@ import AcademicConfig from "./pages/admin/AcademicConfig";
 import TeacherManagement from "./pages/admin/TeacherManagement";
 import PinManagement from "./pages/admin/PinManagement";
 import StudentManagement from "./pages/admin/StudentManagement";
+import SchoolSettings from "./pages/admin/SchoolSettings";
+import ClassPromotion from "./pages/admin/ClassPromotion";
+
+// Super Admin pages
+import UserManagement from "./pages/super-admin/UserManagement";
+import SystemSettings from "./pages/super-admin/SystemSettings";
+import AuditLogs from "./pages/super-admin/AuditLogs";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +72,9 @@ function App() {
                 }
               >
                 <Route index element={<SuperAdminDashboard />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="settings" element={<SystemSettings />} />
+                <Route path="audit" element={<AuditLogs />} />
               </Route>
 
               {/* Admin Routes */}
@@ -82,6 +92,8 @@ function App() {
                 <Route path="teachers" element={<TeacherManagement />} />
                 <Route path="pins" element={<PinManagement />} />
                 <Route path="students" element={<StudentManagement />} />
+                <Route path="settings" element={<SchoolSettings />} />
+                <Route path="promotion" element={<ClassPromotion />} />
               </Route>
 
               {/* Teacher Routes */}

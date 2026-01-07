@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PinsListTab } from "@/components/admin/pins/PinsListTab";
 import { GeneratePinsTab } from "@/components/admin/pins/GeneratePinsTab";
 import { PinUsageLogsTab } from "@/components/admin/pins/PinUsageLogsTab";
+import { AssignPinsTab } from "@/components/admin/pins/AssignPinsTab";
 
 const PinManagement = () => {
   return (
@@ -17,6 +18,7 @@ const PinManagement = () => {
         <TabsList>
           <TabsTrigger value="list">All PINs</TabsTrigger>
           <TabsTrigger value="generate">Generate PINs</TabsTrigger>
+          <TabsTrigger value="assign">Assign to Students</TabsTrigger>
           <TabsTrigger value="logs">Usage Logs</TabsTrigger>
         </TabsList>
 
@@ -26,6 +28,10 @@ const PinManagement = () => {
 
         <TabsContent value="generate">
           <GeneratePinsTab />
+        </TabsContent>
+
+        <TabsContent value="assign">
+          <AssignPinsTab />
         </TabsContent>
 
         <TabsContent value="logs">
