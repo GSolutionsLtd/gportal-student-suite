@@ -29,6 +29,7 @@ import {
   Award,
   BarChart3,
 } from "lucide-react";
+import { generateResultPDF } from "@/utils/pdfGenerator";
 
 interface ResultComponent {
   id: string;
@@ -266,9 +267,39 @@ export default function MyResults() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              if (selectedResult && studentInfo) {
+                generateResultPDF({
+                  studentName: studentInfo.name,
+                  admissionNumber: studentInfo.admission_number,
+                  className: `${selectedResult.class_arm.class.name} ${selectedResult.class_arm.name}`,
+                  termName: selectedResult.term.name,
+                  sessionName: selectedResult.term.session.name,
+                  totalScore: selectedResult.total_score ? Number(selectedResult.total_score) : null,
+                  averageScore: selectedResult.average_score ? Number(selectedResult.average_score) : null,
+                  classPosition: selectedResult.class_position,
+                  classSize: 30,
+                  subjects: selectedResult.components.map(c => ({
+                    name: c.subject.name,
+                    test1: c.test1_score ? Number(c.test1_score) : null,
+                    test2: c.test2_score ? Number(c.test2_score) : null,
+                    exam: c.exam_score ? Number(c.exam_score) : null,
+                    total: c.total_score ? Number(c.total_score) : null,
+                    grade: c.grade,
+                    remark: c.grade === 'A' ? 'Excellent' : c.grade === 'B' ? 'Very Good' : c.grade === 'C' ? 'Good' : c.grade === 'D' ? 'Pass' : 'Needs Improvement',
+                    position: null,
+                  })),
+                  schoolName: "Excellence Academy",
+                  schoolAddress: "123 Education Street, Knowledge City",
+                  schoolMotto: "Excellence in Education",
+                });
+              }
+            }}
+          >
             <Download className="h-4 w-4 mr-2" />
-            Download
+            Download PDF
           </Button>
         </div>
       </div>
