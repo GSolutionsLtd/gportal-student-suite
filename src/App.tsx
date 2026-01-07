@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import React from "react";
 
 // Auth Provider
 import { AuthProvider } from "./hooks/useAuth";
@@ -31,84 +32,93 @@ import TeacherManagement from "./pages/admin/TeacherManagement";
 import PinManagement from "./pages/admin/PinManagement";
 import StudentManagement from "./pages/admin/StudentManagement";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+    },
+  },
+});
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/check-result" element={<CheckResult />} />
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider delayDuration={0}>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/check-result" element={<CheckResult />} />
 
-            {/* Super Admin Routes */}
-            <Route 
-              path="/super-admin" 
-              element={
-                <ProtectedRoute allowedRoles={["super_admin"]}>
-                  <DashboardLayout role="super_admin" />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<SuperAdminDashboard />} />
-            </Route>
+              {/* Super Admin Routes */}
+              <Route 
+                path="/super-admin" 
+                element={
+                  <ProtectedRoute allowedRoles={["super_admin"]}>
+                    <DashboardLayout role="super_admin" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<SuperAdminDashboard />} />
+              </Route>
 
-            {/* Admin Routes */}
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
-                  <DashboardLayout role="admin" />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<AdminDashboard />} />
-              <Route path="results" element={<AdminResultApproval />} />
-              <Route path="academic" element={<AcademicConfig />} />
-              <Route path="teachers" element={<TeacherManagement />} />
-              <Route path="pins" element={<PinManagement />} />
-              <Route path="students" element={<StudentManagement />} />
-            </Route>
+              {/* Admin Routes */}
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                    <DashboardLayout role="admin" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboard />} />
+                <Route path="results" element={<AdminResultApproval />} />
+                <Route path="academic" element={<AcademicConfig />} />
+                <Route path="teachers" element={<TeacherManagement />} />
+                <Route path="pins" element={<PinManagement />} />
+                <Route path="students" element={<StudentManagement />} />
+              </Route>
 
-            {/* Teacher Routes */}
-            <Route 
-              path="/teacher" 
-              element={
-                <ProtectedRoute allowedRoles={["teacher"]}>
-                  <DashboardLayout role="teacher" />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<TeacherDashboard />} />
-              <Route path="classes" element={<TeacherClassesOverview />} />
-              <Route path="results" element={<TeacherResultEntry />} />
-            </Route>
+              {/* Teacher Routes */}
+              <Route 
+                path="/teacher" 
+                element={
+                  <ProtectedRoute allowedRoles={["teacher"]}>
+                    <DashboardLayout role="teacher" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<TeacherDashboard />} />
+                <Route path="classes" element={<TeacherClassesOverview />} />
+                <Route path="results" element={<TeacherResultEntry />} />
+              </Route>
 
-            {/* Student Routes */}
-            <Route 
-              path="/student" 
-              element={
-                <ProtectedRoute allowedRoles={["student"]}>
-                  <DashboardLayout role="student" />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<StudentDashboard />} />
-              <Route path="results" element={<StudentMyResults />} />
-            </Route>
+              {/* Student Routes */}
+              <Route 
+                path="/student" 
+                element={
+                  <ProtectedRoute allowedRoles={["student"]}>
+                    <DashboardLayout role="student" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<StudentDashboard />} />
+                <Route path="results" element={<StudentMyResults />} />
+              </Route>
 
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
