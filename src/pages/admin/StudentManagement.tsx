@@ -29,9 +29,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, Loader2, Upload } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { BulkStudentImport } from "@/components/admin/BulkStudentImport";
 
 type Student = Tables<"students">;
 type ClassArm = Tables<"class_arms">;
@@ -69,6 +70,7 @@ export default function StudentManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [formData, setFormData] = useState<StudentFormData>(defaultFormData);
   const [searchQuery, setSearchQuery] = useState("");
@@ -257,6 +259,15 @@ export default function StudentManagement() {
   const activeCount = students.filter((s) => s.is_active).length;
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+  // Prepare class arms for bulk import
+  const classArmsForImport = classArmsGrouped.flatMap((group) =>
+    group.arms.map((arm) => ({
+      id: arm.id,
+      name: arm.name,
+      class_name: group.class.name,
+    }))
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -264,10 +275,16 @@ export default function StudentManagement() {
           <h1 className="text-2xl font-bold text-foreground">Student Management</h1>
           <p className="text-muted-foreground">Manage student records and class assignments</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Student
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Import
+          </Button>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Student
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -582,6 +599,14 @@ export default function StudentManagement() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <BulkStudentImport
+        open={isBulkImportOpen}
+        onOpenChange={setIsBulkImportOpen}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["students"] })}
+        classArms={classArmsForImport}
+      />
     </div>
   );
 }

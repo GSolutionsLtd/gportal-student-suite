@@ -1,5 +1,9 @@
+import { useState, useEffect } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { 
   Users, 
   GraduationCap, 
@@ -8,19 +12,157 @@ import {
   FileCheck,
   AlertCircle,
   Calendar,
-  TrendingUp
+  Loader2
 } from "lucide-react";
 
+interface PendingResult {
+  id: string;
+  class_arm: { name: string; class: { name: string } };
+  term: { name: string };
+  teacher_name: string;
+  subject_name: string;
+  submitted_at: string;
+  student_count: number;
+}
+
+interface DashboardStats {
+  totalStudents: number;
+  totalTeachers: number;
+  totalSubjects: number;
+  pendingResults: number;
+  approvedResults: number;
+  publishedResults: number;
+}
+
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalStudents: 0,
+    totalTeachers: 0,
+    totalSubjects: 0,
+    pendingResults: 0,
+    approvedResults: 0,
+    publishedResults: 0,
+  });
+  const [pendingApprovals, setPendingApprovals] = useState<PendingResult[]>([]);
+  const [currentSession, setCurrentSession] = useState<string>("");
+  const [currentTerm, setCurrentTerm] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        // Fetch current session and term
+        const { data: session } = await supabase
+          .from("academic_sessions")
+          .select("id, name")
+          .eq("is_current", true)
+          .maybeSingle();
+
+        if (session) {
+          setCurrentSession(session.name);
+        }
+
+        const { data: term } = await supabase
+          .from("terms")
+          .select("id, name")
+          .eq("is_current", true)
+          .maybeSingle();
+
+        if (term) {
+          setCurrentTerm(term);
+        }
+
+        // Fetch counts
+        const [studentsRes, teachersRes, subjectsRes, resultsRes] = await Promise.all([
+          supabase.from("students").select("id", { count: "exact", head: true }).eq("is_active", true),
+          supabase.from("teachers").select("id", { count: "exact", head: true }).eq("is_active", true),
+          supabase.from("subjects").select("id", { count: "exact", head: true }).eq("is_active", true),
+          term ? supabase.from("results").select("id, status").eq("term_id", term.id) : Promise.resolve({ data: [] }),
+        ]);
+
+        const results = resultsRes.data || [];
+        const pending = results.filter((r: any) => r.status === "submitted").length;
+        const approved = results.filter((r: any) => r.status === "approved").length;
+        const published = results.filter((r: any) => r.status === "published").length;
+
+        setStats({
+          totalStudents: studentsRes.count || 0,
+          totalTeachers: teachersRes.count || 0,
+          totalSubjects: subjectsRes.count || 0,
+          pendingResults: pending,
+          approvedResults: approved,
+          publishedResults: published,
+        });
+
+        // Fetch pending approvals with details
+        if (term) {
+          const { data: pendingData } = await supabase
+            .from("results")
+            .select(`
+              id,
+              submitted_at,
+              class_arm:class_arms(
+                name,
+                class:classes(name)
+              ),
+              term:terms(name)
+            `)
+            .eq("status", "submitted")
+            .eq("term_id", term.id)
+            .order("submitted_at", { ascending: false })
+            .limit(10);
+
+          // Group by class_arm to get unique submissions
+          const grouped = new Map<string, any>();
+          (pendingData || []).forEach((result: any) => {
+            const key = result.class_arm?.name;
+            if (key && !grouped.has(key)) {
+              grouped.set(key, {
+                ...result,
+                student_count: 1,
+              });
+            } else if (key) {
+              grouped.get(key).student_count++;
+            }
+          });
+
+          setPendingApprovals(Array.from(grouped.values()).slice(0, 5));
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, []);
+
+  const totalResults = stats.pendingResults + stats.approvedResults + stats.publishedResults;
+  const approvedPercent = totalResults > 0 ? Math.round((stats.approvedResults / totalResults) * 100) : 0;
+  const pendingPercent = totalResults > 0 ? Math.round((stats.pendingResults / totalResults) * 100) : 0;
+  const publishedPercent = totalResults > 0 ? Math.round((stats.publishedResults / totalResults) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Academic year 2024/2025 - First Term</p>
+          <p className="text-muted-foreground">
+            {currentSession} {currentTerm ? `- ${currentTerm.name}` : ""}
+          </p>
         </div>
-        <Button>
+        <Button onClick={() => navigate("/admin/academic")}>
           <Calendar className="h-4 w-4 mr-2" />
           Manage Sessions
         </Button>
@@ -30,29 +172,28 @@ export default function AdminDashboard() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Students"
-          value="456"
-          subtitle="Across all classes"
+          value={stats.totalStudents.toString()}
+          subtitle="Active students"
           icon={GraduationCap}
-          trend={{ value: 5, isPositive: true }}
           color="primary"
         />
         <StatCard
           title="Total Teachers"
-          value="32"
+          value={stats.totalTeachers.toString()}
           subtitle="Active teachers"
           icon={Users}
           color="accent"
         />
         <StatCard
           title="Subjects"
-          value="18"
+          value={stats.totalSubjects.toString()}
           subtitle="Configured subjects"
           icon={BookOpen}
           color="success"
         />
         <StatCard
           title="Pending Results"
-          value="12"
+          value={stats.pendingResults.toString()}
           subtitle="Awaiting approval"
           icon={ClipboardList}
           color="warning"
@@ -65,28 +206,47 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 bg-card rounded-xl border border-border p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Pending Result Approvals</h2>
-            <Button variant="ghost" size="sm">View All</Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/results")}>
+              View All
+            </Button>
           </div>
           <div className="space-y-3">
-            {[
-              { teacher: "Mrs. Johnson", class: "JSS 1A", subject: "Mathematics", submitted: "2 hours ago" },
-              { teacher: "Mr. Adams", class: "JSS 2B", subject: "English", submitted: "5 hours ago" },
-              { teacher: "Ms. Brown", class: "SS 1A", subject: "Physics", submitted: "Yesterday" },
-            ].map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{item.teacher}</p>
-                  <p className="text-sm text-muted-foreground">{item.class} - {item.subject}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground mb-2">{item.submitted}</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="success">Approve</Button>
-                    <Button size="sm" variant="outline">Review</Button>
+            {pendingApprovals.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileCheck className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No pending approvals</p>
+              </div>
+            ) : (
+              pendingApprovals.map((item, index) => (
+                <div 
+                  key={index} 
+                  className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">
+                      {item.class_arm?.class?.name} {item.class_arm?.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.student_count} student{item.student_count !== 1 ? "s" : ""} • {item.term?.name}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {item.submitted_at ? new Date(item.submitted_at).toLocaleDateString() : ""}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => navigate("/admin/results")}
+                      >
+                        Review
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -97,53 +257,89 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Approved</span>
-                  <span className="font-medium text-foreground">68%</span>
+                  <span className="text-muted-foreground">Published</span>
+                  <span className="font-medium text-foreground">{publishedPercent}%</span>
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full w-[68%] bg-success rounded-full" />
+                  <div 
+                    className="h-full bg-success rounded-full transition-all" 
+                    style={{ width: `${publishedPercent}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Approved</span>
+                  <span className="font-medium text-foreground">{approvedPercent}%</span>
+                </div>
+                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary rounded-full transition-all" 
+                    style={{ width: `${approvedPercent}%` }}
+                  />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-muted-foreground">Pending</span>
-                  <span className="font-medium text-foreground">24%</span>
+                  <span className="font-medium text-foreground">{pendingPercent}%</span>
                 </div>
                 <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full w-[24%] bg-warning rounded-full" />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Not Submitted</span>
-                  <span className="font-medium text-foreground">8%</span>
-                </div>
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full w-[8%] bg-destructive rounded-full" />
+                  <div 
+                    className="h-full bg-warning rounded-full transition-all" 
+                    style={{ width: `${pendingPercent}%` }}
+                  />
                 </div>
               </div>
             </div>
           </div>
 
           <div className="bg-card rounded-xl border border-border p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Alerts</h2>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-warning/10">
-                <AlertCircle className="h-5 w-5 text-warning flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Deadline Approaching</p>
-                  <p className="text-xs text-muted-foreground">Result submission ends in 3 days</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/10">
-                <FileCheck className="h-5 w-5 text-primary flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">PIN Stocks Low</p>
-                  <p className="text-xs text-muted-foreground">Only 45 PINs remaining</p>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/students")}
+              >
+                <GraduationCap className="h-4 w-4 mr-2" />
+                Manage Students
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/teachers")}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Manage Teachers
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/results")}
+              >
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Review Results
+              </Button>
+            </div>
+          </div>
+
+          {stats.pendingResults > 0 && (
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h2 className="text-lg font-semibold text-foreground mb-4">Alerts</h2>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-warning/10">
+                  <AlertCircle className="h-5 w-5 text-warning flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Pending Approvals</p>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.pendingResults} result{stats.pendingResults !== 1 ? "s" : ""} awaiting review
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
