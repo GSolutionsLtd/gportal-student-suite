@@ -61,6 +61,7 @@ interface ScoreEntry {
   student_id: string;
   test1_score: number | null;
   test2_score: number | null;
+  other_assessment_score: number | null;
   exam_score: number | null;
   total_score: number | null;
   result_component_id?: string;
@@ -69,6 +70,7 @@ interface ScoreEntry {
 interface ScoreWeights {
   test1_weight: number;
   test2_weight: number;
+  other_assessment_weight: number;
   exam_weight: number;
 }
 
@@ -91,7 +93,8 @@ export default function ResultEntry() {
   const [currentTerm, setCurrentTerm] = useState<{ id: string; name: string } | null>(null);
   const [scoreWeights, setScoreWeights] = useState<ScoreWeights>({ 
     test1_weight: 10, 
-    test2_weight: 20, 
+    test2_weight: 10, 
+    other_assessment_weight: 10,
     exam_weight: 70 
   });
   const [resultStatus, setResultStatus] = useState<string>("draft");
@@ -143,7 +146,7 @@ export default function ResultEntry() {
         if (currentSession) {
           const { data: weights } = await supabase
             .from("score_weights")
-            .select("test1_weight, test2_weight, exam_weight")
+            .select("test1_weight, test2_weight, other_assessment_weight, exam_weight")
             .eq("session_id", currentSession.id)
             .maybeSingle();
 
@@ -151,6 +154,7 @@ export default function ResultEntry() {
             setScoreWeights({
               test1_weight: Number(weights.test1_weight),
               test2_weight: Number(weights.test2_weight),
+              other_assessment_weight: Number(weights.other_assessment_weight),
               exam_weight: Number(weights.exam_weight),
             });
           }
@@ -221,6 +225,7 @@ export default function ResultEntry() {
             student_id: student.id,
             test1_score: null,
             test2_score: null,
+            other_assessment_score: null,
             exam_score: null,
             total_score: null,
           };
@@ -237,6 +242,7 @@ export default function ResultEntry() {
               subject_id,
               test1_score,
               test2_score,
+              other_assessment_score,
               exam_score,
               total_score
             )
@@ -257,6 +263,7 @@ export default function ResultEntry() {
                 ...initialScores[result.student_id],
                 test1_score: component.test1_score !== null ? Number(component.test1_score) : null,
                 test2_score: component.test2_score !== null ? Number(component.test2_score) : null,
+                other_assessment_score: component.other_assessment_score !== null ? Number(component.other_assessment_score) : null,
                 exam_score: component.exam_score !== null ? Number(component.exam_score) : null,
                 total_score: component.total_score !== null ? Number(component.total_score) : null,
                 result_component_id: component.id,
@@ -285,18 +292,21 @@ export default function ResultEntry() {
 
   // Calculate weighted total
   const calculateTotal = useCallback((entry: ScoreEntry): number | null => {
-    const { test1_score, test2_score, exam_score } = entry;
-    if (test1_score === null && test2_score === null && exam_score === null) {
+    const { test1_score, test2_score, other_assessment_score, exam_score } = entry;
+    if (test1_score === null && test2_score === null && other_assessment_score === null && exam_score === null) {
       return null;
     }
 
     const t1 = test1_score || 0;
     const t2 = test2_score || 0;
+    const other = other_assessment_score || 0;
     const exam = exam_score || 0;
 
+    // Scores are entered out of 100, weights determine the percentage of the final grade
     const total = 
       (t1 * scoreWeights.test1_weight / 100) +
       (t2 * scoreWeights.test2_weight / 100) +
+      (other * scoreWeights.other_assessment_weight / 100) +
       (exam * scoreWeights.exam_weight / 100);
 
     return Math.round(total * 100) / 100;
@@ -370,6 +380,7 @@ export default function ResultEntry() {
             .update({
               test1_score: entry.test1_score,
               test2_score: entry.test2_score,
+              other_assessment_score: entry.other_assessment_score,
               exam_score: entry.exam_score,
               total_score: entry.total_score,
               entered_by: user?.id,
@@ -386,6 +397,7 @@ export default function ResultEntry() {
               subject_id: assignment.subject_id,
               test1_score: entry.test1_score,
               test2_score: entry.test2_score,
+              other_assessment_score: entry.other_assessment_score,
               exam_score: entry.exam_score,
               total_score: entry.total_score,
               entered_by: user?.id,
@@ -466,7 +478,8 @@ export default function ResultEntry() {
 
     const incomplete = students.some(s => {
       const entry = scores[s.id];
-      return !entry || entry.test1_score === null || entry.test2_score === null || entry.exam_score === null;
+      return !entry || entry.test1_score === null || entry.test2_score === null || 
+             entry.other_assessment_score === null || entry.exam_score === null;
     });
 
     if (incomplete) {
@@ -574,7 +587,7 @@ export default function ResultEntry() {
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-1">Score Weights</p>
                 <p className="text-sm font-medium">
-                  Test 1: {scoreWeights.test1_weight}% | Test 2: {scoreWeights.test2_weight}% | Exam: {scoreWeights.exam_weight}%
+                  T1: {scoreWeights.test1_weight}% | T2: {scoreWeights.test2_weight}% | Other: {scoreWeights.other_assessment_weight}% | Exam: {scoreWeights.exam_weight}%
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -604,30 +617,36 @@ export default function ResultEntry() {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-12 text-center">#</TableHead>
-                  <TableHead className="min-w-[120px]">Adm. No.</TableHead>
-                  <TableHead className="min-w-[180px]">Student Name</TableHead>
-                  <TableHead className="w-24 text-center">
+                  <TableHead className="min-w-[100px]">Adm. No.</TableHead>
+                  <TableHead className="min-w-[150px]">Student Name</TableHead>
+                  <TableHead className="w-20 text-center">
                     Test 1
                     <span className="block text-xs font-normal text-muted-foreground">
-                      (Max: 100)
+                      (10 Marks)
                     </span>
                   </TableHead>
-                  <TableHead className="w-24 text-center">
+                  <TableHead className="w-20 text-center">
                     Test 2
                     <span className="block text-xs font-normal text-muted-foreground">
-                      (Max: 100)
+                      (10 Marks)
                     </span>
                   </TableHead>
-                  <TableHead className="w-24 text-center">
+                  <TableHead className="w-20 text-center">
+                    Other
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      (10 Marks)
+                    </span>
+                  </TableHead>
+                  <TableHead className="w-20 text-center">
                     Exam
                     <span className="block text-xs font-normal text-muted-foreground">
-                      (Max: 100)
+                      (70 Marks)
                     </span>
                   </TableHead>
-                  <TableHead className="w-24 text-center">
+                  <TableHead className="w-20 text-center">
                     Total
                     <span className="block text-xs font-normal text-muted-foreground">
-                      (Weighted)
+                      (100)
                     </span>
                   </TableHead>
                 </TableRow>
@@ -635,13 +654,13 @@ export default function ResultEntry() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ) : students.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No students found in this class
                     </TableCell>
                   </TableRow>
@@ -650,6 +669,7 @@ export default function ResultEntry() {
                     const entry = scores[student.id] || {
                       test1_score: null,
                       test2_score: null,
+                      other_assessment_score: null,
                       exam_score: null,
                       total_score: null,
                     };
@@ -664,7 +684,7 @@ export default function ResultEntry() {
                           {student.admission_number}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {student.last_name}, {student.first_name} {student.middle_name || ""}
+                          {student.last_name}, {student.first_name}
                         </TableCell>
                         <TableCell className="p-1">
                           <Input
@@ -685,6 +705,18 @@ export default function ResultEntry() {
                             max="100"
                             value={entry.test2_score ?? ""}
                             onChange={(e) => handleScoreChange(student.id, "test2_score", e.target.value)}
+                            className="w-full text-center h-9"
+                            placeholder="0"
+                            disabled={isReadOnly}
+                          />
+                        </TableCell>
+                        <TableCell className="p-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={entry.other_assessment_score ?? ""}
+                            onChange={(e) => handleScoreChange(student.id, "other_assessment_score", e.target.value)}
                             className="w-full text-center h-9"
                             placeholder="0"
                             disabled={isReadOnly}

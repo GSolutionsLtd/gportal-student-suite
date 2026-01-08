@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserRole, ROLE_LABELS } from "@/types/auth";
 import { useAuth } from "@/hooks/useAuth";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import {
   LayoutDashboard,
   Users,
@@ -17,7 +18,6 @@ import {
   Menu,
   X,
   ChevronDown,
-  Bell,
   Search,
   School,
   FileCheck,
@@ -240,10 +240,7 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
-              </Button>
+              <NotificationBell />
             </div>
           </div>
         </header>
