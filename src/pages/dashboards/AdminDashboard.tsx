@@ -12,8 +12,24 @@ import {
   FileCheck,
   AlertCircle,
   Calendar,
-  Loader2
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  BarChart3
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from "recharts";
 
 interface PendingResult {
   id: string;
@@ -34,6 +50,12 @@ interface DashboardStats {
   publishedResults: number;
 }
 
+interface ClassPerformance {
+  name: string;
+  average: number;
+  students: number;
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -48,6 +70,7 @@ export default function AdminDashboard() {
   const [pendingApprovals, setPendingApprovals] = useState<PendingResult[]>([]);
   const [currentSession, setCurrentSession] = useState<string>("");
   const [currentTerm, setCurrentTerm] = useState<{ id: string; name: string } | null>(null);
+  const [classPerformance, setClassPerformance] = useState<ClassPerformance[]>([]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -94,6 +117,44 @@ export default function AdminDashboard() {
           approvedResults: approved,
           publishedResults: published,
         });
+
+        // Fetch class performance for analytics
+        if (term) {
+          const { data: classArms } = await supabase
+            .from("class_arms")
+            .select("id, name, class:classes(name)")
+            .eq("is_active", true);
+
+          if (classArms) {
+            const performanceData: ClassPerformance[] = [];
+            
+            for (const arm of classArms) {
+              const { data: resultsData } = await supabase
+                .from("results")
+                .select("average_score")
+                .eq("class_arm_id", arm.id)
+                .eq("term_id", term.id)
+                .eq("status", "published");
+
+              if (resultsData && resultsData.length > 0) {
+                const avgScores = resultsData
+                  .filter((r: any) => r.average_score !== null)
+                  .map((r: any) => Number(r.average_score));
+                
+                if (avgScores.length > 0) {
+                  const classAvg = avgScores.reduce((a, b) => a + b, 0) / avgScores.length;
+                  performanceData.push({
+                    name: `${(arm.class as any)?.name || ''} ${arm.name}`,
+                    average: Math.round(classAvg * 10) / 10,
+                    students: resultsData.length,
+                  });
+                }
+              }
+            }
+
+            setClassPerformance(performanceData.sort((a, b) => b.average - a.average).slice(0, 8));
+          }
+        }
 
         // Fetch pending approvals with details
         if (term) {
@@ -143,6 +204,12 @@ export default function AdminDashboard() {
   const approvedPercent = totalResults > 0 ? Math.round((stats.approvedResults / totalResults) * 100) : 0;
   const pendingPercent = totalResults > 0 ? Math.round((stats.pendingResults / totalResults) * 100) : 0;
   const publishedPercent = totalResults > 0 ? Math.round((stats.publishedResults / totalResults) * 100) : 0;
+
+  const pieData = [
+    { name: 'Published', value: stats.publishedResults, color: 'hsl(var(--success))' },
+    { name: 'Approved', value: stats.approvedResults, color: 'hsl(var(--primary))' },
+    { name: 'Pending', value: stats.pendingResults, color: 'hsl(var(--warning))' },
+  ].filter(d => d.value > 0);
 
   if (loading) {
     return (
@@ -200,6 +267,72 @@ export default function AdminDashboard() {
         />
       </div>
 
+      {/* Analytics Charts */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Class Performance Chart */}
+        <div className="bg-card rounded-xl border border-border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Class Performance
+            </h2>
+          </div>
+          {classPerformance.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={classPerformance} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" domain={[0, 100]} />
+                <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  formatter={(value: number) => [`${value}%`, 'Average']}
+                  labelFormatter={(label) => `Class: ${label}`}
+                />
+                <Bar 
+                  dataKey="average" 
+                  fill="hsl(var(--primary))" 
+                  radius={[0, 4, 4, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+              <p>No published results yet</p>
+            </div>
+          )}
+        </div>
+
+        {/* Result Status Pie Chart */}
+        <div className="bg-card rounded-xl border border-border p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Result Status Distribution</h2>
+          {pieData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+              <p>No results data available</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Pending Approvals */}
@@ -250,7 +383,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats & Actions */}
         <div className="space-y-4">
           <div className="bg-card rounded-xl border border-border p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Result Status</h2>

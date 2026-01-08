@@ -226,6 +226,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pin_usage_logs: {
         Row: {
           id: string
@@ -371,6 +404,7 @@ export type Database = {
           exam_score: number | null
           grade: string | null
           id: string
+          other_assessment_score: number | null
           remark: string | null
           result_id: string
           subject_id: string
@@ -387,6 +421,7 @@ export type Database = {
           exam_score?: number | null
           grade?: string | null
           id?: string
+          other_assessment_score?: number | null
           remark?: string | null
           result_id: string
           subject_id: string
@@ -403,6 +438,7 @@ export type Database = {
           exam_score?: number | null
           grade?: string | null
           id?: string
+          other_assessment_score?: number | null
           remark?: string | null
           result_id?: string
           subject_id?: string
@@ -550,6 +586,7 @@ export type Database = {
           created_at: string
           exam_weight: number
           id: string
+          other_assessment_weight: number
           session_id: string
           test1_weight: number
           test2_weight: number
@@ -559,6 +596,7 @@ export type Database = {
           created_at?: string
           exam_weight?: number
           id?: string
+          other_assessment_weight?: number
           session_id: string
           test1_weight?: number
           test2_weight?: number
@@ -568,6 +606,7 @@ export type Database = {
           created_at?: string
           exam_weight?: number
           id?: string
+          other_assessment_weight?: number
           session_id?: string
           test1_weight?: number
           test2_weight?: number
@@ -852,6 +891,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_admission_number: { Args: never; Returns: string }
+      generate_pin_code: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

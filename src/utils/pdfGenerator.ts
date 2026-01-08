@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ResultData {
   studentName: string;
@@ -15,19 +16,47 @@ interface ResultData {
     name: string;
     test1: number | null;
     test2: number | null;
+    other: number | null;
     exam: number | null;
     total: number | null;
     grade: string | null;
     remark: string | null;
     position: number | null;
   }[];
-  schoolName: string;
-  schoolAddress: string;
+  schoolName?: string;
+  schoolAddress?: string;
   schoolMotto?: string;
+  schoolLogo?: string;
   principalName?: string;
 }
 
-export function generateResultPDF(data: ResultData): void {
+interface SchoolSettings {
+  school_name: string;
+  address: string | null;
+  motto: string | null;
+  logo_url: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export async function getSchoolSettings(): Promise<SchoolSettings | null> {
+  const { data, error } = await supabase
+    .from('school_settings')
+    .select('*')
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data;
+}
+
+export async function generateResultPDF(data: ResultData): Promise<void> {
+  // Fetch school settings from database
+  const schoolSettings = await getSchoolSettings();
+  
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -35,6 +64,11 @@ export function generateResultPDF(data: ResultData): void {
   // Colors
   const primaryColor: [number, number, number] = [30, 58, 138]; // Blue
   const secondaryColor: [number, number, number] = [100, 100, 100];
+  
+  // Use school settings or fallback to provided data
+  const schoolName = schoolSettings?.school_name || data.schoolName || 'School Name';
+  const schoolAddress = schoolSettings?.address || data.schoolAddress || '';
+  const schoolMotto = schoolSettings?.motto || data.schoolMotto;
   
   // Header - School Letterhead
   doc.setFillColor(...primaryColor);
@@ -44,17 +78,17 @@ export function generateResultPDF(data: ResultData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text(data.schoolName, pageWidth / 2, 18, { align: 'center' });
+  doc.text(schoolName, pageWidth / 2, 18, { align: 'center' });
   
   // School Address
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(data.schoolAddress, pageWidth / 2, 26, { align: 'center' });
+  doc.text(schoolAddress, pageWidth / 2, 26, { align: 'center' });
   
-  if (data.schoolMotto) {
+  if (schoolMotto) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'italic');
-    doc.text(`"${data.schoolMotto}"`, pageWidth / 2, 33, { align: 'center' });
+    doc.text(`"${schoolMotto}"`, pageWidth / 2, 33, { align: 'center' });
   }
   
   // Report Title
@@ -150,6 +184,7 @@ export function generateResultPDF(data: ResultData): void {
     subject.name,
     subject.test1?.toString() || '-',
     subject.test2?.toString() || '-',
+    subject.other?.toString() || '-',
     subject.exam?.toString() || '-',
     subject.total?.toFixed(1) || '-',
     subject.grade || '-',
@@ -158,29 +193,30 @@ export function generateResultPDF(data: ResultData): void {
   
   autoTable(doc, {
     startY: yPos,
-    head: [['#', 'Subject', 'Test 1', 'Test 2', 'Exam', 'Total', 'Grade', 'Remark']],
+    head: [['#', 'Subject', 'T1 (10)', 'T2 (10)', 'Other (10)', 'Exam (70)', 'Total', 'Grade', 'Remark']],
     body: tableData,
     theme: 'grid',
     headStyles: {
       fillColor: primaryColor,
       textColor: [255, 255, 255],
-      fontSize: 9,
+      fontSize: 8,
       fontStyle: 'bold',
       halign: 'center',
     },
     bodyStyles: {
-      fontSize: 9,
+      fontSize: 8,
       textColor: [0, 0, 0],
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 10 },
-      1: { cellWidth: 45 },
-      2: { halign: 'center', cellWidth: 18 },
-      3: { halign: 'center', cellWidth: 18 },
+      0: { halign: 'center', cellWidth: 8 },
+      1: { cellWidth: 35 },
+      2: { halign: 'center', cellWidth: 14 },
+      3: { halign: 'center', cellWidth: 14 },
       4: { halign: 'center', cellWidth: 18 },
       5: { halign: 'center', cellWidth: 18 },
-      6: { halign: 'center', cellWidth: 15 },
-      7: { cellWidth: 'auto' },
+      6: { halign: 'center', cellWidth: 14 },
+      7: { halign: 'center', cellWidth: 14 },
+      8: { cellWidth: 'auto' },
     },
     margin: { left: margin, right: margin },
     alternateRowStyles: {
@@ -240,7 +276,8 @@ export function generateResultPDF(data: ResultData): void {
   doc.save(fileName);
 }
 
-export function generateBulkResultsPDF(results: ResultData[]): void {
+export async function generateBulkResultsPDF(results: ResultData[]): Promise<void> {
+  const schoolSettings = await getSchoolSettings();
   const doc = new jsPDF();
   
   results.forEach((data, index) => {
@@ -254,6 +291,9 @@ export function generateBulkResultsPDF(results: ResultData[]): void {
     const primaryColor: [number, number, number] = [30, 58, 138];
     const secondaryColor: [number, number, number] = [100, 100, 100];
     
+    const schoolName = schoolSettings?.school_name || data.schoolName || 'School Name';
+    const schoolAddress = schoolSettings?.address || data.schoolAddress || '';
+    
     // Header
     doc.setFillColor(...primaryColor);
     doc.rect(0, 0, pageWidth, 40, 'F');
@@ -261,11 +301,11 @@ export function generateBulkResultsPDF(results: ResultData[]): void {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(data.schoolName, pageWidth / 2, 15, { align: 'center' });
+    doc.text(schoolName, pageWidth / 2, 15, { align: 'center' });
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(data.schoolAddress, pageWidth / 2, 23, { align: 'center' });
+    doc.text(schoolAddress, pageWidth / 2, 23, { align: 'center' });
     
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
@@ -304,6 +344,7 @@ export function generateBulkResultsPDF(results: ResultData[]): void {
       subject.name,
       subject.test1?.toString() || '-',
       subject.test2?.toString() || '-',
+      subject.other?.toString() || '-',
       subject.exam?.toString() || '-',
       subject.total?.toFixed(1) || '-',
       subject.grade || '-',
@@ -311,7 +352,7 @@ export function generateBulkResultsPDF(results: ResultData[]): void {
     
     autoTable(doc, {
       startY: yPos,
-      head: [['#', 'Subject', 'T1', 'T2', 'Exam', 'Total', 'Grade']],
+      head: [['#', 'Subject', 'T1', 'T2', 'Other', 'Exam', 'Total', 'Grade']],
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -322,11 +363,12 @@ export function generateBulkResultsPDF(results: ResultData[]): void {
       bodyStyles: { fontSize: 8 },
       columnStyles: {
         0: { halign: 'center', cellWidth: 8 },
-        2: { halign: 'center', cellWidth: 12 },
-        3: { halign: 'center', cellWidth: 12 },
-        4: { halign: 'center', cellWidth: 15 },
-        5: { halign: 'center', cellWidth: 15 },
+        2: { halign: 'center', cellWidth: 10 },
+        3: { halign: 'center', cellWidth: 10 },
+        4: { halign: 'center', cellWidth: 12 },
+        5: { halign: 'center', cellWidth: 12 },
         6: { halign: 'center', cellWidth: 12 },
+        7: { halign: 'center', cellWidth: 12 },
       },
       margin: { left: margin, right: margin },
     });
