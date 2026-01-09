@@ -49,6 +49,7 @@ interface ResultComponent {
   id: string;
   test1_score: number | null;
   test2_score: number | null;
+  other_assessment_score: number | null;
   exam_score: number | null;
   total_score: number | null;
   grade: string | null;
@@ -273,6 +274,7 @@ export default function CheckResult() {
           id,
           test1_score,
           test2_score,
+          other_assessment_score,
           exam_score,
           total_score,
           grade,
@@ -508,12 +510,13 @@ export default function CheckResult() {
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Subject</TableHead>
-                  <TableHead className="text-center w-20">Test 1</TableHead>
-                  <TableHead className="text-center w-20">Test 2</TableHead>
-                  <TableHead className="text-center w-20">Exam</TableHead>
-                  <TableHead className="text-center w-20">Total</TableHead>
-                  <TableHead className="text-center w-16">Grade</TableHead>
-                  <TableHead className="w-28">Remark</TableHead>
+                  <TableHead className="text-center w-16">T1 (10)</TableHead>
+                  <TableHead className="text-center w-16">T2 (10)</TableHead>
+                  <TableHead className="text-center w-16">Other (10)</TableHead>
+                  <TableHead className="text-center w-16">Exam (70)</TableHead>
+                  <TableHead className="text-center w-16">Total</TableHead>
+                  <TableHead className="text-center w-14">Grade</TableHead>
+                  <TableHead className="w-24">Remark</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -536,6 +539,9 @@ export default function CheckResult() {
                       </TableCell>
                       <TableCell className="text-center">
                         {component.test2_score ?? "-"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {component.other_assessment_score ?? "-"}
                       </TableCell>
                       <TableCell className="text-center">
                         {component.exam_score ?? "-"}
@@ -620,7 +626,7 @@ export default function CheckResult() {
               Check Your Result
             </h1>
             <p className="text-muted-foreground">
-              Enter your registration number and result PIN to view your
+              Enter your admission number and result PIN to view your
               academic results.
             </p>
           </div>
@@ -628,13 +634,13 @@ export default function CheckResult() {
           <div className="bg-card rounded-2xl border border-border p-6 shadow-lg">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <Label htmlFor="registrationNumber">Registration Number</Label>
+                <Label htmlFor="registrationNumber">Admission Number</Label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="registrationNumber"
                     type="text"
-                    placeholder="e.g., STU/2024/001"
+                    placeholder="e.g., 2024/0001"
                     className="pl-10"
                     value={formData.registrationNumber}
                     onChange={(e) =>
