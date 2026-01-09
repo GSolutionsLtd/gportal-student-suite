@@ -36,6 +36,7 @@ interface ResultComponent {
   subject: { name: string; code: string };
   test1_score: number | null;
   test2_score: number | null;
+  other_assessment_score: number | null;
   exam_score: number | null;
   total_score: number | null;
   grade: string | null;
@@ -125,7 +126,7 @@ export default function MyResults() {
 
           const { data: components } = await supabase
             .from("result_components")
-            .select("id, test1_score, test2_score, exam_score, total_score, grade, subject_id")
+            .select("id, test1_score, test2_score, other_assessment_score, exam_score, total_score, grade, subject_id")
             .eq("result_id", result.id);
 
           const enrichedComponents = await Promise.all(
@@ -285,6 +286,7 @@ export default function MyResults() {
                     name: c.subject.name,
                     test1: c.test1_score ? Number(c.test1_score) : null,
                     test2: c.test2_score ? Number(c.test2_score) : null,
+                    other: c.other_assessment_score ? Number(c.other_assessment_score) : null,
                     exam: c.exam_score ? Number(c.exam_score) : null,
                     total: c.total_score ? Number(c.total_score) : null,
                     grade: c.grade,
@@ -384,9 +386,10 @@ export default function MyResults() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Subject</TableHead>
-                    <TableHead className="text-center">Test 1</TableHead>
-                    <TableHead className="text-center">Test 2</TableHead>
-                    <TableHead className="text-center">Exam</TableHead>
+                    <TableHead className="text-center">Test 1 (10)</TableHead>
+                    <TableHead className="text-center">Test 2 (10)</TableHead>
+                    <TableHead className="text-center">Other (10)</TableHead>
+                    <TableHead className="text-center">Exam (70)</TableHead>
                     <TableHead className="text-center">Total</TableHead>
                     <TableHead className="text-center">Grade</TableHead>
                   </TableRow>
@@ -397,6 +400,7 @@ export default function MyResults() {
                       <TableCell className="font-medium">{comp.subject.name}</TableCell>
                       <TableCell className="text-center">{comp.test1_score ?? "-"}</TableCell>
                       <TableCell className="text-center">{comp.test2_score ?? "-"}</TableCell>
+                      <TableCell className="text-center">{comp.other_assessment_score ?? "-"}</TableCell>
                       <TableCell className="text-center">{comp.exam_score ?? "-"}</TableCell>
                       <TableCell className="text-center font-medium">{comp.total_score ?? "-"}</TableCell>
                       <TableCell className="text-center">

@@ -45,6 +45,8 @@ import {
   Search,
   Filter,
   Calendar,
+  Globe,
+  EyeOff,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -112,8 +114,10 @@ export default function ResultApproval() {
   const [loading, setLoading] = useState(true);
   const [submittedResults, setSubmittedResults] = useState<ResultItem[]>([]);
   const [approvedResults, setApprovedResults] = useState<ResultItem[]>([]);
+  const [publishedResults, setPublishedResults] = useState<ResultItem[]>([]);
   const [filteredSubmitted, setFilteredSubmitted] = useState<ResultItem[]>([]);
   const [filteredApproved, setFilteredApproved] = useState<ResultItem[]>([]);
+  const [filteredPublished, setFilteredPublished] = useState<ResultItem[]>([]);
   const [selectedResult, setSelectedResult] = useState<ResultItem | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -121,6 +125,7 @@ export default function ResultApproval() {
   const [processing, setProcessing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedApprovedIds, setSelectedApprovedIds] = useState<Set<string>>(new Set());
+  const [selectedPublishedIds, setSelectedPublishedIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("pending");
 
   // Filters
@@ -139,7 +144,7 @@ export default function ResultApproval() {
 
   useEffect(() => {
     applyFilters();
-  }, [submittedResults, approvedResults, searchQuery, selectedClassArm, selectedTerm, dateFrom, dateTo]);
+  }, [submittedResults, approvedResults, publishedResults, searchQuery, selectedClassArm, selectedTerm, dateFrom, dateTo]);
 
   const fetchFiltersData = async () => {
     const [{ data: classArmsData }, { data: termsData }] = await Promise.all([
@@ -175,18 +180,19 @@ export default function ResultApproval() {
 
     setFilteredSubmitted(filterResults(submittedResults));
     setFilteredApproved(filterResults(approvedResults));
+    setFilteredPublished(filterResults(publishedResults));
   };
 
   const fetchResults = async () => {
     try {
       setLoading(true);
-      await Promise.all([fetchSubmittedResults(), fetchApprovedResults()]);
+      await Promise.all([fetchSubmittedResults(), fetchApprovedResults(), fetchPublishedResults()]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchResultsByStatus = async (status: "submitted" | "approved"): Promise<ResultItem[]> => {
+  const fetchResultsByStatus = async (status: "submitted" | "approved" | "published"): Promise<ResultItem[]> => {
     const { data: results, error } = await supabase
       .from("results")
       .select("id, student_id, term_id, class_arm_id, status, total_score, average_score, submitted_at, submitted_by, approved_at")
@@ -249,6 +255,16 @@ export default function ResultApproval() {
     } catch (error) {
       console.error("Error fetching approved results:", error);
       toast({ title: "Error", description: "Failed to fetch approved results", variant: "destructive" });
+    }
+  };
+
+  const fetchPublishedResults = async () => {
+    try {
+      const results = await fetchResultsByStatus("published");
+      setPublishedResults(results);
+    } catch (error) {
+      console.error("Error fetching published results:", error);
+      toast({ title: "Error", description: "Failed to fetch published results", variant: "destructive" });
     }
   };
 
@@ -365,6 +381,51 @@ export default function ResultApproval() {
     }
   };
 
+  const handleUnpublish = async (result: ResultItem) => {
+    try {
+      setProcessing(true);
+      const { error } = await supabase
+        .from("results")
+        .update({ status: "approved", published_at: null })
+        .eq("id", result.id);
+
+      if (error) throw error;
+
+      toast({ title: "Result Unpublished", description: `Result for ${result.student.first_name} ${result.student.last_name} is no longer visible to students.` });
+      fetchResults();
+    } catch (error) {
+      console.error("Error unpublishing result:", error);
+      toast({ title: "Error", description: "Failed to unpublish result", variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleBulkUnpublish = async () => {
+    if (selectedPublishedIds.size === 0) return;
+
+    try {
+      setProcessing(true);
+      const ids = Array.from(selectedPublishedIds);
+
+      const { error } = await supabase
+        .from("results")
+        .update({ status: "approved", published_at: null })
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast({ title: "Results Unpublished", description: `${ids.length} result(s) are no longer visible to students.` });
+      setSelectedPublishedIds(new Set());
+      fetchResults();
+    } catch (error) {
+      console.error("Error bulk unpublishing results:", error);
+      toast({ title: "Error", description: "Failed to unpublish results", variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleReject = async () => {
     if (!selectedResult) return;
 
@@ -390,8 +451,8 @@ export default function ResultApproval() {
     }
   };
 
-  const toggleSelect = (id: string, isApproved: boolean) => {
-    const setter = isApproved ? setSelectedApprovedIds : setSelectedIds;
+  const toggleSelect = (id: string, tab: "pending" | "approved" | "published") => {
+    const setter = tab === "published" ? setSelectedPublishedIds : tab === "approved" ? setSelectedApprovedIds : setSelectedIds;
     setter((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -400,9 +461,9 @@ export default function ResultApproval() {
     });
   };
 
-  const toggleSelectAll = (results: ResultItem[], isApproved: boolean) => {
-    const setter = isApproved ? setSelectedApprovedIds : setSelectedIds;
-    const selected = isApproved ? selectedApprovedIds : selectedIds;
+  const toggleSelectAll = (results: ResultItem[], tab: "pending" | "approved" | "published") => {
+    const setter = tab === "published" ? setSelectedPublishedIds : tab === "approved" ? setSelectedApprovedIds : setSelectedIds;
+    const selected = tab === "published" ? selectedPublishedIds : tab === "approved" ? selectedApprovedIds : selectedIds;
     if (selected.size === results.length) {
       setter(new Set());
     } else {
@@ -444,7 +505,7 @@ export default function ResultApproval() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="flex items-center gap-4 p-6">
             <div className="p-3 rounded-full bg-warning/10">
@@ -463,18 +524,29 @@ export default function ResultApproval() {
             </div>
             <div>
               <p className="text-2xl font-bold">{approvedResults.length}</p>
-              <p className="text-sm text-muted-foreground">Approved (Unpublished)</p>
+              <p className="text-sm text-muted-foreground">Approved (Ready)</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 p-6">
             <div className="p-3 rounded-full bg-primary/10">
-              <Send className="h-6 w-6 text-primary" />
+              <Globe className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">-</p>
-              <p className="text-sm text-muted-foreground">Published Today</p>
+              <p className="text-2xl font-bold">{publishedResults.length}</p>
+              <p className="text-sm text-muted-foreground">Published</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="p-3 rounded-full bg-secondary">
+              <Send className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{submittedResults.length + approvedResults.length + publishedResults.length}</p>
+              <p className="text-sm text-muted-foreground">Total Results</p>
             </div>
           </CardContent>
         </Card>
@@ -549,6 +621,10 @@ export default function ResultApproval() {
             <CheckCircle className="h-4 w-4" />
             Approved ({filteredApproved.length})
           </TabsTrigger>
+          <TabsTrigger value="published" className="gap-2">
+            <Globe className="h-4 w-4" />
+            Published ({filteredPublished.length})
+          </TabsTrigger>
         </TabsList>
 
         {/* Pending Approval Tab */}
@@ -580,7 +656,7 @@ export default function ResultApproval() {
                       <TableHead className="w-12">
                         <Checkbox
                           checked={selectedIds.size === filteredSubmitted.length && filteredSubmitted.length > 0}
-                          onCheckedChange={() => toggleSelectAll(filteredSubmitted, false)}
+                          onCheckedChange={() => toggleSelectAll(filteredSubmitted, "pending")}
                         />
                       </TableHead>
                       <TableHead>Student</TableHead>
@@ -596,7 +672,7 @@ export default function ResultApproval() {
                     {filteredSubmitted.map((result) => (
                       <TableRow key={result.id}>
                         <TableCell>
-                          <Checkbox checked={selectedIds.has(result.id)} onCheckedChange={() => toggleSelect(result.id, false)} />
+                          <Checkbox checked={selectedIds.has(result.id)} onCheckedChange={() => toggleSelect(result.id, "pending")} />
                         </TableCell>
                         <TableCell>
                           <div>
@@ -669,7 +745,7 @@ export default function ResultApproval() {
                       <TableHead className="w-12">
                         <Checkbox
                           checked={selectedApprovedIds.size === filteredApproved.length && filteredApproved.length > 0}
-                          onCheckedChange={() => toggleSelectAll(filteredApproved, true)}
+                          onCheckedChange={() => toggleSelectAll(filteredApproved, "approved")}
                         />
                       </TableHead>
                       <TableHead>Student</TableHead>
@@ -684,7 +760,7 @@ export default function ResultApproval() {
                     {filteredApproved.map((result) => (
                       <TableRow key={result.id}>
                         <TableCell>
-                          <Checkbox checked={selectedApprovedIds.has(result.id)} onCheckedChange={() => toggleSelect(result.id, true)} />
+                          <Checkbox checked={selectedApprovedIds.has(result.id)} onCheckedChange={() => toggleSelect(result.id, "approved")} />
                         </TableCell>
                         <TableCell>
                           <div>
@@ -713,6 +789,91 @@ export default function ResultApproval() {
                             <Button size="sm" onClick={() => handlePublish(result)} disabled={processing} className="gap-1">
                               <Send className="h-3 w-3" />
                               Publish
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Published Tab */}
+        <TabsContent value="published">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                Published Results (Visible to Students)
+              </CardTitle>
+              {selectedPublishedIds.size > 0 && (
+                <Button onClick={handleBulkUnpublish} disabled={processing} variant="outline" className="gap-2">
+                  <EyeOff className="h-4 w-4" />
+                  Unpublish Selected ({selectedPublishedIds.size})
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {filteredPublished.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium">No published results</h3>
+                  <p className="text-muted-foreground">Published results will appear here.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedPublishedIds.size === filteredPublished.length && filteredPublished.length > 0}
+                          onCheckedChange={() => toggleSelectAll(filteredPublished, "published")}
+                        />
+                      </TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead>Term</TableHead>
+                      <TableHead>Published At</TableHead>
+                      <TableHead>Average</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPublished.map((result) => (
+                      <TableRow key={result.id}>
+                        <TableCell>
+                          <Checkbox checked={selectedPublishedIds.has(result.id)} onCheckedChange={() => toggleSelect(result.id, "published")} />
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{result.student.first_name} {result.student.last_name}</p>
+                            <p className="text-sm text-muted-foreground">{result.student.admission_number}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{result.class_arm.class?.name} - {result.class_arm.name}</TableCell>
+                        <TableCell>
+                          <div>
+                            <p>{result.term.name}</p>
+                            <p className="text-sm text-muted-foreground">{result.term.session?.name}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {result.submitted_at ? format(new Date(result.submitted_at), "MMM d, yyyy HH:mm") : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{result.average_score ? `${Number(result.average_score).toFixed(1)}%` : "-"}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleUnpublish(result)} disabled={processing} className="gap-1">
+                              <EyeOff className="h-3 w-3" />
+                              Unpublish
                             </Button>
                           </div>
                         </TableCell>
