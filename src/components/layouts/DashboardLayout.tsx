@@ -38,6 +38,7 @@ interface NavItem {
 const roleNavItems: Record<UserRole, NavItem[]> = {
   super_admin: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/super-admin" },
+    { label: "School Management", icon: School, href: "/super-admin/schools" },
     { label: "User Management", icon: Users, href: "/super-admin/users" },
     { label: "System Settings", icon: Settings, href: "/super-admin/settings" },
     { label: "Audit Logs", icon: Shield, href: "/super-admin/audit" },
@@ -60,6 +61,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   student: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/student" },
     { label: "My Results", icon: ClipboardList, href: "/student/results" },
+    { label: "Performance Analytics", icon: BarChart3, href: "/student/analytics" },
   ],
 };
 

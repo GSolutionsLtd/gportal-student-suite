@@ -38,6 +38,10 @@ import ClassPromotion from "./pages/admin/ClassPromotion";
 import UserManagement from "./pages/super-admin/UserManagement";
 import SystemSettings from "./pages/super-admin/SystemSettings";
 import AuditLogs from "./pages/super-admin/AuditLogs";
+import SchoolManagement from "./pages/super-admin/SchoolManagement";
+
+// Student pages
+import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +76,7 @@ function App() {
                 }
               >
                 <Route index element={<SuperAdminDashboard />} />
+                <Route path="schools" element={<SchoolManagement />} />
                 <Route path="users" element={<UserManagement />} />
                 <Route path="settings" element={<SystemSettings />} />
                 <Route path="audit" element={<AuditLogs />} />
@@ -121,6 +126,7 @@ function App() {
               >
                 <Route index element={<StudentDashboard />} />
                 <Route path="results" element={<StudentMyResults />} />
+                <Route path="analytics" element={<PerformanceAnalytics />} />
               </Route>
 
               {/* Catch-all */}
