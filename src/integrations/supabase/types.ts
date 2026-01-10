@@ -545,6 +545,38 @@ export type Database = {
           },
         ]
       }
+      school_admins: {
+        Row: {
+          created_at: string
+          id: string
+          is_primary: boolean | null
+          school_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          school_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          school_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_admins_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_settings: {
         Row: {
           address: string | null
@@ -577,6 +609,60 @@ export type Database = {
           motto?: string | null
           phone?: string | null
           school_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      schools: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          logo_url: string | null
+          max_students: number | null
+          max_teachers: number | null
+          motto: string | null
+          name: string
+          phone: string | null
+          subscription_ends_at: string | null
+          subscription_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          max_students?: number | null
+          max_teachers?: number | null
+          motto?: string | null
+          name: string
+          phone?: string | null
+          subscription_ends_at?: string | null
+          subscription_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          max_students?: number | null
+          max_teachers?: number | null
+          motto?: string | null
+          name?: string
+          phone?: string | null
+          subscription_ends_at?: string | null
+          subscription_status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -888,7 +974,40 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      student_performance_analytics: {
+        Row: {
+          admission_number: string | null
+          average_score: number | null
+          class_arm_name: string | null
+          class_level: number | null
+          class_name: string | null
+          class_position: number | null
+          first_name: string | null
+          last_name: string | null
+          session_name: string | null
+          student_id: string | null
+          term_id: string | null
+          term_name: string | null
+          term_type: Database["public"]["Enums"]["term_type"] | null
+          total_score: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "results_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "results_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       generate_admission_number: { Args: never; Returns: string }
