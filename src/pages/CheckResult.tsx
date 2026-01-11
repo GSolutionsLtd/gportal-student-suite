@@ -89,7 +89,7 @@ export default function CheckResult() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    registrationNumber: "",
+    admissionNumber: "",
     pin: "",
   });
   const [result, setResult] = useState<Result | null>(null);
@@ -137,10 +137,10 @@ export default function CheckResult() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.registrationNumber || !formData.pin) {
+    if (!formData.admissionNumber || !formData.pin) {
       toast({
         title: "Missing Information",
-        description: "Please enter both registration number and PIN.",
+        description: "Please enter both admission number and PIN.",
         variant: "destructive",
       });
       return;
@@ -161,7 +161,7 @@ export default function CheckResult() {
           middle_name,
           current_class_arm_id
         `)
-        .eq("admission_number", formData.registrationNumber.trim())
+        .eq("admission_number", formData.admissionNumber.trim())
         .maybeSingle();
 
       if (studentError) throw studentError;
@@ -169,7 +169,7 @@ export default function CheckResult() {
       if (!student) {
         toast({
           title: "Student Not Found",
-          description: "No student found with that registration number.",
+          description: "No student found with that admission number.",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -402,7 +402,7 @@ export default function CheckResult() {
                 size="sm"
                 onClick={() => {
                   setResult(null);
-                  setFormData({ registrationNumber: "", pin: "" });
+                  setFormData({ admissionNumber: "", pin: "" });
                 }}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -634,19 +634,19 @@ export default function CheckResult() {
           <div className="bg-card rounded-2xl border border-border p-6 shadow-lg">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <Label htmlFor="registrationNumber">Admission Number</Label>
+                <Label htmlFor="admissionNumber">Admission Number</Label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="registrationNumber"
+                    id="admissionNumber"
                     type="text"
                     placeholder="e.g., 2024/0001"
                     className="pl-10"
-                    value={formData.registrationNumber}
+                    value={formData.admissionNumber}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        registrationNumber: e.target.value,
+                        admissionNumber: e.target.value,
                       })
                     }
                     required

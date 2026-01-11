@@ -33,6 +33,7 @@ import PinManagement from "./pages/admin/PinManagement";
 import StudentManagement from "./pages/admin/StudentManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import ClassPromotion from "./pages/admin/ClassPromotion";
+import BulkPDFDownload from "./components/admin/BulkPDFDownload";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -99,6 +100,7 @@ function App() {
                 <Route path="students" element={<StudentManagement />} />
                 <Route path="settings" element={<SchoolSettings />} />
                 <Route path="promotion" element={<ClassPromotion />} />
+                <Route path="bulk-download" element={<BulkPDFDownload />} />
               </Route>
 
               {/* Teacher Routes */}

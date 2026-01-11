@@ -45,6 +45,8 @@ import {
   Mail,
   Phone,
   MapPin,
+  CreditCard,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -73,12 +75,25 @@ interface AdminUser {
   full_name: string;
 }
 
+interface PaymentPlan {
+  name: string;
+  duration: "monthly" | "quarterly" | "yearly";
+  amount: number;
+  savings?: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   trial: "bg-blue-500/20 text-blue-700 border-blue-500/50",
   active: "bg-green-500/20 text-green-700 border-green-500/50",
   suspended: "bg-yellow-500/20 text-yellow-700 border-yellow-500/50",
   expired: "bg-red-500/20 text-red-700 border-red-500/50",
 };
+
+const PAYMENT_PLANS: PaymentPlan[] = [
+  { name: "Monthly", duration: "monthly", amount: 5000 },
+  { name: "Quarterly", duration: "quarterly", amount: 13500, savings: "10%" },
+  { name: "Yearly", duration: "yearly", amount: 48000, savings: "20%" },
+];
 
 export default function SchoolManagement() {
   const { user } = useAuth();
@@ -88,6 +103,11 @@ export default function SchoolManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedSchoolForPayment, setSelectedSchoolForPayment] = useState<SchoolData | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PaymentPlan>(PAYMENT_PLANS[0]);
+  const [paymentEmail, setPaymentEmail] = useState("");
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [editingSchool, setEditingSchool] = useState<SchoolData | null>(null);
   const [processing, setProcessing] = useState(false);
   const [availableAdmins, setAvailableAdmins] = useState<AdminUser[]>([]);
@@ -326,6 +346,61 @@ export default function SchoolManagement() {
     }
   };
 
+  const openPaymentDialog = (school: SchoolData) => {
+    setSelectedSchoolForPayment(school);
+    setPaymentEmail(school.email || "");
+    setSelectedPlan(PAYMENT_PLANS[0]);
+    setPaymentDialogOpen(true);
+  };
+
+  const handleInitiatePayment = async () => {
+    if (!selectedSchoolForPayment || !paymentEmail) {
+      toast({
+        title: "Error",
+        description: "Please provide an email address for payment receipt.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setProcessingPayment(true);
+
+      const { data, error } = await supabase.functions.invoke("initialize-payment", {
+        body: {
+          school_id: selectedSchoolForPayment.id,
+          email: paymentEmail,
+          amount: selectedPlan.amount,
+          plan_type: selectedPlan.duration,
+          callback_url: `${window.location.origin}/payment/callback`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.authorization_url) {
+        // Open Paystack payment page
+        window.open(data.authorization_url, "_blank");
+        toast({
+          title: "Payment Initiated",
+          description: "Complete the payment in the new tab. The subscription will be updated automatically.",
+        });
+        setPaymentDialogOpen(false);
+      } else {
+        throw new Error("Failed to get payment URL");
+      }
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      toast({
+        title: "Payment Error",
+        description: error.message || "Failed to initialize payment",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -518,6 +593,15 @@ export default function SchoolManagement() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPaymentDialog(school)}
+                          className="gap-1"
+                        >
+                          <CreditCard className="h-3 w-3" />
+                          Pay
+                        </Button>
+                        <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => openEditDialog(school)}
@@ -541,6 +625,90 @@ export default function SchoolManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Renew Subscription
+            </DialogTitle>
+            <DialogDescription>
+              Choose a subscription plan for {selectedSchoolForPayment?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Plan Selection */}
+            <div className="space-y-3">
+              {PAYMENT_PLANS.map((plan) => (
+                <div
+                  key={plan.duration}
+                  onClick={() => setSelectedPlan(plan)}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                    selectedPlan.duration === plan.duration
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{plan.name}</p>
+                      {plan.savings && (
+                        <Badge variant="secondary" className="mt-1">
+                          Save {plan.savings}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold">₦{plan.amount.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {plan.duration === "monthly"
+                          ? "per month"
+                          : plan.duration === "quarterly"
+                            ? "per 3 months"
+                            : "per year"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Email Input */}
+            <div className="space-y-2">
+              <Label htmlFor="payment-email">Payment Receipt Email</Label>
+              <Input
+                id="payment-email"
+                type="email"
+                value={paymentEmail}
+                onChange={(e) => setPaymentEmail(e.target.value)}
+                placeholder="Enter email for receipt"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleInitiatePayment} disabled={processingPayment}>
+              {processingPayment ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Pay ₦{selectedPlan.amount.toLocaleString()}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
