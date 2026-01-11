@@ -1,0 +1,144 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface PaymentRequest {
+  school_id: string;
+  email: string;
+  amount: number; // Amount in kobo (NGN) or smallest currency unit
+  plan_type: string; // 'monthly' | 'quarterly' | 'yearly'
+  callback_url?: string;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY")!;
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { school_id, email, amount, plan_type, callback_url } = await req.json() as PaymentRequest;
+
+    if (!school_id || !email || !amount) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: school_id, email, amount" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify school exists
+    const { data: school, error: schoolError } = await supabase
+      .from("schools")
+      .select("id, name, code")
+      .eq("id", school_id)
+      .single();
+
+    if (schoolError || !school) {
+      return new Response(
+        JSON.stringify({ error: "School not found" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Calculate duration based on plan type
+    let durationMonths = 1;
+    switch (plan_type) {
+      case "quarterly":
+        durationMonths = 3;
+        break;
+      case "yearly":
+        durationMonths = 12;
+        break;
+      default:
+        durationMonths = 1;
+    }
+
+    // Generate unique reference
+    const reference = `SCH-${school.code}-${Date.now()}`;
+
+    // Initialize Paystack transaction
+    const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${paystackSecret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        amount: amount * 100, // Convert to kobo
+        reference,
+        callback_url: callback_url || `${req.headers.get("origin")}/payment/callback`,
+        metadata: {
+          school_id,
+          school_name: school.name,
+          plan_type,
+          duration_months: durationMonths,
+          custom_fields: [
+            {
+              display_name: "School Name",
+              variable_name: "school_name",
+              value: school.name,
+            },
+            {
+              display_name: "Plan",
+              variable_name: "plan_type",
+              value: plan_type.charAt(0).toUpperCase() + plan_type.slice(1),
+            },
+          ],
+        },
+      }),
+    });
+
+    const paystackData = await paystackResponse.json();
+
+    if (!paystackData.status) {
+      console.error("Paystack error:", paystackData);
+      return new Response(
+        JSON.stringify({ error: paystackData.message || "Payment initialization failed" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    console.log("Payment initialized for school:", school.name, "Reference:", reference);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        authorization_url: paystackData.data.authorization_url,
+        access_code: paystackData.data.access_code,
+        reference: paystackData.data.reference,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error: unknown) {
+    console.error("Payment initialization error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+});
