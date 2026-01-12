@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,19 @@ import {
   Award,
   TrendingUp,
   GraduationCap,
+  School,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+
+interface SchoolSettings {
+  school_name: string;
+  address: string | null;
+  motto: string | null;
+  logo_url: string | null;
+  email: string | null;
+  phone: string | null;
+}
 
 interface StudentInfo {
   id: string;
@@ -94,6 +104,25 @@ export default function CheckResult() {
   });
   const [result, setResult] = useState<Result | null>(null);
   const [gradingScales, setGradingScales] = useState<GradingScale[]>([]);
+  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
+  const [classSize, setClassSize] = useState<number>(0);
+
+  useEffect(() => {
+    // Fetch school settings on component mount
+    fetchSchoolSettings();
+  }, []);
+
+  const fetchSchoolSettings = async () => {
+    const { data, error } = await supabase
+      .from("school_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data) {
+      setSchoolSettings(data);
+    }
+  };
 
   const getGradeForScore = (score: number | null): { grade: string; remark: string } => {
     if (score === null) return { grade: "-", remark: "-" };
@@ -150,36 +179,10 @@ export default function CheckResult() {
     setResult(null);
 
     try {
-      // Find the student by admission number
-      const { data: student, error: studentError } = await supabase
-        .from("students")
-        .select(`
-          id,
-          admission_number,
-          first_name,
-          last_name,
-          middle_name,
-          current_class_arm_id
-        `)
-        .eq("admission_number", formData.admissionNumber.trim())
-        .maybeSingle();
-
-      if (studentError) throw studentError;
-
-      if (!student) {
-        toast({
-          title: "Student Not Found",
-          description: "No student found with that admission number.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Verify PIN
+      // Verify PIN first
       const { data: pin, error: pinError } = await supabase
         .from("pins")
-        .select("id, status, usage_count, max_usage, expires_at, term_id")
+        .select("id, status, usage_count, max_usage, expires_at, term_id, student_id")
         .eq("pin_code", formData.pin.trim().toUpperCase())
         .maybeSingle();
 
@@ -228,6 +231,43 @@ export default function CheckResult() {
         return;
       }
 
+      // Find the student by admission number
+      const { data: student, error: studentError } = await supabase
+        .from("students")
+        .select(`
+          id,
+          admission_number,
+          first_name,
+          last_name,
+          middle_name,
+          current_class_arm_id
+        `)
+        .eq("admission_number", formData.admissionNumber.trim())
+        .maybeSingle();
+
+      if (studentError) throw studentError;
+
+      if (!student) {
+        toast({
+          title: "Student Not Found",
+          description: "No student found with that admission number. Please check and try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // If PIN is assigned to a specific student, verify it matches
+      if (pin.student_id && pin.student_id !== student.id) {
+        toast({
+          title: "PIN Mismatch",
+          description: "This PIN is not assigned to this student. Please use the correct PIN.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Fetch published results for this student
       // If PIN has a term_id, only show results for that term
       let resultsQuery = supabase
@@ -238,6 +278,7 @@ export default function CheckResult() {
           average_score,
           class_position,
           remarks,
+          class_arm_id,
           term:terms(
             name,
             session:academic_sessions(name)
@@ -266,6 +307,15 @@ export default function CheckResult() {
         setIsLoading(false);
         return;
       }
+
+      // Get class size for position context
+      const { count: classSizeCount } = await supabase
+        .from("results")
+        .select("id", { count: "exact", head: true })
+        .eq("class_arm_id", results.class_arm_id)
+        .eq("status", "published");
+
+      setClassSize(classSizeCount || 0);
 
       // Fetch result components (subject scores)
       const { data: components, error: componentsError } = await supabase
@@ -310,18 +360,24 @@ export default function CheckResult() {
       await supabase.from("pin_usage_logs").insert({
         pin_id: pin.id,
         student_id: student.id,
-        ip_address: null, // Could be obtained from a backend
+        ip_address: null,
         user_agent: navigator.userAgent,
       });
 
-      // Increment PIN usage count
+      // Increment PIN usage count and update student_id if not set
+      const updateData: any = {
+        usage_count: pin.usage_count + 1,
+        used_at: new Date().toISOString(),
+      };
+      
+      // Only update student_id if PIN wasn't already assigned
+      if (!pin.student_id) {
+        updateData.student_id = student.id;
+      }
+
       await supabase
         .from("pins")
-        .update({
-          usage_count: pin.usage_count + 1,
-          used_at: new Date().toISOString(),
-          student_id: student.id,
-        })
+        .update(updateData)
         .eq("id", pin.id);
 
       // Build result object
@@ -414,16 +470,46 @@ export default function CheckResult() {
 
         {/* Result Content */}
         <main className="container mx-auto px-4 py-8 max-w-4xl">
-          {/* School Header for Print */}
-          <div className="hidden print:block text-center mb-8">
-            <h1 className="text-2xl font-bold">STUDENT RESULT REPORT</h1>
-            <p className="text-muted-foreground">
-              {result.term?.session?.name} - {result.term?.name}
-            </p>
+          {/* School Header */}
+          <div className="bg-primary text-primary-foreground rounded-xl p-6 mb-6 print:rounded-none print:bg-primary">
+            <div className="flex items-center gap-4">
+              {schoolSettings?.logo_url && (
+                <img 
+                  src={schoolSettings.logo_url} 
+                  alt="School Logo" 
+                  className="h-16 w-16 object-contain bg-white rounded-lg p-1"
+                />
+              )}
+              <div className="flex-1 text-center">
+                <h1 className="text-2xl font-bold">
+                  {schoolSettings?.school_name || "School Name"}
+                </h1>
+                {schoolSettings?.address && (
+                  <p className="text-sm opacity-90">{schoolSettings.address}</p>
+                )}
+                {schoolSettings?.motto && (
+                  <p className="text-xs italic opacity-80">"{schoolSettings.motto}"</p>
+                )}
+                {(schoolSettings?.phone || schoolSettings?.email) && (
+                  <p className="text-xs opacity-80 mt-1">
+                    {schoolSettings.phone && `Tel: ${schoolSettings.phone}`}
+                    {schoolSettings.phone && schoolSettings.email && " | "}
+                    {schoolSettings.email && `Email: ${schoolSettings.email}`}
+                  </p>
+                )}
+              </div>
+              {schoolSettings?.logo_url && <div className="w-16" />}
+            </div>
+            <div className="text-center mt-4 pt-4 border-t border-primary-foreground/20">
+              <h2 className="text-lg font-semibold">STUDENT RESULT REPORT</h2>
+              <p className="text-sm opacity-90">
+                {result.term?.session?.name} - {result.term?.name}
+              </p>
+            </div>
           </div>
 
           {/* Student Info Card */}
-          <div className="bg-card rounded-xl border border-border p-6 mb-6 print:border-0 print:p-0 print:mb-4">
+          <div className="bg-card rounded-xl border border-border p-6 mb-6 print:border print:p-4 print:mb-4">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -435,7 +521,7 @@ export default function CheckResult() {
                     {result.student.middle_name || ""}
                   </h2>
                   <p className="text-muted-foreground">
-                    {result.student.admission_number}
+                    Admission No: {result.student.admission_number}
                   </p>
                 </div>
               </div>
@@ -463,7 +549,7 @@ export default function CheckResult() {
                 <span className="text-muted-foreground">Position:</span>
                 <span className="font-medium">
                   {result.class_position
-                    ? `${result.class_position}${getOrdinalSuffix(result.class_position)}`
+                    ? `${result.class_position}${getOrdinalSuffix(result.class_position)} of ${classSize}`
                     : "-"}
                 </span>
               </div>
@@ -580,8 +666,8 @@ export default function CheckResult() {
             </div>
           )}
 
-          {/* Grading Scale - Print only */}
-          <div className="hidden print:block mt-8 border-t pt-4">
+          {/* Grading Scale */}
+          <div className="mt-6 border rounded-lg p-4 print:border print:mt-4">
             <h3 className="font-semibold text-sm mb-2">Grading Scale</h3>
             <div className="flex flex-wrap gap-4 text-xs">
               {gradingScales.map((scale) => (
@@ -591,6 +677,12 @@ export default function CheckResult() {
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-8 pt-4 border-t text-center text-xs text-muted-foreground print:mt-4">
+            <p>This is a computer-generated result. For any queries, please contact the school administration.</p>
+            <p className="mt-1">Printed on: {new Date().toLocaleDateString()}</p>
           </div>
         </main>
       </div>
@@ -618,6 +710,29 @@ export default function CheckResult() {
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
+          {/* School Info Banner */}
+          {schoolSettings && (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6 text-center">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                {schoolSettings.logo_url ? (
+                  <img 
+                    src={schoolSettings.logo_url} 
+                    alt="School Logo" 
+                    className="h-12 w-12 object-contain"
+                  />
+                ) : (
+                  <School className="h-8 w-8 text-primary" />
+                )}
+                <h2 className="text-lg font-bold text-foreground">
+                  {schoolSettings.school_name}
+                </h2>
+              </div>
+              {schoolSettings.motto && (
+                <p className="text-xs text-muted-foreground italic">"{schoolSettings.motto}"</p>
+              )}
+            </div>
+          )}
+
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl gradient-primary mb-6">
               <GraduationCap className="h-8 w-8 text-primary-foreground" />
@@ -634,13 +749,13 @@ export default function CheckResult() {
           <div className="bg-card rounded-2xl border border-border p-6 shadow-lg">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <Label htmlFor="admissionNumber">Admission Number</Label>
+                <Label htmlFor="admissionNumber">Admission Number / Registration Number</Label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="admissionNumber"
                     type="text"
-                    placeholder="e.g., 2024/0001"
+                    placeholder="e.g., 2024/0001 or ADM001"
                     className="pl-10"
                     value={formData.admissionNumber}
                     onChange={(e) =>

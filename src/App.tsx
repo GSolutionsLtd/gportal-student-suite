@@ -13,6 +13,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import CheckResult from "./pages/CheckResult";
+import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 
 // Dashboard Layouts
@@ -34,6 +35,7 @@ import StudentManagement from "./pages/admin/StudentManagement";
 import SchoolSettings from "./pages/admin/SchoolSettings";
 import ClassPromotion from "./pages/admin/ClassPromotion";
 import BulkPDFDownload from "./components/admin/BulkPDFDownload";
+import ScoreReset from "./pages/admin/ScoreReset";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -66,6 +68,7 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/check-result" element={<CheckResult />} />
+              <Route path="/payment/callback" element={<PaymentCallback />} />
 
               {/* Super Admin Routes */}
               <Route 
@@ -101,6 +104,7 @@ function App() {
                 <Route path="settings" element={<SchoolSettings />} />
                 <Route path="promotion" element={<ClassPromotion />} />
                 <Route path="bulk-download" element={<BulkPDFDownload />} />
+                <Route path="score-reset" element={<ScoreReset />} />
               </Route>
 
               {/* Teacher Routes */}
