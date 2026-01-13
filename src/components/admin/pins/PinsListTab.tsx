@@ -17,6 +17,13 @@ interface Term {
   name: string;
 }
 
+interface Student {
+  id: string;
+  first_name: string;
+  last_name: string;
+  admission_number: string;
+}
+
 interface Pin {
   id: string;
   serial_number: string;
@@ -27,7 +34,9 @@ interface Pin {
   expires_at: string | null;
   generated_at: string;
   term_id: string | null;
+  student_id: string | null;
   term?: Term;
+  student?: Student;
 }
 
 export const PinsListTab = () => {
@@ -57,7 +66,8 @@ export const PinsListTab = () => {
       .from("pins")
       .select(`
         *,
-        term:terms(id, name)
+        term:terms(id, name),
+        student:students(id, first_name, last_name, admission_number)
       `)
       .order("generated_at", { ascending: false })
       .limit(100);
@@ -115,9 +125,13 @@ export const PinsListTab = () => {
   };
 
   const filteredPins = pins.filter((pin) => {
+    const studentName = pin.student 
+      ? `${pin.student.first_name} ${pin.student.last_name} ${pin.student.admission_number}`.toLowerCase() 
+      : "";
     const matchesSearch =
       pin.serial_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pin.pin_code.toLowerCase().includes(searchQuery.toLowerCase());
+      pin.pin_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      studentName.includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || pin.status === statusFilter;
     const matchesTerm = termFilter === "all" || pin.term_id === termFilter;
     return matchesSearch && matchesStatus && matchesTerm;
@@ -178,6 +192,7 @@ export const PinsListTab = () => {
                 <TableRow>
                   <TableHead>Serial Number</TableHead>
                   <TableHead>PIN Code</TableHead>
+                  <TableHead>Assigned Student</TableHead>
                   <TableHead>Term</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Usage</TableHead>
@@ -191,6 +206,20 @@ export const PinsListTab = () => {
                   <TableRow key={pin.id}>
                     <TableCell className="font-mono">{pin.serial_number}</TableCell>
                     <TableCell className="font-mono font-medium">{pin.pin_code}</TableCell>
+                    <TableCell>
+                      {pin.student ? (
+                        <div>
+                          <div className="font-medium">
+                            {pin.student.first_name} {pin.student.last_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {pin.student.admission_number}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Unassigned</span>
+                      )}
+                    </TableCell>
                     <TableCell>{pin.term?.name || "-"}</TableCell>
                     <TableCell>{getStatusBadge(pin.status)}</TableCell>
                     <TableCell>
