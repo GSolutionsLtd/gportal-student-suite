@@ -1,1 +1,16 @@
 project_id = "zjmxrcjlfdyasftmwdqd"
+
+[functions.initialize-payment]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.check-subscription-expiry]
+verify_jwt = false
+
+[functions.send-result-notification]
+verify_jwt = false

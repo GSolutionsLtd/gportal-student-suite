@@ -49,6 +49,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Students", icon: GraduationCap, href: "/admin/students" },
     { label: "Teachers", icon: School, href: "/admin/teachers" },
     { label: "Result Approval", icon: FileCheck, href: "/admin/results" },
+    { label: "Score Reset", icon: BarChart3, href: "/admin/score-reset" },
     { label: "Bulk PDF Download", icon: ClipboardList, href: "/admin/bulk-download" },
     { label: "PIN Management", icon: Key, href: "/admin/pins" },
     { label: "Class Promotion", icon: Layers, href: "/admin/promotion" },
