@@ -7,7 +7,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Search, Trash2, Ban, RotateCcw } from "lucide-react";
+import { Search, Trash2, Ban, RotateCcw, UserX, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type PinStatus = Database["public"]["Enums"]["pin_status"];
@@ -46,6 +56,9 @@ export const PinsListTab = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [termFilter, setTermFilter] = useState<string>("all");
+  const [unassignDialogOpen, setUnassignDialogOpen] = useState(false);
+  const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
+  const [unassigning, setUnassigning] = useState(false);
 
   useEffect(() => {
     fetchTerms();
@@ -109,6 +122,34 @@ export const PinsListTab = () => {
     }
   };
 
+  const openUnassignDialog = (pin: Pin) => {
+    setSelectedPin(pin);
+    setUnassignDialogOpen(true);
+  };
+
+  const handleUnassign = async () => {
+    if (!selectedPin) return;
+
+    setUnassigning(true);
+    try {
+      const { error } = await supabase
+        .from("pins")
+        .update({ student_id: null })
+        .eq("id", selectedPin.id);
+
+      if (error) throw error;
+
+      toast.success(`PIN unassigned from ${selectedPin.student?.first_name} ${selectedPin.student?.last_name}`);
+      setUnassignDialogOpen(false);
+      setSelectedPin(null);
+      fetchPins();
+    } catch (error: any) {
+      toast.error("Failed to unassign PIN: " + error.message);
+    } finally {
+      setUnassigning(false);
+    }
+  };
+
   const getStatusBadge = (status: PinStatus) => {
     switch (status) {
       case "active":
@@ -138,141 +179,184 @@ export const PinsListTab = () => {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>All PINs</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by serial number or PIN code..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="used">Used</SelectItem>
-              <SelectItem value="deactivated">Deactivated</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={termFilter} onValueChange={setTermFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Term" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Terms</SelectItem>
-              {terms.map((term) => (
-                <SelectItem key={term.id} value={term.id}>
-                  {term.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-4">Loading...</div>
-        ) : filteredPins.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No PINs found.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Serial Number</TableHead>
-                  <TableHead>PIN Code</TableHead>
-                  <TableHead>Assigned Student</TableHead>
-                  <TableHead>Term</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Usage</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Generated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPins.map((pin) => (
-                  <TableRow key={pin.id}>
-                    <TableCell className="font-mono">{pin.serial_number}</TableCell>
-                    <TableCell className="font-mono font-medium">{pin.pin_code}</TableCell>
-                    <TableCell>
-                      {pin.student ? (
-                        <div>
-                          <div className="font-medium">
-                            {pin.student.first_name} {pin.student.last_name}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {pin.student.admission_number}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Unassigned</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{pin.term?.name || "-"}</TableCell>
-                    <TableCell>{getStatusBadge(pin.status)}</TableCell>
-                    <TableCell>
-                      {pin.usage_count} / {pin.max_usage}
-                    </TableCell>
-                    <TableCell>
-                      {pin.expires_at
-                        ? new Date(pin.expires_at).toLocaleDateString()
-                        : "Never"}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(pin.generated_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {pin.status === "active" ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleStatusChange(pin.id, "deactivated")}
-                          title="Deactivate PIN"
-                        >
-                          <Ban className="h-4 w-4" />
-                        </Button>
-                      ) : pin.status === "deactivated" ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleStatusChange(pin.id, "active")}
-                          title="Reactivate PIN"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(pin.id)}
-                        title="Delete PIN"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>All PINs</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by serial number, PIN code, or student..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="used">Used</SelectItem>
+                <SelectItem value="deactivated">Deactivated</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={termFilter} onValueChange={setTermFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Term" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Terms</SelectItem>
+                {terms.map((term) => (
+                  <SelectItem key={term.id} value={term.id}>
+                    {term.name}
+                  </SelectItem>
                 ))}
-              </TableBody>
-            </Table>
+              </SelectContent>
+            </Select>
           </div>
-        )}
 
-        <div className="text-sm text-muted-foreground">
-          Showing {filteredPins.length} of {pins.length} PINs
-        </div>
-      </CardContent>
-    </Card>
+          {loading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : filteredPins.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No PINs found.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Serial Number</TableHead>
+                    <TableHead>PIN Code</TableHead>
+                    <TableHead>Assigned Student</TableHead>
+                    <TableHead>Term</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Usage</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Generated</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPins.map((pin) => (
+                    <TableRow key={pin.id}>
+                      <TableCell className="font-mono">{pin.serial_number}</TableCell>
+                      <TableCell className="font-mono font-medium">{pin.pin_code}</TableCell>
+                      <TableCell>
+                        {pin.student ? (
+                          <div>
+                            <div className="font-medium">
+                              {pin.student.first_name} {pin.student.last_name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {pin.student.admission_number}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{pin.term?.name || "-"}</TableCell>
+                      <TableCell>{getStatusBadge(pin.status)}</TableCell>
+                      <TableCell>
+                        {pin.usage_count} / {pin.max_usage}
+                      </TableCell>
+                      <TableCell>
+                        {pin.expires_at
+                          ? new Date(pin.expires_at).toLocaleDateString()
+                          : "Never"}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(pin.generated_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {pin.student && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openUnassignDialog(pin)}
+                              title="Unassign from student"
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {pin.status === "active" ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleStatusChange(pin.id, "deactivated")}
+                              title="Deactivate PIN"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          ) : pin.status === "deactivated" ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleStatusChange(pin.id, "active")}
+                              title="Reactivate PIN"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(pin.id)}
+                            title="Delete PIN"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <div className="text-sm text-muted-foreground">
+            Showing {filteredPins.length} of {pins.length} PINs
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Unassign Confirmation Dialog */}
+      <AlertDialog open={unassignDialogOpen} onOpenChange={setUnassignDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unassign PIN from Student?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the PIN assignment from{" "}
+              <strong>
+                {selectedPin?.student?.first_name} {selectedPin?.student?.last_name}
+              </strong>{" "}
+              ({selectedPin?.student?.admission_number}). The PIN will become available for reassignment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unassigning}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUnassign} disabled={unassigning}>
+              {unassigning ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Unassigning...
+                </>
+              ) : (
+                "Unassign PIN"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

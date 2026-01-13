@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { PinStatisticsWidget } from "@/components/dashboard/PinStatisticsWidget";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +16,8 @@ import {
   Loader2,
   TrendingUp,
   TrendingDown,
-  BarChart3
+  BarChart3,
+  Key
 } from "lucide-react";
 import {
   BarChart,
@@ -454,6 +456,14 @@ export default function AdminDashboard() {
                 <ClipboardList className="h-4 w-4 mr-2" />
                 Review Results
               </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/admin/pins")}
+              >
+                <Key className="h-4 w-4 mr-2" />
+                Manage PINs
+              </Button>
             </div>
           </div>
 
@@ -474,6 +484,11 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* PIN Statistics Widget */}
+      <div className="mt-6">
+        <PinStatisticsWidget />
       </div>
     </div>
   );
