@@ -290,31 +290,37 @@ export default function ResultEntry() {
     fetchStudentsAndScores();
   }, [selectedAssignment, currentTerm, assignments, toast]);
 
-  // Calculate weighted total
+  // Calculate total score - direct sum of all components
+  // Test1 (max 10) + Test2 (max 10) + Other (max 10) + Exam (max 70) = 100
   const calculateTotal = useCallback((entry: ScoreEntry): number | null => {
     const { test1_score, test2_score, other_assessment_score, exam_score } = entry;
     if (test1_score === null && test2_score === null && other_assessment_score === null && exam_score === null) {
       return null;
     }
 
-    const t1 = test1_score || 0;
-    const t2 = test2_score || 0;
-    const other = other_assessment_score || 0;
-    const exam = exam_score || 0;
+    // Direct sum: each score is entered as its actual value (not percentage)
+    // Test1 max 10, Test2 max 10, Other max 10, Exam max 70 = Total max 100
+    const t1 = Math.min(test1_score || 0, 10); // Cap at 10
+    const t2 = Math.min(test2_score || 0, 10); // Cap at 10
+    const other = Math.min(other_assessment_score || 0, 10); // Cap at 10
+    const exam = Math.min(exam_score || 0, 70); // Cap at 70
 
-    // Scores are entered out of 100, weights determine the percentage of the final grade
-    const total = 
-      (t1 * scoreWeights.test1_weight / 100) +
-      (t2 * scoreWeights.test2_weight / 100) +
-      (other * scoreWeights.other_assessment_weight / 100) +
-      (exam * scoreWeights.exam_weight / 100);
+    const total = t1 + t2 + other + exam;
 
     return Math.round(total * 100) / 100;
-  }, [scoreWeights]);
+  }, []);
 
-  // Handle score change
+  // Handle score change with proper max limits
   const handleScoreChange = (studentId: string, field: keyof ScoreEntry, value: string) => {
-    const numValue = value === "" ? null : Math.min(100, Math.max(0, parseFloat(value) || 0));
+    // Set max limits based on field type
+    const maxLimits: Record<string, number> = {
+      test1_score: 10,
+      test2_score: 10,
+      other_assessment_score: 10,
+      exam_score: 70,
+    };
+    const maxValue = maxLimits[field] || 100;
+    const numValue = value === "" ? null : Math.min(maxValue, Math.max(0, parseFloat(value) || 0));
     
     setScores(prev => {
       const updated = {
@@ -690,7 +696,7 @@ export default function ResultEntry() {
                           <Input
                             type="number"
                             min="0"
-                            max="100"
+                            max="10"
                             value={entry.test1_score ?? ""}
                             onChange={(e) => handleScoreChange(student.id, "test1_score", e.target.value)}
                             className="w-full text-center h-9"
@@ -702,7 +708,7 @@ export default function ResultEntry() {
                           <Input
                             type="number"
                             min="0"
-                            max="100"
+                            max="10"
                             value={entry.test2_score ?? ""}
                             onChange={(e) => handleScoreChange(student.id, "test2_score", e.target.value)}
                             className="w-full text-center h-9"
@@ -714,7 +720,7 @@ export default function ResultEntry() {
                           <Input
                             type="number"
                             min="0"
-                            max="100"
+                            max="10"
                             value={entry.other_assessment_score ?? ""}
                             onChange={(e) => handleScoreChange(student.id, "other_assessment_score", e.target.value)}
                             className="w-full text-center h-9"
@@ -726,7 +732,7 @@ export default function ResultEntry() {
                           <Input
                             type="number"
                             min="0"
-                            max="100"
+                            max="70"
                             value={entry.exam_score ?? ""}
                             onChange={(e) => handleScoreChange(student.id, "exam_score", e.target.value)}
                             className="w-full text-center h-9"
