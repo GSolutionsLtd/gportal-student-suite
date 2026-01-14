@@ -473,8 +473,11 @@ export type Database = {
           average_score: number | null
           class_arm_id: string
           class_position: number | null
+          class_teacher_id: string | null
+          class_teacher_remark: string | null
           created_at: string
           id: string
+          principal_remark: string | null
           published_at: string | null
           remarks: string | null
           status: Database["public"]["Enums"]["result_status"]
@@ -491,8 +494,11 @@ export type Database = {
           average_score?: number | null
           class_arm_id: string
           class_position?: number | null
+          class_teacher_id?: string | null
+          class_teacher_remark?: string | null
           created_at?: string
           id?: string
+          principal_remark?: string | null
           published_at?: string | null
           remarks?: string | null
           status?: Database["public"]["Enums"]["result_status"]
@@ -509,8 +515,11 @@ export type Database = {
           average_score?: number | null
           class_arm_id?: string
           class_position?: number | null
+          class_teacher_id?: string | null
+          class_teacher_remark?: string | null
           created_at?: string
           id?: string
+          principal_remark?: string | null
           published_at?: string | null
           remarks?: string | null
           status?: Database["public"]["Enums"]["result_status"]
@@ -527,6 +536,13 @@ export type Database = {
             columns: ["class_arm_id"]
             isOneToOne: false
             referencedRelation: "class_arms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "results_class_teacher_id_fkey"
+            columns: ["class_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
           {
@@ -586,6 +602,8 @@ export type Database = {
           logo_url: string | null
           motto: string | null
           phone: string | null
+          principal_name: string | null
+          principal_signature_url: string | null
           school_name: string
           updated_at: string
         }
@@ -597,6 +615,8 @@ export type Database = {
           logo_url?: string | null
           motto?: string | null
           phone?: string | null
+          principal_name?: string | null
+          principal_signature_url?: string | null
           school_name?: string
           updated_at?: string
         }
@@ -608,6 +628,8 @@ export type Database = {
           logo_url?: string | null
           motto?: string | null
           phone?: string | null
+          principal_name?: string | null
+          principal_signature_url?: string | null
           school_name?: string
           updated_at?: string
         }
@@ -871,7 +893,10 @@ export type Database = {
           date_joined: string
           id: string
           is_active: boolean
+          is_class_teacher: boolean | null
+          is_form_teacher: boolean | null
           qualification: string | null
+          signature_url: string | null
           specialization: string | null
           staff_id: string
           updated_at: string
@@ -882,7 +907,10 @@ export type Database = {
           date_joined?: string
           id?: string
           is_active?: boolean
+          is_class_teacher?: boolean | null
+          is_form_teacher?: boolean | null
           qualification?: string | null
+          signature_url?: string | null
           specialization?: string | null
           staff_id: string
           updated_at?: string
@@ -893,7 +921,10 @@ export type Database = {
           date_joined?: string
           id?: string
           is_active?: boolean
+          is_class_teacher?: boolean | null
+          is_form_teacher?: boolean | null
           qualification?: string | null
+          signature_url?: string | null
           specialization?: string | null
           staff_id?: string
           updated_at?: string
@@ -1010,8 +1041,23 @@ export type Database = {
       }
     }
     Functions: {
+      compute_class_positions: {
+        Args: { p_class_arm_id: string; p_term_id: string }
+        Returns: undefined
+      }
+      compute_result_aggregates: {
+        Args: { p_result_id: string }
+        Returns: undefined
+      }
       generate_admission_number: { Args: never; Returns: string }
       generate_pin_code: { Args: never; Returns: string }
+      get_grade_for_score: {
+        Args: { p_score: number }
+        Returns: {
+          grade: string
+          remark: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
