@@ -76,6 +76,9 @@ interface Result {
   average_score: number | null;
   class_position: number | null;
   remarks: string | null;
+  class_teacher_remark?: string | null;
+  principal_remark?: string | null;
+  class_teacher_signature_url?: string | null;
   term: {
     name: string;
     session: {
@@ -106,6 +109,7 @@ export default function CheckResult() {
   const [gradingScales, setGradingScales] = useState<GradingScale[]>([]);
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
   const [classSize, setClassSize] = useState<number>(0);
+  const [generatedRemarks, setGeneratedRemarks] = useState<{ classTeacher?: string; principal?: string }>({});
 
   useEffect(() => {
     // Fetch school settings on component mount
@@ -177,235 +181,79 @@ export default function CheckResult() {
 
     setIsLoading(true);
     setResult(null);
+    setGeneratedRemarks({});
 
     try {
-      // Verify PIN first
-      const { data: pin, error: pinError } = await supabase
-        .from("pins")
-        .select("id, status, usage_count, max_usage, expires_at, term_id, student_id")
-        .eq("pin_code", formData.pin.trim().toUpperCase())
-        .maybeSingle();
-
-      if (pinError) throw pinError;
-
-      if (!pin) {
-        toast({
-          title: "Invalid PIN",
-          description: "The PIN you entered is not valid.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Check PIN status
-      if (pin.status !== "active") {
-        toast({
-          title: "PIN Not Active",
-          description: `This PIN is ${pin.status}. Please contact your school administrator.`,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Check PIN expiration
-      if (pin.expires_at && new Date(pin.expires_at) < new Date()) {
-        toast({
-          title: "PIN Expired",
-          description: "This PIN has expired. Please contact your school administrator.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Check usage limit
-      if (pin.usage_count >= pin.max_usage) {
-        toast({
-          title: "Usage Limit Reached",
-          description: "This PIN has reached its maximum usage limit.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Find the student by admission number
-      const { data: student, error: studentError } = await supabase
-        .from("students")
-        .select(`
-          id,
-          admission_number,
-          first_name,
-          last_name,
-          middle_name,
-          current_class_arm_id
-        `)
-        .eq("admission_number", formData.admissionNumber.trim())
-        .maybeSingle();
-
-      if (studentError) throw studentError;
-
-      if (!student) {
-        toast({
-          title: "Student Not Found",
-          description: "No student found with that admission number. Please check and try again.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // If PIN is assigned to a specific student, verify it matches
-      if (pin.student_id && pin.student_id !== student.id) {
-        toast({
-          title: "PIN Mismatch",
-          description: "This PIN is not assigned to this student. Please use the correct PIN.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Fetch published results for this student
-      // If PIN has a term_id, only show results for that term
-      let resultsQuery = supabase
-        .from("results")
-        .select(`
-          id,
-          total_score,
-          average_score,
-          class_position,
-          remarks,
-          class_arm_id,
-          term:terms(
-            name,
-            session:academic_sessions(name)
-          )
-        `)
-        .eq("student_id", student.id)
-        .eq("status", "published");
-
-      if (pin.term_id) {
-        resultsQuery = resultsQuery.eq("term_id", pin.term_id);
-      }
-
-      const { data: results, error: resultsError } = await resultsQuery
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (resultsError) throw resultsError;
-
-      if (!results) {
-        toast({
-          title: "No Results Available",
-          description: "No published results found for this student.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Get class size for position context
-      const { count: classSizeCount } = await supabase
-        .from("results")
-        .select("id", { count: "exact", head: true })
-        .eq("class_arm_id", results.class_arm_id)
-        .eq("status", "published");
-
-      setClassSize(classSizeCount || 0);
-
-      // Fetch result components (subject scores)
-      const { data: components, error: componentsError } = await supabase
-        .from("result_components")
-        .select(`
-          id,
-          test1_score,
-          test2_score,
-          other_assessment_score,
-          exam_score,
-          total_score,
-          grade,
-          remark,
-          subject:subjects(name, code)
-        `)
-        .eq("result_id", results.id);
-
-      if (componentsError) throw componentsError;
-
-      // Fetch class arm info
-      const { data: classArm, error: classArmError } = await supabase
-        .from("class_arms")
-        .select(`
-          name,
-          class:classes(name)
-        `)
-        .eq("id", student.current_class_arm_id)
-        .maybeSingle();
-
-      if (classArmError) throw classArmError;
-
-      // Fetch grading scales
-      const { data: scales, error: scalesError } = await supabase
-        .from("grading_scales")
-        .select("grade, min_score, max_score, remark")
-        .order("min_score", { ascending: false });
-
-      if (scalesError) throw scalesError;
-      setGradingScales((scales as GradingScale[]) || []);
-
-      // Log PIN usage
-      await supabase.from("pin_usage_logs").insert({
-        pin_id: pin.id,
-        student_id: student.id,
-        ip_address: null,
-        user_agent: navigator.userAgent,
+      const { data, error } = await supabase.functions.invoke("check-result", {
+        body: {
+          admissionNumber: formData.admissionNumber,
+          pin: formData.pin,
+        },
       });
 
-      // Increment PIN usage count and update student_id if not set
-      const updateData: any = {
-        usage_count: pin.usage_count + 1,
-        used_at: new Date().toISOString(),
-      };
-      
-      // Only update student_id if PIN wasn't already assigned
-      if (!pin.student_id) {
-        updateData.student_id = student.id;
-      }
+      if (error) throw error;
 
-      await supabase
-        .from("pins")
-        .update(updateData)
-        .eq("id", pin.id);
-
-      // Build result object
-      const fullResult: Result = {
-        id: results.id,
-        total_score: results.total_score ? Number(results.total_score) : null,
-        average_score: results.average_score ? Number(results.average_score) : null,
-        class_position: results.class_position,
-        remarks: results.remarks,
-        term: results.term as any,
-        student: {
-          ...student,
-          class_arm: classArm as any,
-        },
-        result_components: (components as any[]) || [],
-      };
-
-      setResult(fullResult);
+      // Edge function returns a consistent shape
+      setSchoolSettings(data.schoolSettings || null);
+      setGradingScales((data.gradingScales as GradingScale[]) || []);
+      setClassSize(Number(data.classSize || 0));
+      setResult(data.result as Result);
 
       toast({
         title: "Result Retrieved",
         description: "Your result has been successfully retrieved.",
       });
-    } catch (error) {
+
+      // Generate remarks if missing
+      const fetchedResult = data.result as Result;
+      const summaryAverage = fetchedResult.average_score !== null ? Number(fetchedResult.average_score) : 0;
+      const position = fetchedResult.class_position ?? 0;
+
+      if (!fetchedResult.class_teacher_remark || !fetchedResult.principal_remark) {
+        const performance = {
+          studentName: `${fetchedResult.student.last_name} ${fetchedResult.student.first_name} ${fetchedResult.student.middle_name || ""}`.trim(),
+          averageScore: summaryAverage,
+          position: position || 1,
+          classSize: Number(data.classSize || 0) || 1,
+          subjectCount: fetchedResult.result_components?.length || 0,
+          termName: `${fetchedResult.term?.session?.name || ""} - ${fetchedResult.term?.name || ""}`.trim(),
+          className: `${fetchedResult.student.class_arm?.class?.name || ""} ${fetchedResult.student.class_arm?.name || ""}`.trim(),
+        };
+
+        const tasks: Promise<any>[] = [];
+
+        if (!fetchedResult.class_teacher_remark) {
+          tasks.push(
+            supabase.functions.invoke("generate-student-remark", {
+              body: { performance, remarkType: "class_teacher" },
+            })
+          );
+        } else {
+          tasks.push(Promise.resolve({ data: { remark: fetchedResult.class_teacher_remark } }));
+        }
+
+        if (!fetchedResult.principal_remark) {
+          tasks.push(
+            supabase.functions.invoke("generate-student-remark", {
+              body: { performance, remarkType: "principal" },
+            })
+          );
+        } else {
+          tasks.push(Promise.resolve({ data: { remark: fetchedResult.principal_remark } }));
+        }
+
+        const [classTeacherRes, principalRes] = await Promise.all(tasks);
+        setGeneratedRemarks({
+          classTeacher: classTeacherRes?.data?.remark,
+          principal: principalRes?.data?.remark,
+        });
+      }
+    } catch (error: any) {
       console.error("Error checking result:", error);
+      const message = error?.message || "An error occurred while checking your result.";
       toast({
         title: "Error",
-        description: "An error occurred while checking your result. Please try again.",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -656,15 +504,52 @@ export default function CheckResult() {
             </Table>
           </div>
 
-          {/* Teacher's Remark */}
-          {result.remarks && (
-            <div className="bg-card rounded-xl border border-border p-6 mt-6 print:border print:rounded-none print:mt-4">
-              <h3 className="font-semibold text-foreground mb-2">
-                Teacher's Remark
-              </h3>
-              <p className="text-muted-foreground">{result.remarks}</p>
+          {/* Remarks + Signatures */}
+          <div className="bg-card rounded-xl border border-border p-6 mt-6 print:border print:rounded-none print:mt-4">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                <h3 className="font-semibold text-foreground mb-2">Class Teacher's Remark</h3>
+                <p className="text-muted-foreground">
+                  {result.class_teacher_remark || generatedRemarks.classTeacher || "______________________________"}
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground mb-2">Principal's Remark</h3>
+                <p className="text-muted-foreground">
+                  {result.principal_remark || generatedRemarks.principal || "______________________________"}
+                </p>
+              </div>
             </div>
-          )}
+
+            <div className="grid gap-6 md:grid-cols-2 mt-8">
+              <div>
+                <div className="h-16 border-b border-border flex items-end pb-2">
+                  {result.class_teacher_signature_url ? (
+                    <img
+                      src={result.class_teacher_signature_url}
+                      alt="Class teacher signature"
+                      className="h-14 object-contain"
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Class Teacher Signature</p>
+              </div>
+              <div>
+                <div className="h-16 border-b border-border flex items-end pb-2 justify-start">
+                  {(schoolSettings as any)?.principal_signature_url ? (
+                    <img
+                      src={(schoolSettings as any).principal_signature_url}
+                      alt="Principal signature"
+                      className="h-14 object-contain"
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Principal Signature</p>
+              </div>
+            </div>
+          </div>
 
           {/* Grading Scale */}
           <div className="mt-6 border rounded-lg p-4 print:border print:mt-4">

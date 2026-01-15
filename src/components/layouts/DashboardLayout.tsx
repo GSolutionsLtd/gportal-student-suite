@@ -59,6 +59,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },
     { label: "My Classes", icon: Layers, href: "/teacher/classes" },
     { label: "Result Entry", icon: ClipboardList, href: "/teacher/results" },
+    { label: "My Profile", icon: Users, href: "/teacher/profile" },
   ],
   student: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/student" },

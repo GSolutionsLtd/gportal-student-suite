@@ -14,7 +14,8 @@ import {
   ArrowLeft,
   Mail,
   Lock,
-  User
+  User,
+  Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserRole, ROLE_LABELS, ROLE_ROUTES } from "@/types/auth";
@@ -72,6 +73,10 @@ export default function Auth() {
     password: "",
     fullName: "",
     confirmPassword: "",
+    // Teacher onboarding fields
+    staffId: "",
+    teacherType: "subject" as "subject" | "class" | "form",
+    teacherSignatureUrl: null as string | null,
   });
 
   // Redirect if already authenticated
@@ -142,13 +147,26 @@ export default function Auth() {
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
-      } else {
-        const { error } = await signUp(
-          formData.email, 
-          formData.password, 
-          formData.fullName, 
-          selectedRole!
-        );
+        } else {
+          const teacherOptions =
+            selectedRole === "teacher"
+              ? {
+                  teacher: {
+                    staff_id: formData.staffId,
+                    is_class_teacher: formData.teacherType === "class",
+                    is_form_teacher: formData.teacherType === "form",
+                    signature_url: formData.teacherSignatureUrl,
+                  },
+                }
+              : undefined;
+
+          const { error } = await signUp(
+            formData.email,
+            formData.password,
+            formData.fullName,
+            selectedRole!,
+            teacherOptions
+          );
         
         if (error) {
           let message = error.message;
@@ -306,6 +324,102 @@ export default function Auth() {
                   </div>
                   {errors.fullName && (
                     <p className="text-sm text-destructive mt-1">{errors.fullName}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Teacher onboarding (only when signing up as teacher) */}
+              {!isLogin && selectedRole === "teacher" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="staffId">Staff ID *</Label>
+                    <Input
+                      id="staffId"
+                      placeholder="e.g., TCH001"
+                      value={formData.staffId}
+                      onChange={(e) => setFormData({ ...formData, staffId: e.target.value.toUpperCase() })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">This is required to create your teacher record.</p>
+                  </div>
+
+                  <div>
+                    <Label>Are you a Class teacher or Form teacher?</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                      <button
+                        type="button"
+                        className={cn(
+                          "border rounded-lg p-3 text-sm text-left transition-colors",
+                          formData.teacherType === "subject" ? "bg-secondary" : "hover:bg-secondary/50"
+                        )}
+                        onClick={() => setFormData({ ...formData, teacherType: "subject" })}
+                      >
+                        <div className="font-medium">No</div>
+                        <div className="text-xs text-muted-foreground">Subject teacher</div>
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "border rounded-lg p-3 text-sm text-left transition-colors",
+                          formData.teacherType === "class" ? "bg-secondary" : "hover:bg-secondary/50"
+                        )}
+                        onClick={() => setFormData({ ...formData, teacherType: "class" })}
+                      >
+                        <div className="font-medium">Class teacher</div>
+                        <div className="text-xs text-muted-foreground">Upload signature</div>
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "border rounded-lg p-3 text-sm text-left transition-colors",
+                          formData.teacherType === "form" ? "bg-secondary" : "hover:bg-secondary/50"
+                        )}
+                        onClick={() => setFormData({ ...formData, teacherType: "form" })}
+                      >
+                        <div className="font-medium">Form teacher</div>
+                        <div className="text-xs text-muted-foreground">Upload signature</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {(formData.teacherType === "class" || formData.teacherType === "form") && (
+                    <div>
+                      <Label>Signature (optional now)</Label>
+                      <div className="flex items-center gap-3 flex-wrap mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => document.getElementById("signup-teacher-signature")?.click()}
+                        >
+                          <Upload className="h-4 w-4" />
+                          Upload signature
+                        </Button>
+                        <input
+                          id="signup-teacher-signature"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => setFormData({ ...formData, teacherSignatureUrl: String(reader.result) });
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground">PNG/JPG recommended. Keep it small.</p>
+                      </div>
+                      {formData.teacherSignatureUrl && (
+                        <div className="border rounded-lg p-3 mt-2">
+                          <img
+                            src={formData.teacherSignatureUrl}
+                            alt="Teacher signature preview"
+                            className="h-14 object-contain"
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
