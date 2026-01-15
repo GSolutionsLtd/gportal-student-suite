@@ -25,6 +25,7 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
 import TeacherResultEntry from "./pages/teacher/ResultEntry";
 import TeacherClassesOverview from "./pages/teacher/ClassesOverview";
+import TeacherProfile from "./pages/teacher/TeacherProfile";
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import StudentMyResults from "./pages/student/MyResults";
 import AdminResultApproval from "./pages/admin/ResultApproval";
@@ -119,6 +120,7 @@ function App() {
                 <Route index element={<TeacherDashboard />} />
                 <Route path="classes" element={<TeacherClassesOverview />} />
                 <Route path="results" element={<TeacherResultEntry />} />
+                <Route path="profile" element={<TeacherProfile />} />
               </Route>
 
               {/* Student Routes */}

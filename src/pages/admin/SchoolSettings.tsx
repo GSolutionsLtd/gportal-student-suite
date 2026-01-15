@@ -16,6 +16,8 @@ interface SchoolSettings {
   email: string | null;
   motto: string | null;
   logo_url: string | null;
+  principal_name?: string | null;
+  principal_signature_url?: string | null;
 }
 
 export default function SchoolSettings() {
@@ -59,6 +61,8 @@ export default function SchoolSettings() {
           email: settings.email,
           motto: settings.motto,
           logo_url: settings.logo_url,
+          principal_name: settings.principal_name ?? null,
+          principal_signature_url: settings.principal_signature_url ?? null,
         })
         .eq("id", settings.id);
 
@@ -164,6 +168,60 @@ export default function SchoolSettings() {
               <p className="text-xs text-muted-foreground">
                 Enter a URL to your school logo. Recommended size: 200x200 pixels
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="principal_name">Principal Name</Label>
+              <Input
+                id="principal_name"
+                value={(settings as any)?.principal_name || ""}
+                onChange={(e) => setSettings(prev => prev ? { ...(prev as any), principal_name: e.target.value } : null)}
+                placeholder="e.g., Mrs. A. Okafor"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label>Principal Signature</Label>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => document.getElementById("principal-signature-input")?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload signature
+                </Button>
+                <input
+                  id="principal-signature-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const dataUrl = String(reader.result);
+                      setSettings(prev => prev ? { ...(prev as any), principal_signature_url: dataUrl } : null);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">PNG/JPG recommended. Keep it small.</p>
+              </div>
+              <div className="border rounded-lg p-3 mt-2">
+                {(settings as any)?.principal_signature_url ? (
+                  <img
+                    src={(settings as any).principal_signature_url}
+                    alt="Principal signature"
+                    className="h-16 object-contain"
+                    loading="lazy"
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">No signature uploaded yet.</p>
+                )}
+              </div>
             </div>
           </div>
 

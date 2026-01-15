@@ -15,7 +15,20 @@ interface AuthContextType {
   } | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role: UserRole,
+    options?: {
+      teacher?: {
+        staff_id: string;
+        is_class_teacher: boolean;
+        is_form_teacher: boolean;
+        signature_url?: string | null;
+      };
+    }
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -109,9 +122,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: UserRole) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    role: UserRole,
+    options?: {
+      teacher?: {
+        staff_id: string;
+        is_class_teacher: boolean;
+        is_form_teacher: boolean;
+        signature_url?: string | null;
+      };
+    }
+  ) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -119,8 +145,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
-        }
-      }
+        },
+      },
     });
 
     if (error) {
@@ -129,16 +155,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // After successful signup, assign role
     if (data.user) {
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: role,
-        });
+      const [{ error: roleError }, { data: existingTeacher, error: existingTeacherError }] = await Promise.all([
+        supabase.from("user_roles").insert({ user_id: data.user.id, role }),
+        role === "teacher"
+          ? supabase.from("teachers").select("id").eq("user_id", data.user.id).maybeSingle()
+          : Promise.resolve({ data: null, error: null } as any),
+      ]);
 
       if (roleError) {
-        console.error('Error assigning role:', roleError);
-        return { error: new Error('Failed to assign user role. Please contact support.') };
+        console.error("Error assigning role:", roleError);
+        return { error: new Error("Failed to assign user role. Please contact support.") };
+      }
+
+      if (existingTeacherError) {
+        console.error("Error checking teacher record:", existingTeacherError);
+        // Don't block signup on this; teacher can complete profile later
+      }
+
+      // Teacher onboarding (designation + signature)
+      if (role === "teacher" && options?.teacher) {
+        const teacherPayload = {
+          user_id: data.user.id,
+          staff_id: options.teacher.staff_id.trim().toUpperCase(),
+          date_joined: new Date().toISOString().slice(0, 10),
+          is_active: true,
+          is_class_teacher: options.teacher.is_class_teacher,
+          is_form_teacher: options.teacher.is_form_teacher,
+          signature_url: options.teacher.signature_url ?? null,
+        };
+
+        const { error: teacherUpsertError } = existingTeacher?.id
+          ? await supabase.from("teachers").update(teacherPayload).eq("id", existingTeacher.id)
+          : await supabase.from("teachers").insert(teacherPayload);
+
+        if (teacherUpsertError) {
+          console.error("Error creating/updating teacher record:", teacherUpsertError);
+          // Don't block signup completely; teacher can update later in Profile
+        }
       }
     }
 
