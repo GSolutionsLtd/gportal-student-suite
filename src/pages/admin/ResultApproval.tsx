@@ -279,15 +279,111 @@ export default function ResultApproval() {
     }
   };
 
+  const computeResultAggregates = async (resultId: string): Promise<{ success: boolean; hasScores: boolean }> => {
+    // Get result components
+    const { data: components, error: compError } = await supabase
+      .from("result_components")
+      .select("total_score")
+      .eq("result_id", resultId);
+
+    if (compError) throw compError;
+    if (!components || components.length === 0) return { success: false, hasScores: false };
+
+    const validScores = components.filter((c) => c.total_score !== null);
+    if (validScores.length === 0) return { success: false, hasScores: false };
+
+    const totalScore = validScores.reduce((sum, c) => sum + Number(c.total_score), 0);
+    const avgScore = totalScore / validScores.length;
+
+    // Update result with computed aggregates
+    const { error: updateError } = await supabase
+      .from("results")
+      .update({
+        total_score: Math.round(totalScore * 100) / 100,
+        average_score: Math.round(avgScore * 100) / 100,
+      })
+      .eq("id", resultId);
+
+    if (updateError) throw updateError;
+    return { success: true, hasScores: true };
+  };
+
+  const computeClassPositions = async (classArmId: string, termId: string) => {
+    // Get all results for the class/term
+    const { data: results, error } = await supabase
+      .from("results")
+      .select("id, average_score")
+      .eq("class_arm_id", classArmId)
+      .eq("term_id", termId)
+      .not("average_score", "is", null)
+      .order("average_score", { ascending: false });
+
+    if (error) throw error;
+    if (!results || results.length === 0) return;
+
+    // Update positions
+    for (let i = 0; i < results.length; i++) {
+      await supabase
+        .from("results")
+        .update({ class_position: i + 1 })
+        .eq("id", results[i].id);
+    }
+  };
+
+  const computeGrades = async (resultId: string) => {
+    // Get grading scales
+    const { data: scales } = await supabase
+      .from("grading_scales")
+      .select("grade, min_score, max_score, remark")
+      .order("min_score", { ascending: false });
+
+    if (!scales || scales.length === 0) return;
+
+    // Get result components
+    const { data: components } = await supabase
+      .from("result_components")
+      .select("id, total_score")
+      .eq("result_id", resultId);
+
+    if (!components) return;
+
+    // Update each component with grade
+    for (const comp of components) {
+      if (comp.total_score === null) continue;
+      const scale = scales.find((s) => comp.total_score! >= s.min_score && comp.total_score! <= s.max_score);
+      if (scale) {
+        await supabase
+          .from("result_components")
+          .update({ grade: scale.grade, remark: scale.remark })
+          .eq("id", comp.id);
+      }
+    }
+  };
+
   const handleApprove = async (result: ResultItem) => {
     try {
       setProcessing(true);
+
+      // First compute aggregates
+      const { success, hasScores } = await computeResultAggregates(result.id);
+      if (!hasScores) {
+        toast({ title: "Cannot Approve", description: "No scores entered for this result. Cannot approve.", variant: "destructive" });
+        return;
+      }
+
+      // Compute grades
+      await computeGrades(result.id);
+
+      // Update status
       const { error } = await supabase
         .from("results")
         .update({ status: "approved", approved_by: user?.id, approved_at: new Date().toISOString() })
         .eq("id", result.id);
 
       if (error) throw error;
+
+      // Compute class positions
+      await computeClassPositions(result.class_arm_id, result.term_id);
 
       // Send email notification
       sendNotification("approved", [result.id]);
@@ -308,18 +404,43 @@ export default function ResultApproval() {
     try {
       setProcessing(true);
       const ids = Array.from(selectedIds);
+      let skipped = 0;
+      const classTermPairs = new Set<string>();
 
-      const { error } = await supabase
-        .from("results")
-        .update({ status: "approved", approved_by: user?.id, approved_at: new Date().toISOString() })
-        .in("id", ids);
+      for (const id of ids) {
+        const result = submittedResults.find((r) => r.id === id);
+        if (!result) continue;
 
-      if (error) throw error;
+        const { success, hasScores } = await computeResultAggregates(id);
+        if (!hasScores) {
+          skipped++;
+          continue;
+        }
+
+        await computeGrades(id);
+
+        await supabase
+          .from("results")
+          .update({ status: "approved", approved_by: user?.id, approved_at: new Date().toISOString() })
+          .eq("id", id);
+
+        classTermPairs.add(`${result.class_arm_id}|${result.term_id}`);
+      }
+
+      // Compute positions for all affected classes
+      for (const pair of classTermPairs) {
+        const [classArmId, termId] = pair.split("|");
+        await computeClassPositions(classArmId, termId);
+      }
 
       // Send email notifications
-      sendNotification("approved", ids);
+      sendNotification("approved", ids.filter((id) => !submittedResults.find((r) => r.id === id && !r.components.some((c) => c.total_score !== null))));
 
-      toast({ title: "Results Approved", description: `${ids.length} result(s) have been approved.` });
+      const approved = ids.length - skipped;
+      toast({
+        title: "Results Approved",
+        description: `${approved} result(s) approved.${skipped > 0 ? ` ${skipped} skipped (no scores).` : ""}`,
+      });
       setSelectedIds(new Set());
       fetchResults();
     } catch (error) {
