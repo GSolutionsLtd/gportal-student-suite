@@ -28,9 +28,11 @@ import {
   TrendingUp,
   GraduationCap,
   School,
+  FileDown,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { generateComprehensiveResultPDF } from "@/utils/pdfGenerator";
 
 interface SchoolSettings {
   school_name: string;
@@ -265,6 +267,54 @@ export default function CheckResult() {
     window.print();
   };
 
+  const handleDownloadPDF = async () => {
+    if (!result) return;
+
+    const pdfData = {
+      studentName: `${result.student.last_name} ${result.student.first_name} ${result.student.middle_name || ""}`.trim(),
+      admissionNumber: result.student.admission_number,
+      className: `${result.student.class_arm?.class?.name || ""} ${result.student.class_arm?.name || ""}`.trim(),
+      termName: result.term?.name || "",
+      sessionName: result.term?.session?.name || "",
+      totalScore: result.total_score !== null ? Number(result.total_score) : null,
+      averageScore: result.average_score !== null ? Number(result.average_score) : null,
+      classPosition: result.class_position,
+      classSize: classSize,
+      subjects: result.result_components.map((comp) => {
+        const gradeInfo = getGradeForScore(comp.total_score !== null ? Number(comp.total_score) : null);
+        return {
+          name: comp.subject?.name || "Unknown",
+          test1: comp.test1_score !== null ? Number(comp.test1_score) : null,
+          test2: comp.test2_score !== null ? Number(comp.test2_score) : null,
+          other: comp.other_assessment_score !== null ? Number(comp.other_assessment_score) : null,
+          exam: comp.exam_score !== null ? Number(comp.exam_score) : null,
+          total: comp.total_score !== null ? Number(comp.total_score) : null,
+          grade: comp.grade || gradeInfo.grade,
+          remark: comp.remark || gradeInfo.remark,
+          position: null,
+        };
+      }),
+      schoolName: schoolSettings?.school_name,
+      schoolAddress: schoolSettings?.address || undefined,
+      schoolMotto: schoolSettings?.motto || undefined,
+      schoolEmail: schoolSettings?.email || undefined,
+      schoolPhone: schoolSettings?.phone || undefined,
+      classTeacherRemark: result.class_teacher_remark || generatedRemarks.classTeacher,
+      principalRemark: result.principal_remark || generatedRemarks.principal,
+      classTeacherSignature: result.class_teacher_signature_url || undefined,
+      principalSignature: (schoolSettings as any)?.principal_signature_url || undefined,
+      principalName: (schoolSettings as any)?.principal_name || undefined,
+    };
+
+    try {
+      await generateComprehensiveResultPDF(pdfData);
+      toast({ title: "PDF Downloaded", description: "Your result has been downloaded as PDF." });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({ title: "Error", description: "Failed to generate PDF.", variant: "destructive" });
+    }
+  };
+
   const calculateSummary = () => {
     if (!result || !result.result_components.length) {
       return { totalScore: 0, average: 0, subjectCount: 0 };
@@ -297,6 +347,10 @@ export default function CheckResult() {
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Logo />
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
               <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-2" />
                 Print

@@ -67,6 +67,49 @@ export default function TeacherDashboard() {
     fetchTeacherData();
   }, [user]);
 
+  // Real-time subscription for result status updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('result-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'results',
+        },
+        (payload) => {
+          const newStatus = payload.new.status;
+          const oldStatus = payload.old?.status;
+
+          if (newStatus !== oldStatus) {
+            // Show toast notification
+            let message = '';
+            if (newStatus === 'approved') {
+              message = 'A result you submitted has been approved!';
+              toast({ title: '✅ Result Approved', description: message });
+            } else if (newStatus === 'published') {
+              message = 'A result has been published and is now visible to students.';
+              toast({ title: '🎉 Result Published', description: message });
+            } else if (newStatus === 'rejected') {
+              message = 'A result has been rejected. Please review and resubmit.';
+              toast({ title: '❌ Result Rejected', description: message, variant: 'destructive' });
+            }
+
+            // Refresh data
+            fetchTeacherData();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, toast]);
+
   const fetchTeacherData = async () => {
     if (!user) return;
 
