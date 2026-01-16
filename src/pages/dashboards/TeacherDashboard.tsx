@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Users, 
   BookOpen,
@@ -15,6 +16,8 @@ import {
   Edit,
   Loader2,
   Layers,
+  UserCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -36,6 +39,14 @@ interface RecentSubmission {
   status: string;
 }
 
+interface TeacherProfile {
+  id: string;
+  staff_id: string;
+  is_class_teacher: boolean | null;
+  is_form_teacher: boolean | null;
+  signature_url: string | null;
+}
+
 export default function TeacherDashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -43,6 +54,8 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<ClassAssignment[]>([]);
   const [recentSubmissions, setRecentSubmissions] = useState<RecentSubmission[]>([]);
+  const [teacherProfile, setTeacherProfile] = useState<TeacherProfile | null>(null);
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
   const [stats, setStats] = useState({
     assignedClasses: 0,
     subjectsTaught: 0,
@@ -60,10 +73,10 @@ export default function TeacherDashboard() {
     try {
       setLoading(true);
 
-      // Get teacher record
+      // Get teacher record with full profile
       const { data: teacher, error: teacherError } = await supabase
         .from("teachers")
-        .select("id")
+        .select("id, staff_id, is_class_teacher, is_form_teacher, signature_url")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -72,6 +85,14 @@ export default function TeacherDashboard() {
         setLoading(false);
         return;
       }
+
+      setTeacherProfile(teacher);
+      
+      // Check if profile is incomplete
+      const isClassOrFormTeacher = teacher.is_class_teacher || teacher.is_form_teacher;
+      const needsSignature = isClassOrFormTeacher && !teacher.signature_url;
+      const noDesignation = teacher.is_class_teacher === null && teacher.is_form_teacher === null;
+      setProfileIncomplete(noDesignation || needsSignature || !teacher.staff_id);
 
       // Get current session
       const { data: currentSession } = await supabase
@@ -262,6 +283,25 @@ export default function TeacherDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Profile Incomplete Warning */}
+      {profileIncomplete && (
+        <Alert variant="destructive" className="border-warning bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-warning-foreground">
+              Your profile is incomplete. Please update your staff ID, designation, and signature{" "}
+              {(teacherProfile?.is_class_teacher || teacherProfile?.is_form_teacher) && !teacherProfile?.signature_url
+                ? "(signature required for class/form teachers)"
+                : ""}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => navigate("/teacher/profile")} className="ml-4">
+              <UserCircle className="h-4 w-4 mr-2" />
+              Complete Profile
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -269,6 +309,10 @@ export default function TeacherDashboard() {
           <p className="text-muted-foreground">Welcome back, {profile?.full_name || "Teacher"}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/teacher/profile")}>
+            <UserCircle className="h-4 w-4 mr-2" />
+            My Profile
+          </Button>
           <Button variant="outline" onClick={() => navigate("/teacher/classes")}>
             <Layers className="h-4 w-4 mr-2" />
             My Classes

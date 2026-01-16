@@ -101,6 +101,54 @@ serve(async (req: Request) => {
     if (resultError) throw resultError;
     if (!resultRow) return json({ error: "No published results found" }, 404);
 
+    // Compute aggregates on-the-fly if missing
+    if (resultRow.total_score === null || resultRow.average_score === null) {
+      const { data: componentsForCalc } = await supabase
+        .from("result_components")
+        .select("total_score")
+        .eq("result_id", resultRow.id);
+
+      if (componentsForCalc && componentsForCalc.length > 0) {
+        const validScores = componentsForCalc.filter((c: any) => c.total_score !== null);
+        const total = validScores.reduce((sum: number, c: any) => sum + Number(c.total_score), 0);
+        const avg = validScores.length > 0 ? total / validScores.length : 0;
+
+        (resultRow as any).total_score = Math.round(total * 100) / 100;
+        (resultRow as any).average_score = Math.round(avg * 100) / 100;
+      }
+    }
+
+    // Compute position on-the-fly if missing
+    if (resultRow.class_position === null && (resultRow as any).average_score !== null) {
+      const { data: allResults } = await supabase
+        .from("results")
+        .select("id, average_score")
+        .eq("class_arm_id", resultRow.class_arm_id)
+        .eq("term_id", resultRow.term_id)
+        .eq("status", "published");
+
+      if (allResults && allResults.length > 0) {
+        // Calculate averages for all results that don't have them
+        const resultsWithAvg = await Promise.all(
+          allResults.map(async (r: any) => {
+            if (r.average_score !== null) return { id: r.id, average_score: r.average_score };
+            const { data: comps } = await supabase
+              .from("result_components")
+              .select("total_score")
+              .eq("result_id", r.id);
+            if (!comps || comps.length === 0) return { id: r.id, average_score: 0 };
+            const valid = comps.filter((c: any) => c.total_score !== null);
+            const avg = valid.length > 0 ? valid.reduce((s: number, c: any) => s + Number(c.total_score), 0) / valid.length : 0;
+            return { id: r.id, average_score: avg };
+          })
+        );
+
+        resultsWithAvg.sort((a: any, b: any) => (b.average_score || 0) - (a.average_score || 0));
+        const position = resultsWithAvg.findIndex((r: any) => r.id === resultRow.id) + 1;
+        (resultRow as any).class_position = position > 0 ? position : null;
+      }
+    }
+
     // 5) Class size
     const { count: classSize } = await supabase
       .from("results")
