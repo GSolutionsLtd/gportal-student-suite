@@ -14,3 +14,15 @@ verify_jwt = false
 
 [functions.send-result-notification]
 verify_jwt = false
+
+[functions.check-result]
+verify_jwt = false
+
+[functions.generate-student-remark]
+verify_jwt = false
+
+[functions.send-result-email]
+verify_jwt = false
+
+[functions.send-sms-notification]
+verify_jwt = false
