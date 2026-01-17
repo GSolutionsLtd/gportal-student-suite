@@ -14,12 +14,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   Key,
   Hash,
   Search,
   ShieldCheck,
-  Download,
   Printer,
   User,
   Calendar,
@@ -29,10 +36,19 @@ import {
   GraduationCap,
   School,
   FileDown,
+  Mail,
+  BarChart3,
+  Loader2,
+  CheckCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { generateComprehensiveResultPDF } from "@/utils/pdfGenerator";
+import { 
+  generateComprehensiveResultPDF, 
+  generateCumulativeResultPDF,
+  generateResultPDFAsBase64,
+  type CumulativeTermData 
+} from "@/utils/pdfGenerator";
 
 interface SchoolSettings {
   school_name: string;
@@ -66,6 +82,7 @@ interface ResultComponent {
   total_score: number | null;
   grade: string | null;
   remark: string | null;
+  class_average?: number | null;
   subject: {
     name: string;
     code: string;
@@ -98,6 +115,16 @@ interface GradingScale {
   remark: string;
 }
 
+interface CumulativeResult {
+  termId: string;
+  termName: string;
+  sessionName: string;
+  averageScore: number | null;
+  classPosition: number | null;
+  classSize: number;
+  totalSubjects: number;
+}
+
 export default function CheckResult() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -112,9 +139,17 @@ export default function CheckResult() {
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
   const [classSize, setClassSize] = useState<number>(0);
   const [generatedRemarks, setGeneratedRemarks] = useState<{ classTeacher?: string; principal?: string }>({});
+  const [cumulativeResults, setCumulativeResults] = useState<CumulativeResult[]>([]);
+  const [guardianEmail, setGuardianEmail] = useState<string | null>(null);
+  const [guardianName, setGuardianName] = useState<string | null>(null);
+
+  // Email dialog state
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   useEffect(() => {
-    // Fetch school settings on component mount
     fetchSchoolSettings();
   }, []);
 
@@ -184,6 +219,7 @@ export default function CheckResult() {
     setIsLoading(true);
     setResult(null);
     setGeneratedRemarks({});
+    setCumulativeResults([]);
 
     try {
       const { data, error } = await supabase.functions.invoke("check-result", {
@@ -195,11 +231,21 @@ export default function CheckResult() {
 
       if (error) throw error;
 
-      // Edge function returns a consistent shape
       setSchoolSettings(data.schoolSettings || null);
       setGradingScales((data.gradingScales as GradingScale[]) || []);
       setClassSize(Number(data.classSize || 0));
       setResult(data.result as Result);
+      setCumulativeResults(data.cumulativeResults || []);
+      setGuardianEmail(data.guardianEmail || null);
+      setGuardianName(data.guardianName || null);
+
+      // Pre-fill email dialog with guardian info
+      if (data.guardianEmail) {
+        setEmailAddress(data.guardianEmail);
+      }
+      if (data.guardianName) {
+        setRecipientName(data.guardianName);
+      }
 
       toast({
         title: "Result Retrieved",
@@ -292,6 +338,7 @@ export default function CheckResult() {
           grade: comp.grade || gradeInfo.grade,
           remark: comp.remark || gradeInfo.remark,
           position: null,
+          classAverage: comp.class_average !== null ? Number(comp.class_average) : null,
         };
       }),
       schoolName: schoolSettings?.school_name,
@@ -312,6 +359,131 @@ export default function CheckResult() {
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast({ title: "Error", description: "Failed to generate PDF.", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadCumulativePDF = async () => {
+    if (!result || cumulativeResults.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No cumulative results available.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const terms: CumulativeTermData[] = cumulativeResults.map((cr) => ({
+      termName: cr.termName,
+      sessionName: cr.sessionName,
+      averageScore: cr.averageScore,
+      classPosition: cr.classPosition,
+      classSize: cr.classSize,
+      totalSubjects: cr.totalSubjects,
+      subjects: [], // Subjects per term not needed for cumulative summary
+    }));
+
+    const cumulativeData = {
+      studentName: `${result.student.last_name} ${result.student.first_name} ${result.student.middle_name || ""}`.trim(),
+      admissionNumber: result.student.admission_number,
+      className: `${result.student.class_arm?.class?.name || ""} ${result.student.class_arm?.name || ""}`.trim(),
+      terms,
+      schoolName: schoolSettings?.school_name,
+      schoolAddress: schoolSettings?.address || undefined,
+      schoolMotto: schoolSettings?.motto || undefined,
+      schoolEmail: schoolSettings?.email || undefined,
+      schoolPhone: schoolSettings?.phone || undefined,
+    };
+
+    try {
+      await generateCumulativeResultPDF(cumulativeData);
+      toast({ title: "PDF Downloaded", description: "Cumulative result report has been downloaded." });
+    } catch (error) {
+      console.error("Error generating cumulative PDF:", error);
+      toast({ title: "Error", description: "Failed to generate cumulative PDF.", variant: "destructive" });
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailAddress || !result) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter an email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingEmail(true);
+
+    try {
+      // Generate PDF as base64
+      const pdfData = {
+        studentName: `${result.student.last_name} ${result.student.first_name} ${result.student.middle_name || ""}`.trim(),
+        admissionNumber: result.student.admission_number,
+        className: `${result.student.class_arm?.class?.name || ""} ${result.student.class_arm?.name || ""}`.trim(),
+        termName: result.term?.name || "",
+        sessionName: result.term?.session?.name || "",
+        totalScore: result.total_score !== null ? Number(result.total_score) : null,
+        averageScore: result.average_score !== null ? Number(result.average_score) : null,
+        classPosition: result.class_position,
+        classSize: classSize,
+        subjects: result.result_components.map((comp) => {
+          const gradeInfo = getGradeForScore(comp.total_score !== null ? Number(comp.total_score) : null);
+          return {
+            name: comp.subject?.name || "Unknown",
+            test1: comp.test1_score !== null ? Number(comp.test1_score) : null,
+            test2: comp.test2_score !== null ? Number(comp.test2_score) : null,
+            other: comp.other_assessment_score !== null ? Number(comp.other_assessment_score) : null,
+            exam: comp.exam_score !== null ? Number(comp.exam_score) : null,
+            total: comp.total_score !== null ? Number(comp.total_score) : null,
+            grade: comp.grade || gradeInfo.grade,
+            remark: comp.remark || gradeInfo.remark,
+            position: null,
+            classAverage: comp.class_average !== null ? Number(comp.class_average) : null,
+          };
+        }),
+        schoolName: schoolSettings?.school_name,
+        schoolAddress: schoolSettings?.address || undefined,
+        schoolMotto: schoolSettings?.motto || undefined,
+        classTeacherRemark: result.class_teacher_remark || generatedRemarks.classTeacher,
+        principalRemark: result.principal_remark || generatedRemarks.principal,
+      };
+
+      const pdfBase64 = await generateResultPDFAsBase64(pdfData);
+
+      // Send email via edge function
+      const { data, error } = await supabase.functions.invoke("send-result-email", {
+        body: {
+          recipientEmail: emailAddress,
+          recipientName: recipientName || undefined,
+          studentName: pdfData.studentName,
+          admissionNumber: pdfData.admissionNumber,
+          className: pdfData.className,
+          termName: pdfData.termName,
+          sessionName: pdfData.sessionName,
+          averageScore: pdfData.averageScore,
+          classPosition: result.class_position,
+          classSize: classSize,
+          pdfBase64,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email Sent",
+        description: `Result has been sent to ${emailAddress}`,
+      });
+      setShowEmailDialog(false);
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -346,10 +518,20 @@ export default function CheckResult() {
         <header className="glass border-b border-border print:hidden">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Logo />
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
                 <FileDown className="h-4 w-4 mr-2" />
                 Download PDF
+              </Button>
+              {cumulativeResults.length > 1 && (
+                <Button variant="outline" size="sm" onClick={handleDownloadCumulativePDF}>
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Cumulative Report
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setShowEmailDialog(true)}>
+                <Mail className="h-4 w-4 mr-2" />
+                Send to Email
               </Button>
               <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-2" />
@@ -369,6 +551,70 @@ export default function CheckResult() {
             </div>
           </div>
         </header>
+
+        {/* Email Dialog */}
+        <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send Result to Email</DialogTitle>
+              <DialogDescription>
+                Send this result as a PDF attachment to the parent/guardian email address.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="recipient-name">Recipient Name (Optional)</Label>
+                <Input
+                  id="recipient-name"
+                  placeholder="e.g., Mr. John Doe"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email-address">Email Address</Label>
+                <Input
+                  id="email-address"
+                  type="email"
+                  placeholder="parent@example.com"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                />
+                {guardianEmail && emailAddress !== guardianEmail && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => {
+                      setEmailAddress(guardianEmail);
+                      if (guardianName) setRecipientName(guardianName);
+                    }}
+                  >
+                    Use guardian email: {guardianEmail}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSendEmail} disabled={isSendingEmail}>
+                {isSendingEmail ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Email
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Result Content */}
         <main className="container mx-auto px-4 py-8 max-w-4xl">
@@ -491,6 +737,44 @@ export default function CheckResult() {
             </div>
           </div>
 
+          {/* Cumulative Performance Summary (if multiple terms) */}
+          {cumulativeResults.length > 1 && (
+            <div className="bg-card rounded-xl border border-border p-4 mb-6 print:hidden">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Performance Trend
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {cumulativeResults.slice(-4).map((cr, index) => (
+                  <div 
+                    key={cr.termId} 
+                    className={`p-3 rounded-lg ${
+                      index === cumulativeResults.slice(-4).length - 1 
+                        ? 'bg-primary/10 border-2 border-primary' 
+                        : 'bg-muted/50'
+                    }`}
+                  >
+                    <p className="text-xs text-muted-foreground truncate">{cr.termName}</p>
+                    <p className="text-lg font-bold text-foreground">
+                      {cr.averageScore !== null ? `${cr.averageScore.toFixed(1)}%` : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {cr.classPosition !== null ? `${getOrdinalSuffix(cr.classPosition)} of ${cr.classSize}` : '-'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="mt-2 h-auto p-0"
+                onClick={handleDownloadCumulativePDF}
+              >
+                Download Full Cumulative Report →
+              </Button>
+            </div>
+          )}
+
           {/* Results Table */}
           <div className="bg-card rounded-xl border border-border overflow-hidden print:border print:rounded-none">
             <Table>
@@ -503,6 +787,7 @@ export default function CheckResult() {
                   <TableHead className="text-center w-16">Other (10)</TableHead>
                   <TableHead className="text-center w-16">Exam (70)</TableHead>
                   <TableHead className="text-center w-16">Total</TableHead>
+                  <TableHead className="text-center w-20 print:hidden">Class Avg</TableHead>
                   <TableHead className="text-center w-14">Grade</TableHead>
                   <TableHead className="w-24">Remark</TableHead>
                 </TableRow>
@@ -514,6 +799,10 @@ export default function CheckResult() {
                       ? Number(component.total_score)
                       : null
                   );
+                  const studentScore = component.total_score !== null ? Number(component.total_score) : 0;
+                  const classAvg = component.class_average !== null ? Number(component.class_average) : 0;
+                  const isAboveAvg = studentScore >= classAvg;
+
                   return (
                     <TableRow key={component.id}>
                       <TableCell className="text-muted-foreground">
@@ -538,6 +827,16 @@ export default function CheckResult() {
                         {component.total_score !== null
                           ? Number(component.total_score).toFixed(1)
                           : "-"}
+                      </TableCell>
+                      <TableCell className="text-center print:hidden">
+                        {component.class_average !== null ? (
+                          <span className={`text-xs ${isAboveAvg ? 'text-success' : 'text-destructive'}`}>
+                            {Number(component.class_average).toFixed(1)}
+                            {isAboveAvg ? ' ↑' : ' ↓'}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         <span
