@@ -53,7 +53,7 @@ serve(async (req: Request) => {
     // 2) Find student by admission number (case-insensitive)
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, admission_number, first_name, last_name, middle_name, current_class_arm_id")
+      .select("id, admission_number, first_name, last_name, middle_name, current_class_arm_id, guardian_email, guardian_name")
       .ilike("admission_number", admission)
       .maybeSingle();
 
@@ -156,7 +156,7 @@ serve(async (req: Request) => {
       .eq("class_arm_id", resultRow.class_arm_id)
       .eq("status", "published");
 
-    // 6) Components
+    // 6) Components with class averages
     const { data: components, error: compError } = await supabase
       .from("result_components")
       .select(
@@ -169,6 +169,7 @@ serve(async (req: Request) => {
           total_score,
           grade,
           remark,
+          subject_id,
           subject:subjects(name, code)
         `,
       )
@@ -176,6 +177,85 @@ serve(async (req: Request) => {
       .order("id", { ascending: true });
 
     if (compError) throw compError;
+
+    // 6b) Calculate class averages for each subject
+    const componentsWithClassAvg = await Promise.all(
+      (components || []).map(async (comp: any) => {
+        // Get all scores for this subject in the same class/term
+        const { data: allSubjectScores } = await supabase
+          .from("result_components")
+          .select("total_score, result:results!inner(class_arm_id, term_id, status)")
+          .eq("subject_id", comp.subject_id)
+          .eq("result.class_arm_id", resultRow.class_arm_id)
+          .eq("result.term_id", resultRow.term_id)
+          .eq("result.status", "published");
+
+        let classAverage: number | null = null;
+        if (allSubjectScores && allSubjectScores.length > 0) {
+          const validScores = allSubjectScores.filter((s: any) => s.total_score !== null);
+          if (validScores.length > 0) {
+            const sum = validScores.reduce((acc: number, s: any) => acc + Number(s.total_score), 0);
+            classAverage = Math.round((sum / validScores.length) * 100) / 100;
+          }
+        }
+
+        return {
+          ...comp,
+          class_average: classAverage,
+        };
+      })
+    );
+
+    // 6c) Fetch all published results for this student (for cumulative view)
+    const { data: allStudentResults } = await supabase
+      .from("results")
+      .select(`
+        id,
+        total_score,
+        average_score,
+        class_position,
+        term_id,
+        class_arm_id,
+        term:terms(
+          name,
+          session:academic_sessions(name)
+        ),
+        class_arm:class_arms(
+          name,
+          class:classes(name)
+        )
+      `)
+      .eq("student_id", student.id)
+      .eq("status", "published")
+      .order("created_at", { ascending: true });
+
+    // Get class sizes for each term
+    const cumulativeResults = await Promise.all(
+      (allStudentResults || []).map(async (r: any) => {
+        const { count } = await supabase
+          .from("results")
+          .select("id", { count: "exact", head: true })
+          .eq("class_arm_id", r.class_arm_id)
+          .eq("term_id", r.term_id)
+          .eq("status", "published");
+
+        // Get subject count for this result
+        const { count: subjectCount } = await supabase
+          .from("result_components")
+          .select("id", { count: "exact", head: true })
+          .eq("result_id", r.id);
+
+        return {
+          termId: r.term_id,
+          termName: r.term?.name || "",
+          sessionName: r.term?.session?.name || "",
+          averageScore: r.average_score,
+          classPosition: r.class_position,
+          classSize: count || 0,
+          totalSubjects: subjectCount || 0,
+        };
+      })
+    );
 
     // 7) Class arm info
     const { data: classArm, error: classArmError } = await supabase
@@ -227,10 +307,14 @@ serve(async (req: Request) => {
     await supabase.from("pins").update(pinUpdate).eq("id", pinRow.id);
 
     // Response shape used by the client
+    // Response shape used by the client
     const response = {
       schoolSettings,
       gradingScales: scales || [],
       classSize: classSize || 0,
+      cumulativeResults,
+      guardianEmail: student.guardian_email || null,
+      guardianName: student.guardian_name || null,
       result: {
         id: resultRow.id,
         total_score: resultRow.total_score,
@@ -245,7 +329,7 @@ serve(async (req: Request) => {
           ...student,
           class_arm: classArm,
         },
-        result_components: components || [],
+        result_components: componentsWithClassAvg,
       },
     };
 
