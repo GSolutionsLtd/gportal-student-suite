@@ -40,6 +40,11 @@ import {
   BarChart3,
   Loader2,
   CheckCircle,
+  MessageSquare,
+  Trophy,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +130,26 @@ interface CumulativeResult {
   totalSubjects: number;
 }
 
+interface SubjectScore {
+  subjectId: string;
+  subjectName: string;
+  score: number | null;
+}
+
+interface ClassComparison {
+  topPerformer: {
+    name: string;
+    averageScore: number;
+    subjectScores: SubjectScore[];
+  };
+  bottomQuartile: {
+    averageScore: number;
+    subjectAverages: { subjectId: string; averageScore: number }[];
+  };
+  classAverage: number;
+  totalStudents: number;
+}
+
 export default function CheckResult() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -140,14 +165,24 @@ export default function CheckResult() {
   const [classSize, setClassSize] = useState<number>(0);
   const [generatedRemarks, setGeneratedRemarks] = useState<{ classTeacher?: string; principal?: string }>({});
   const [cumulativeResults, setCumulativeResults] = useState<CumulativeResult[]>([]);
+  const [classComparison, setClassComparison] = useState<ClassComparison | null>(null);
   const [guardianEmail, setGuardianEmail] = useState<string | null>(null);
   const [guardianName, setGuardianName] = useState<string | null>(null);
+  const [guardianPhone, setGuardianPhone] = useState<string | null>(null);
 
   // Email dialog state
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [emailAddress, setEmailAddress] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  // SMS dialog state
+  const [showSMSDialog, setShowSMSDialog] = useState(false);
+  const [smsPhoneNumber, setSmsPhoneNumber] = useState("");
+  const [isSendingSMS, setIsSendingSMS] = useState(false);
+
+  // Comparison dialog state
+  const [showComparisonDialog, setShowComparisonDialog] = useState(false);
 
   useEffect(() => {
     fetchSchoolSettings();
@@ -220,6 +255,7 @@ export default function CheckResult() {
     setResult(null);
     setGeneratedRemarks({});
     setCumulativeResults([]);
+    setClassComparison(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("check-result", {
@@ -236,8 +272,10 @@ export default function CheckResult() {
       setClassSize(Number(data.classSize || 0));
       setResult(data.result as Result);
       setCumulativeResults(data.cumulativeResults || []);
+      setClassComparison(data.classComparison || null);
       setGuardianEmail(data.guardianEmail || null);
       setGuardianName(data.guardianName || null);
+      setGuardianPhone(data.guardianPhone || null);
 
       // Pre-fill email dialog with guardian info
       if (data.guardianEmail) {
@@ -245,6 +283,10 @@ export default function CheckResult() {
       }
       if (data.guardianName) {
         setRecipientName(data.guardianName);
+      }
+      // Pre-fill SMS dialog with guardian phone
+      if (data.guardianPhone) {
+        setSmsPhoneNumber(data.guardianPhone);
       }
 
       toast({
@@ -487,6 +529,52 @@ export default function CheckResult() {
     }
   };
 
+  const handleSendSMS = async () => {
+    if (!smsPhoneNumber || !result) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter a phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingSMS(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("send-sms-notification", {
+        body: {
+          phoneNumber: smsPhoneNumber,
+          studentName: `${result.student.last_name} ${result.student.first_name}`.trim(),
+          admissionNumber: result.student.admission_number,
+          termName: result.term?.name || "",
+          sessionName: result.term?.session?.name || "",
+          averageScore: result.average_score !== null ? Number(result.average_score) : null,
+          classPosition: result.class_position,
+          classSize: classSize,
+          schoolName: schoolSettings?.school_name,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "SMS Sent",
+        description: `Result notification sent to ${smsPhoneNumber}`,
+      });
+      setShowSMSDialog(false);
+    } catch (error: any) {
+      console.error("Error sending SMS:", error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send SMS. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingSMS(false);
+    }
+  };
+
   const calculateSummary = () => {
     if (!result || !result.result_components.length) {
       return { totalScore: 0, average: 0, subjectCount: 0 };
@@ -531,8 +619,18 @@ export default function CheckResult() {
               )}
               <Button variant="outline" size="sm" onClick={() => setShowEmailDialog(true)}>
                 <Mail className="h-4 w-4 mr-2" />
-                Send to Email
+                Email
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowSMSDialog(true)}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                SMS
+              </Button>
+              {classComparison && (
+                <Button variant="outline" size="sm" onClick={() => setShowComparisonDialog(true)}>
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Compare
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-2" />
                 Print
@@ -611,6 +709,189 @@ export default function CheckResult() {
                     Send Email
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* SMS Dialog */}
+        <Dialog open={showSMSDialog} onOpenChange={setShowSMSDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send Result via SMS</DialogTitle>
+              <DialogDescription>
+                Send a result summary notification to the parent/guardian phone number.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="sms-phone">Phone Number</Label>
+                <Input
+                  id="sms-phone"
+                  type="tel"
+                  placeholder="08012345678"
+                  value={smsPhoneNumber}
+                  onChange={(e) => setSmsPhoneNumber(e.target.value)}
+                />
+                {guardianPhone && smsPhoneNumber !== guardianPhone && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => setSmsPhoneNumber(guardianPhone)}
+                  >
+                    Use guardian phone: {guardianPhone}
+                  </Button>
+                )}
+              </div>
+              <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                <p className="font-medium mb-1">SMS Preview:</p>
+                <p className="text-muted-foreground text-xs">
+                  Dear Parent, {result.student.first_name} ({result.student.admission_number}) result for {result.term?.name} is ready. 
+                  Average: {result.average_score !== null ? `${Number(result.average_score).toFixed(1)}%` : 'N/A'}, 
+                  Position: {result.class_position ? `${result.class_position}${getOrdinalSuffix(result.class_position)} of ${classSize}` : 'N/A'}. 
+                  Check result portal for details.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSMSDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSendSMS} disabled={isSendingSMS}>
+                {isSendingSMS ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Send SMS
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Comparison Dialog */}
+        <Dialog open={showComparisonDialog} onOpenChange={setShowComparisonDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-warning" />
+                Performance Comparison
+              </DialogTitle>
+              <DialogDescription>
+                Compare your performance against the class top performer and bottom quartile.
+              </DialogDescription>
+            </DialogHeader>
+            {classComparison && (
+              <div className="space-y-6 py-4">
+                {/* Overall Comparison */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-success/10 border border-success/30 rounded-lg p-4 text-center">
+                    <Trophy className="h-6 w-6 text-success mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Top Performer</p>
+                    <p className="text-xl font-bold text-success">{classComparison.topPerformer.averageScore.toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground">{classComparison.topPerformer.name}</p>
+                  </div>
+                  <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 text-center">
+                    <User className="h-6 w-6 text-primary mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Your Score</p>
+                    <p className="text-xl font-bold text-primary">
+                      {result.average_score !== null ? `${Number(result.average_score).toFixed(1)}%` : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {result.class_position ? `${result.class_position}${getOrdinalSuffix(result.class_position)} of ${classComparison.totalStudents}` : '-'}
+                    </p>
+                  </div>
+                  <div className="bg-muted border border-border rounded-lg p-4 text-center">
+                    <Users className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Bottom 25%</p>
+                    <p className="text-xl font-bold text-muted-foreground">{classComparison.bottomQuartile.averageScore.toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground">Class Avg: {classComparison.classAverage.toFixed(1)}%</p>
+                  </div>
+                </div>
+
+                {/* Subject-wise Comparison */}
+                <div>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Subject-wise Comparison
+                  </h4>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {result.result_components.map((comp) => {
+                      const studentScore = comp.total_score !== null ? Number(comp.total_score) : 0;
+                      const topScore = classComparison.topPerformer.subjectScores.find(
+                        (s) => s.subjectId === comp.subject?.code || s.subjectName === comp.subject?.name
+                      )?.score || 0;
+                      const bottomQuartileAvg = classComparison.bottomQuartile.subjectAverages.find(
+                        (s) => s.subjectId === comp.subject?.code
+                      )?.averageScore || 0;
+                      const classAvg = comp.class_average !== null ? Number(comp.class_average) : 0;
+
+                      const isAboveAvg = studentScore >= classAvg;
+                      const diffFromTop = studentScore - (topScore || 0);
+
+                      return (
+                        <div key={comp.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                          <span className="font-medium text-sm w-32 truncate">{comp.subject?.name}</span>
+                          <div className="flex-1 flex items-center gap-2">
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary transition-all"
+                                style={{ width: `${Math.min(studentScore, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-semibold w-12 text-right">{studentScore.toFixed(0)}</span>
+                          </div>
+                          <div className="flex items-center gap-1 w-20">
+                            {isAboveAvg ? (
+                              <ArrowUpRight className="h-4 w-4 text-success" />
+                            ) : (
+                              <ArrowDownRight className="h-4 w-4 text-destructive" />
+                            )}
+                            <span className={`text-xs ${isAboveAvg ? 'text-success' : 'text-destructive'}`}>
+                              {diffFromTop >= 0 ? '' : diffFromTop.toFixed(0)} from top
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Performance Tips */}
+                <div className="bg-primary/5 rounded-lg p-4">
+                  <h4 className="font-semibold text-sm mb-2">Performance Summary</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    {result.average_score !== null && classComparison.topPerformer.averageScore - Number(result.average_score) <= 5 && (
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-success" />
+                        You're within 5% of the top performer! Keep it up!
+                      </li>
+                    )}
+                    {result.average_score !== null && Number(result.average_score) >= classComparison.classAverage && (
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-success" />
+                        Your performance is above the class average.
+                      </li>
+                    )}
+                    {result.average_score !== null && Number(result.average_score) < classComparison.classAverage && (
+                      <li className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-warning" />
+                        Focus on improvement to reach the class average of {classComparison.classAverage.toFixed(1)}%.
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowComparisonDialog(false)}>
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

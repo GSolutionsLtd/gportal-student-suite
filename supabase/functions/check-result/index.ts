@@ -53,7 +53,7 @@ serve(async (req: Request) => {
     // 2) Find student by admission number (case-insensitive)
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, admission_number, first_name, last_name, middle_name, current_class_arm_id, guardian_email, guardian_name")
+      .select("id, admission_number, first_name, last_name, middle_name, current_class_arm_id, guardian_email, guardian_name, guardian_phone")
       .ilike("admission_number", admission)
       .maybeSingle();
 
@@ -257,6 +257,85 @@ serve(async (req: Request) => {
       })
     );
 
+    // 6d) Fetch class comparison data (top performer and bottom quartile)
+    const { data: allClassResults } = await supabase
+      .from("results")
+      .select("id, average_score, student_id")
+      .eq("class_arm_id", resultRow.class_arm_id)
+      .eq("term_id", resultRow.term_id)
+      .eq("status", "published")
+      .order("average_score", { ascending: false });
+
+    let classComparison = null;
+    if (allClassResults && allClassResults.length > 0) {
+      const validResults = allClassResults.filter((r: any) => r.average_score !== null);
+      
+      if (validResults.length > 0) {
+        // Top performer
+        const topResult = validResults[0];
+        const { data: topStudent } = await supabase
+          .from("students")
+          .select("first_name, last_name")
+          .eq("id", topResult.student_id)
+          .single();
+
+        // Get top performer's subject scores
+        const { data: topComponents } = await supabase
+          .from("result_components")
+          .select("subject_id, total_score, subject:subjects(name)")
+          .eq("result_id", topResult.id);
+
+        // Bottom quartile average
+        const quartileSize = Math.max(1, Math.floor(validResults.length / 4));
+        const bottomQuartile = validResults.slice(-quartileSize);
+        const bottomQuartileAvg = bottomQuartile.reduce((sum: number, r: any) => sum + Number(r.average_score), 0) / bottomQuartile.length;
+
+        // Class average
+        const classAvgScore = validResults.reduce((sum: number, r: any) => sum + Number(r.average_score), 0) / validResults.length;
+
+        // Get bottom quartile subject averages
+        const bottomQuartileSubjectAvgs: Record<string, number> = {};
+        for (const bottomResult of bottomQuartile) {
+          const { data: bottomComps } = await supabase
+            .from("result_components")
+            .select("subject_id, total_score")
+            .eq("result_id", bottomResult.id);
+          
+          if (bottomComps) {
+            bottomComps.forEach((comp: any) => {
+              if (comp.total_score !== null) {
+                if (!bottomQuartileSubjectAvgs[comp.subject_id]) {
+                  bottomQuartileSubjectAvgs[comp.subject_id] = 0;
+                }
+                bottomQuartileSubjectAvgs[comp.subject_id] += Number(comp.total_score) / bottomQuartile.length;
+              }
+            });
+          }
+        }
+
+        classComparison = {
+          topPerformer: {
+            name: topStudent ? `${topStudent.first_name} ${topStudent.last_name?.charAt(0)}.` : "Anonymous",
+            averageScore: Number(topResult.average_score),
+            subjectScores: (topComponents || []).map((c: any) => ({
+              subjectId: c.subject_id,
+              subjectName: c.subject?.name || "",
+              score: c.total_score !== null ? Number(c.total_score) : null,
+            })),
+          },
+          bottomQuartile: {
+            averageScore: Math.round(bottomQuartileAvg * 100) / 100,
+            subjectAverages: Object.entries(bottomQuartileSubjectAvgs).map(([subjectId, avg]) => ({
+              subjectId,
+              averageScore: Math.round(avg * 100) / 100,
+            })),
+          },
+          classAverage: Math.round(classAvgScore * 100) / 100,
+          totalStudents: validResults.length,
+        };
+      }
+    }
+
     // 7) Class arm info
     const { data: classArm, error: classArmError } = await supabase
       .from("class_arms")
@@ -307,14 +386,15 @@ serve(async (req: Request) => {
     await supabase.from("pins").update(pinUpdate).eq("id", pinRow.id);
 
     // Response shape used by the client
-    // Response shape used by the client
     const response = {
       schoolSettings,
       gradingScales: scales || [],
       classSize: classSize || 0,
       cumulativeResults,
+      classComparison,
       guardianEmail: student.guardian_email || null,
       guardianName: student.guardian_name || null,
+      guardianPhone: student.guardian_phone || null,
       result: {
         id: resultRow.id,
         total_score: resultRow.total_score,
