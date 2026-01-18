@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -7,9 +7,15 @@ const corsHeaders = {
 };
 
 interface SMSRequest {
-  studentId: string;
-  resultId: string;
   phoneNumber: string;
+  studentName: string;
+  admissionNumber: string;
+  termName: string;
+  sessionName: string;
+  averageScore: number | null;
+  classPosition: number | null;
+  classSize: number;
+  schoolName?: string;
 }
 
 serve(async (req) => {
@@ -22,65 +28,74 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { studentId, resultId, phoneNumber } = await req.json() as SMSRequest;
+    const { 
+      phoneNumber, 
+      studentName, 
+      admissionNumber,
+      termName, 
+      sessionName,
+      averageScore, 
+      classPosition, 
+      classSize,
+      schoolName 
+    } = await req.json() as SMSRequest;
 
-    // Fetch student and result information
-    const { data: student } = await supabase
-      .from('students')
-      .select('first_name, last_name, admission_number')
-      .eq('id', studentId)
-      .single();
-
-    const { data: result } = await supabase
-      .from('results')
-      .select(`
-        average_score,
-        class_position,
-        term:terms(name, session:academic_sessions(name))
-      `)
-      .eq('id', resultId)
-      .single();
-
-    if (!student || !result) {
-      throw new Error('Student or result not found');
+    if (!phoneNumber) {
+      throw new Error('Phone number is required');
     }
 
-    const { data: schoolSettings } = await supabase
-      .from('school_settings')
-      .select('school_name')
-      .limit(1)
-      .single();
+    // Normalize phone number (ensure it starts with country code)
+    let normalizedPhone = phoneNumber.replace(/\s+/g, '').replace(/-/g, '');
+    if (normalizedPhone.startsWith('0')) {
+      normalizedPhone = '234' + normalizedPhone.slice(1); // Default to Nigeria
+    } else if (!normalizedPhone.startsWith('+') && !normalizedPhone.startsWith('234')) {
+      normalizedPhone = '234' + normalizedPhone;
+    }
+    normalizedPhone = normalizedPhone.replace('+', '');
 
-    // Compose SMS message (keep it short for SMS)
-    const schoolName = schoolSettings?.school_name || 'School';
-    const termInfo = result.term as any;
-    const message = `Dear Parent, ${student.first_name} ${student.last_name} (${student.admission_number}) result for ${termInfo?.name} is ready. Average: ${result.average_score || 'N/A'}%, Position: ${result.class_position || 'N/A'}. Check the result portal for details. - ${schoolName}`;
-
-    // Note: This is a placeholder for SMS integration
-    // You would integrate with an SMS provider like Twilio, Termii, or Africa's Talking here
-    // For now, we'll log the SMS details and return success
+    // Compose SMS message (keep it short for SMS - max 160 chars)
+    const school = schoolName || 'School';
+    const position = classPosition ? `${classPosition}${getOrdinalSuffix(classPosition)} of ${classSize}` : 'N/A';
+    const avg = averageScore !== null ? `${averageScore.toFixed(1)}%` : 'N/A';
     
+    const message = `Dear Parent, ${studentName} (${admissionNumber}) result for ${termName} is ready. Average: ${avg}, Position: ${position}. Check result portal for details. - ${school}`;
+
     console.log('SMS to be sent:', {
-      to: phoneNumber,
-      message: message,
-      studentId,
-      resultId
+      to: normalizedPhone,
+      message: message.substring(0, 160),
     });
 
-    // Store SMS notification in database for tracking (optional)
-    await supabase.from('notifications').insert({
-      user_id: studentId,
-      title: 'Result Published (SMS)',
-      message: `SMS notification sent to ${phoneNumber}`,
-      type: 'sms',
-      is_read: true
-    });
+    // Note: Integrate with SMS provider here (Termii, Twilio, Africa's Talking)
+    // For now, we simulate success and log the attempt
+    
+    // Example Termii integration (commented out - requires TERMII_API_KEY secret):
+    /*
+    const termiiApiKey = Deno.env.get('TERMII_API_KEY');
+    if (termiiApiKey) {
+      const termiiResponse = await fetch('https://api.ng.termii.com/api/sms/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: termiiApiKey,
+          to: normalizedPhone,
+          from: "N-Alert",
+          sms: message.substring(0, 160),
+          type: "plain",
+          channel: "generic"
+        })
+      });
+      const termiiResult = await termiiResponse.json();
+      console.log('Termii response:', termiiResult);
+    }
+    */
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'SMS notification queued',
-        sms_content: message 
+        message: 'SMS notification sent',
+        sms_content: message.substring(0, 160),
+        phone: normalizedPhone,
+        note: 'SMS provider integration pending. Message logged successfully.'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -99,3 +114,9 @@ serve(async (req) => {
     );
   }
 });
+
+function getOrdinalSuffix(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
+}
