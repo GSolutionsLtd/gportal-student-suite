@@ -755,9 +755,16 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   doc.line(principalX, signaturesY + 15, principalX + sigWidth - 10, signaturesY + 15);
   doc.setFillColor(250, 250, 250);
   doc.rect(principalX, signaturesY, sigWidth - 10, 14, 'F');
-  doc.setTextColor(...secondaryColor);
-  doc.setFontSize(6);
-  doc.text('[e-Signature]', principalX + (sigWidth - 10) / 2, signaturesY + 8, { align: 'center' });
+  
+  // Display actual signature if available, otherwise placeholder
+  if (principalSigBase64) {
+    addImageToPDF(doc, principalSigBase64, principalX + 5, signaturesY + 1, sigWidth - 20, 12);
+  } else {
+    doc.setTextColor(...secondaryColor);
+    doc.setFontSize(6);
+    doc.text('[e-Signature]', principalX + (sigWidth - 10) / 2, signaturesY + 8, { align: 'center' });
+  }
+  
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');

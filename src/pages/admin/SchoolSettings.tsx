@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Save, Loader2, Building2, Upload } from "lucide-react";
+import { Save, Loader2, Building2, Upload, ImageIcon, X } from "lucide-react";
 
 interface SchoolSettings {
   id: string;
@@ -24,6 +24,8 @@ export default function SchoolSettings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
 
   useEffect(() => {
@@ -45,6 +47,80 @@ export default function SchoolSettings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const uploadFile = async (file: File, folder: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${folder}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('school-assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('school-assets')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({ title: "Upload Error", description: error.message, variant: "destructive" });
+      return null;
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Invalid File", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File Too Large", description: "Logo must be less than 2MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingLogo(true);
+    const url = await uploadFile(file, 'logos');
+    if (url) {
+      setSettings(prev => prev ? { ...prev, logo_url: url } : null);
+      toast({ title: "Success", description: "Logo uploaded successfully" });
+    }
+    setUploadingLogo(false);
+    e.target.value = ''; // Reset input
+  };
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Invalid File", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    // Validate file size (max 1MB)
+    if (file.size > 1 * 1024 * 1024) {
+      toast({ title: "File Too Large", description: "Signature must be less than 1MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingSignature(true);
+    const url = await uploadFile(file, 'signatures');
+    if (url) {
+      setSettings(prev => prev ? { ...prev, principal_signature_url: url } : null);
+      toast({ title: "Success", description: "Signature uploaded successfully" });
+    }
+    setUploadingSignature(false);
+    e.target.value = ''; // Reset input
   };
 
   const handleSave = async () => {
@@ -157,70 +233,135 @@ export default function SchoolSettings() {
               />
             </div>
 
+            {/* School Logo Upload */}
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="logo_url">Logo URL</Label>
-              <Input
-                id="logo_url"
-                value={settings?.logo_url || ""}
-                onChange={(e) => setSettings(prev => prev ? { ...prev, logo_url: e.target.value } : null)}
-                placeholder="https://example.com/logo.png"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter a URL to your school logo. Recommended size: 200x200 pixels
-              </p>
+              <Label>School Logo</Label>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center min-h-[120px] w-full sm:w-[200px] bg-muted/30">
+                  {settings?.logo_url ? (
+                    <div className="relative">
+                      <img
+                        src={settings.logo_url}
+                        alt="School logo"
+                        className="max-h-24 max-w-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => setSettings(prev => prev ? { ...prev, logo_url: null } : null)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <ImageIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs">No logo uploaded</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={uploadingLogo}
+                    onClick={() => document.getElementById("logo-input")?.click()}
+                  >
+                    {uploadingLogo ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    {uploadingLogo ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                  <input
+                    id="logo-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    PNG or JPG, max 2MB<br/>
+                    Recommended: 200x200px
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="principal_name">Principal Name</Label>
               <Input
                 id="principal_name"
-                value={(settings as any)?.principal_name || ""}
-                onChange={(e) => setSettings(prev => prev ? { ...(prev as any), principal_name: e.target.value } : null)}
+                value={settings?.principal_name || ""}
+                onChange={(e) => setSettings(prev => prev ? { ...prev, principal_name: e.target.value } : null)}
                 placeholder="e.g., Mrs. A. Okafor"
               />
             </div>
 
+            {/* Principal Signature Upload */}
             <div className="space-y-2 md:col-span-2">
               <Label>Principal Signature</Label>
-              <div className="flex items-center gap-3 flex-wrap">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => document.getElementById("principal-signature-input")?.click()}
-                >
-                  <Upload className="h-4 w-4" />
-                  Upload signature
-                </Button>
-                <input
-                  id="principal-signature-input"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      const dataUrl = String(reader.result);
-                      setSettings(prev => prev ? { ...(prev as any), principal_signature_url: dataUrl } : null);
-                    };
-                    reader.readAsDataURL(file);
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">PNG/JPG recommended. Keep it small.</p>
-              </div>
-              <div className="border rounded-lg p-3 mt-2">
-                {(settings as any)?.principal_signature_url ? (
-                  <img
-                    src={(settings as any).principal_signature_url}
-                    alt="Principal signature"
-                    className="h-16 object-contain"
-                    loading="lazy"
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center min-h-[80px] w-full sm:w-[200px] bg-muted/30">
+                  {settings?.principal_signature_url ? (
+                    <div className="relative">
+                      <img
+                        src={settings.principal_signature_url}
+                        alt="Principal signature"
+                        className="max-h-16 max-w-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => setSettings(prev => prev ? { ...prev, principal_signature_url: null } : null)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <ImageIcon className="h-8 w-8 mx-auto mb-1 opacity-50" />
+                      <p className="text-xs">No signature uploaded</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={uploadingSignature}
+                    onClick={() => document.getElementById("signature-input")?.click()}
+                  >
+                    {uploadingSignature ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    {uploadingSignature ? "Uploading..." : "Upload Signature"}
+                  </Button>
+                  <input
+                    id="signature-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleSignatureUpload}
                   />
-                ) : (
-                  <p className="text-sm text-muted-foreground">No signature uploaded yet.</p>
-                )}
+                  <p className="text-xs text-muted-foreground">
+                    PNG with transparent background recommended<br/>
+                    Max 1MB, keep it small
+                  </p>
+                </div>
               </div>
             </div>
           </div>
