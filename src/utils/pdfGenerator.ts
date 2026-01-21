@@ -109,6 +109,77 @@ function getOrdinalSuffix(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+// Convert image URL to base64 for embedding in PDF
+async function loadImageAsBase64(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  
+  try {
+    // Handle Google Drive URLs - convert to direct download link
+    let directUrl = url;
+    if (url.includes('drive.google.com')) {
+      const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (fileIdMatch) {
+        directUrl = `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+      }
+    }
+    
+    const response = await fetch(directUrl);
+    if (!response.ok) return null;
+    
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        resolve(base64);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Failed to load image:', error);
+    return null;
+  }
+}
+
+// Add image to PDF document
+function addImageToPDF(
+  doc: jsPDF, 
+  base64Image: string | null, 
+  x: number, 
+  y: number, 
+  width: number, 
+  height: number,
+  fallbackText?: string,
+  fallbackColor?: [number, number, number]
+): void {
+  if (base64Image) {
+    try {
+      // Extract image format from base64 string
+      const formatMatch = base64Image.match(/data:image\/(\w+);base64,/);
+      const format = formatMatch ? formatMatch[1].toUpperCase() : 'PNG';
+      doc.addImage(base64Image, format, x, y, width, height);
+    } catch (error) {
+      console.error('Failed to add image to PDF:', error);
+      // Draw fallback circle with text
+      if (fallbackText) {
+        doc.setFillColor(255, 255, 255);
+        doc.circle(x + width / 2, y + height / 2, Math.min(width, height) / 2, 'F');
+        doc.setFontSize(6);
+        doc.setTextColor(...(fallbackColor || [30, 58, 138]));
+        doc.text(fallbackText, x + width / 2, y + height / 2 + 2, { align: 'center' });
+      }
+    }
+  } else if (fallbackText) {
+    // Draw fallback circle with text
+    doc.setFillColor(255, 255, 255);
+    doc.circle(x + width / 2, y + height / 2, Math.min(width, height) / 2, 'F');
+    doc.setFontSize(6);
+    doc.setTextColor(...(fallbackColor || [30, 58, 138]));
+    doc.text(fallbackText, x + width / 2, y + height / 2 + 2, { align: 'center' });
+  }
+}
+
 // Calculate grade distribution for pie chart
 function getGradeDistribution(subjects: SubjectData[]): { grade: string; count: number; color: [number, number, number] }[] {
   const gradeColors: Record<string, [number, number, number]> = {
@@ -310,6 +381,10 @@ function drawPerformanceTrendChart(
 export async function generateComprehensiveResultPDF(data: ResultData): Promise<void> {
   const schoolSettings = await getSchoolSettings();
   const gradingScales = await getGradingScales();
+  
+  // Load logo image
+  const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url || data.schoolLogo);
+  const principalSigBase64 = await loadImageAsBase64(schoolSettings?.principal_signature_url || data.principalSignature);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -330,16 +405,12 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
 
   // ========== PAGE 1: HEADER & STUDENT INFO ==========
 
-  // Header Background with gradient effect
+  // Header Background
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, 50, 'F');
 
-  // School Logo placeholder (left side)
-  doc.setFillColor(255, 255, 255);
-  doc.circle(25, 25, 12, 'F');
-  doc.setFontSize(8);
-  doc.setTextColor(...primaryColor);
-  doc.text('LOGO', 25, 27, { align: 'center' });
+  // School Logo (left side)
+  addImageToPDF(doc, logoBase64, 13, 13, 24, 24, 'LOGO', primaryColor);
 
   // School Name
   doc.setTextColor(255, 255, 255);
@@ -764,6 +835,9 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
 export async function generateCumulativeResultPDF(data: CumulativeResultData): Promise<void> {
   const schoolSettings = await getSchoolSettings();
   const gradingScales = await getGradingScales();
+  
+  // Load logo image
+  const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -784,16 +858,8 @@ export async function generateCumulativeResultPDF(data: CumulativeResultData): P
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, 45, 'F');
 
-  doc.setFillColor(240, 245, 255);
-  for (let i = 0; i < pageWidth; i += 20) {
-    doc.circle(i, 22, 8, 'F');
-  }
-
-  doc.setFillColor(255, 255, 255);
-  doc.circle(25, 22, 10, 'F');
-  doc.setFontSize(6);
-  doc.setTextColor(...primaryColor);
-  doc.text('LOGO', 25, 24, { align: 'center' });
+  // School Logo (left side)
+  addImageToPDF(doc, logoBase64, 13, 10, 24, 24, 'LOGO', primaryColor);
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
@@ -973,6 +1039,9 @@ export async function generateCumulativeResultPDF(data: CumulativeResultData): P
 export async function generateResultPDFAsBase64(data: ResultData): Promise<string> {
   const schoolSettings = await getSchoolSettings();
   const gradingScales = await getGradingScales();
+  
+  // Load logo image
+  const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url || data.schoolLogo);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -994,6 +1063,9 @@ export async function generateResultPDFAsBase64(data: ResultData): Promise<strin
   // Header
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, 40, 'F');
+
+  // School Logo (left side)
+  addImageToPDF(doc, logoBase64, 13, 8, 24, 24, 'LOGO', primaryColor);
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
@@ -1101,6 +1173,9 @@ export async function generateResultPDF(data: ResultData): Promise<void> {
 
 export async function generateBulkResultsPDF(results: ResultData[]): Promise<void> {
   const schoolSettings = await getSchoolSettings();
+  
+  // Load logo image once for all pages
+  const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1118,6 +1193,9 @@ export async function generateBulkResultsPDF(results: ResultData[]): Promise<voi
     // Header
     doc.setFillColor(...primaryColor);
     doc.rect(0, 0, pageWidth, 40, 'F');
+
+    // School Logo (left side)
+    addImageToPDF(doc, logoBase64, 13, 8, 24, 24, 'LOGO', primaryColor);
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
