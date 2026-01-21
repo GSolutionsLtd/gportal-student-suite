@@ -23,6 +23,74 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getSchoolSettings } from "@/utils/pdfGenerator";
 
+// Convert image URL to base64 for embedding in PDF
+async function loadImageAsBase64(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  
+  try {
+    // Handle Google Drive URLs - convert to direct download link
+    let directUrl = url;
+    if (url.includes('drive.google.com')) {
+      const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (fileIdMatch) {
+        directUrl = `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+      }
+    }
+    
+    const response = await fetch(directUrl);
+    if (!response.ok) return null;
+    
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        resolve(base64);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Failed to load image:', error);
+    return null;
+  }
+}
+
+// Add image to PDF document
+function addImageToPDF(
+  doc: jsPDF, 
+  base64Image: string | null, 
+  x: number, 
+  y: number, 
+  width: number, 
+  height: number,
+  fallbackText?: string,
+  fallbackColor?: [number, number, number]
+): void {
+  if (base64Image) {
+    try {
+      const formatMatch = base64Image.match(/data:image\/(\w+);base64,/);
+      const format = formatMatch ? formatMatch[1].toUpperCase() : 'PNG';
+      doc.addImage(base64Image, format, x, y, width, height);
+    } catch (error) {
+      console.error('Failed to add image to PDF:', error);
+      if (fallbackText) {
+        doc.setFillColor(255, 255, 255);
+        doc.circle(x + width / 2, y + height / 2, Math.min(width, height) / 2, 'F');
+        doc.setFontSize(6);
+        doc.setTextColor(...(fallbackColor || [30, 58, 138]));
+        doc.text(fallbackText, x + width / 2, y + height / 2 + 2, { align: 'center' });
+      }
+    }
+  } else if (fallbackText) {
+    doc.setFillColor(255, 255, 255);
+    doc.circle(x + width / 2, y + height / 2, Math.min(width, height) / 2, 'F');
+    doc.setFontSize(6);
+    doc.setTextColor(...(fallbackColor || [30, 58, 138]));
+    doc.text(fallbackText, x + width / 2, y + height / 2 + 2, { align: 'center' });
+  }
+}
+
 interface ClassArm {
   id: string;
   name: string;
@@ -125,7 +193,8 @@ export default function BulkPDFDownload() {
   const generatePDFForStudent = async (
     result: StudentResult,
     schoolSettings: any,
-    classSize: number
+    classSize: number,
+    logoBase64: string | null
   ): Promise<Blob> => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -140,6 +209,9 @@ export default function BulkPDFDownload() {
     // Header
     doc.setFillColor(...primaryColor);
     doc.rect(0, 0, pageWidth, 45, "F");
+
+    // School Logo (left side)
+    addImageToPDF(doc, logoBase64, 13, 10, 25, 25, 'LOGO', primaryColor);
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
@@ -335,6 +407,9 @@ export default function BulkPDFDownload() {
 
       // Fetch school settings
       const schoolSettings = await getSchoolSettings();
+      
+      // Load logo image once for all PDFs
+      const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url);
 
       // Fetch all published results for the selected class and term
       const { data: results, error } = await supabase
@@ -429,7 +504,8 @@ export default function BulkPDFDownload() {
         const pdfBlob = await generatePDFForStudent(
           studentResult,
           schoolSettings,
-          classSize
+          classSize,
+          logoBase64
         );
 
         // Add to ZIP
