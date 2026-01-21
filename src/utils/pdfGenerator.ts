@@ -334,12 +334,6 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, 50, 'F');
 
-  // Add subtle pattern to header
-  doc.setFillColor(240, 245, 255);
-  for (let i = 0; i < pageWidth; i += 20) {
-    doc.circle(i, 25, 8, 'F');
-  }
-
   // School Logo placeholder (left side)
   doc.setFillColor(255, 255, 255);
   doc.circle(25, 25, 12, 'F');
