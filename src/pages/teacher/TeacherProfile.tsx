@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, Upload } from "lucide-react";
+import { Loader2, Save, Upload, X, ImageIcon } from "lucide-react";
 
 type TeacherType = "subject" | "class" | "form";
 
@@ -19,21 +19,13 @@ interface TeacherRecord {
   signature_url: string | null;
 }
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.onload = () => resolve(String(reader.result));
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function TeacherProfile() {
   const { toast } = useToast();
   const { user, profile } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [record, setRecord] = useState<TeacherRecord | null>(null);
 
   const [staffId, setStaffId] = useState("");
@@ -82,17 +74,56 @@ export default function TeacherProfile() {
     fetchTeacher();
   }, [user, toast]);
 
-  const handlePickSignature = async (file: File | null) => {
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `teacher-signatures/${user?.id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('school-assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('school-assets')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({ title: "Upload Error", description: error.message, variant: "destructive" });
+      return null;
+    }
+  };
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    // Note: stored as a data URL to avoid requiring external file storage setup.
-    // Keep signatures small (e.g. PNG, ~150-250KB).
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      setSignatureUrl(dataUrl);
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Invalid File", description: "Please upload an image file", variant: "destructive" });
+      return;
     }
+
+    // Validate file size (max 1MB)
+    if (file.size > 1 * 1024 * 1024) {
+      toast({ title: "File Too Large", description: "Signature must be less than 1MB", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    const url = await uploadFile(file);
+    if (url) {
+      setSignatureUrl(url);
+      toast({ title: "Success", description: "Signature uploaded successfully" });
+    }
+    setUploading(false);
+    e.target.value = ''; // Reset input
+  };
+
+  const handleRemoveSignature = () => {
+    setSignatureUrl(null);
   };
 
   const handleSave = async () => {
@@ -224,35 +255,63 @@ export default function TeacherProfile() {
               </div>
             </div>
 
+            {/* Signature Upload Section */}
             <div className="space-y-2 md:col-span-2">
               <Label>Signature (for result sheet)</Label>
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Button type="button" variant="outline" className="gap-2" onClick={() => document.getElementById("teacher-signature-input")?.click()}>
-                    <Upload className="h-4 w-4" />
-                    Upload signature
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center min-h-[100px] w-full sm:w-[200px] bg-muted/30">
+                  {signatureUrl ? (
+                    <div className="relative">
+                      <img
+                        src={signatureUrl}
+                        alt="Teacher signature"
+                        className="max-h-16 max-w-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={handleRemoveSignature}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <ImageIcon className="h-8 w-8 mx-auto mb-1 opacity-50" />
+                      <p className="text-xs">No signature uploaded</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={uploading}
+                    onClick={() => document.getElementById("teacher-signature-input")?.click()}
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    {uploading ? "Uploading..." : "Upload Signature"}
                   </Button>
                   <input
                     id="teacher-signature-input"
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => handlePickSignature(e.target.files?.[0] || null)}
+                    onChange={handleSignatureUpload}
                   />
-                  <p className="text-xs text-muted-foreground">PNG/JPG recommended. Keep it small for faster loading.</p>
-                </div>
-
-                <div className="border rounded-lg p-3 bg-card">
-                  {signatureUrl ? (
-                    <img
-                      src={signatureUrl}
-                      alt="Teacher signature"
-                      className="h-16 object-contain"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="text-sm text-muted-foreground">No signature uploaded yet.</div>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    PNG with transparent background recommended<br/>
+                    Max 1MB, keep it small for faster loading
+                  </p>
                 </div>
               </div>
             </div>
