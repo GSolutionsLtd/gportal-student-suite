@@ -382,9 +382,10 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   const schoolSettings = await getSchoolSettings();
   const gradingScales = await getGradingScales();
   
-  // Load logo image
+  // Load logo and signature images
   const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url || data.schoolLogo);
   const principalSigBase64 = await loadImageAsBase64(schoolSettings?.principal_signature_url || data.principalSignature);
+  const classTeacherSigBase64 = await loadImageAsBase64(data.classTeacherSignature);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -725,12 +726,18 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   doc.setLineWidth(0.3);
   doc.line(margin, signaturesY + 15, margin + sigWidth - 10, signaturesY + 15);
 
-  // Signature placeholder box
+  // Signature box
   doc.setFillColor(250, 250, 250);
   doc.rect(margin, signaturesY, sigWidth - 10, 14, 'F');
-  doc.setTextColor(...secondaryColor);
-  doc.setFontSize(6);
-  doc.text('[e-Signature]', margin + (sigWidth - 10) / 2, signaturesY + 8, { align: 'center' });
+  
+  // Display actual class teacher signature if available, otherwise placeholder
+  if (classTeacherSigBase64) {
+    addImageToPDF(doc, classTeacherSigBase64, margin + 5, signaturesY + 1, sigWidth - 20, 12);
+  } else {
+    doc.setTextColor(...secondaryColor);
+    doc.setFontSize(6);
+    doc.text('[e-Signature]', margin + (sigWidth - 10) / 2, signaturesY + 8, { align: 'center' });
+  }
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
@@ -1047,8 +1054,10 @@ export async function generateResultPDFAsBase64(data: ResultData): Promise<strin
   const schoolSettings = await getSchoolSettings();
   const gradingScales = await getGradingScales();
   
-  // Load logo image
+  // Load logo and signature images
   const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url || data.schoolLogo);
+  const principalSigBase64 = await loadImageAsBase64(schoolSettings?.principal_signature_url || data.principalSignature);
+  const classTeacherSigBase64 = await loadImageAsBase64(data.classTeacherSignature);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1163,6 +1172,38 @@ export async function generateResultPDFAsBase64(data: ResultData): Promise<strin
   doc.text("Principal's Remark:", margin, remarksY);
   doc.setFont('helvetica', 'normal');
   doc.text(data.principalRemark || 'Keep up the good work.', margin, remarksY + 5);
+
+  // Signatures Section
+  let sigY = remarksY + 20;
+  const sigWidth = (pageWidth - margin * 2) / 3;
+  doc.setFontSize(7);
+
+  // Class Teacher Signature
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.line(margin, sigY + 12, margin + sigWidth - 10, sigY + 12);
+  if (classTeacherSigBase64) {
+    addImageToPDF(doc, classTeacherSigBase64, margin + 5, sigY, sigWidth - 20, 10);
+  } else {
+    doc.setTextColor(...secondaryColor);
+    doc.text('[e-Signature]', margin + (sigWidth - 10) / 2, sigY + 6, { align: 'center' });
+  }
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Class Teacher", margin, sigY + 18);
+
+  // Principal Signature
+  const principalX = margin + sigWidth * 2;
+  doc.line(principalX, sigY + 12, principalX + sigWidth - 10, sigY + 12);
+  if (principalSigBase64) {
+    addImageToPDF(doc, principalSigBase64, principalX + 5, sigY, sigWidth - 20, 10);
+  } else {
+    doc.setTextColor(...secondaryColor);
+    doc.text('[e-Signature]', principalX + (sigWidth - 10) / 2, sigY + 6, { align: 'center' });
+  }
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Principal", principalX, sigY + 18);
 
   // Footer
   doc.setFontSize(7);
