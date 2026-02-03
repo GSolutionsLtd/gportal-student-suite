@@ -103,6 +103,7 @@ interface Result {
   class_teacher_remark?: string | null;
   principal_remark?: string | null;
   class_teacher_signature_url?: string | null;
+  form_teacher_signature_url?: string | null;
   term: {
     name: string;
     session: {
@@ -391,6 +392,7 @@ export default function CheckResult() {
       classTeacherRemark: result.class_teacher_remark || generatedRemarks.classTeacher,
       principalRemark: result.principal_remark || generatedRemarks.principal,
       classTeacherSignature: result.class_teacher_signature_url || undefined,
+      formTeacherSignature: result.form_teacher_signature_url || undefined,
       principalSignature: (schoolSettings as any)?.principal_signature_url || undefined,
       principalName: (schoolSettings as any)?.principal_name || undefined,
     };
@@ -487,8 +489,14 @@ export default function CheckResult() {
         schoolName: schoolSettings?.school_name,
         schoolAddress: schoolSettings?.address || undefined,
         schoolMotto: schoolSettings?.motto || undefined,
+        schoolEmail: schoolSettings?.email || undefined,
+        schoolPhone: schoolSettings?.phone || undefined,
         classTeacherRemark: result.class_teacher_remark || generatedRemarks.classTeacher,
         principalRemark: result.principal_remark || generatedRemarks.principal,
+        classTeacherSignature: result.class_teacher_signature_url || undefined,
+        formTeacherSignature: result.form_teacher_signature_url || undefined,
+        principalSignature: (schoolSettings as any)?.principal_signature_url || undefined,
+        principalName: (schoolSettings as any)?.principal_name || undefined,
       };
 
       const pdfBase64 = await generateResultPDFAsBase64(pdfData);

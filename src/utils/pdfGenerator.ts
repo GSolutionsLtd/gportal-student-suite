@@ -35,6 +35,7 @@ interface ResultData {
   principalName?: string;
   principalSignature?: string;
   classTeacherSignature?: string;
+  formTeacherSignature?: string;
   classTeacherRemark?: string;
   principalRemark?: string;
 }
@@ -386,6 +387,7 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url || data.schoolLogo);
   const principalSigBase64 = await loadImageAsBase64(schoolSettings?.principal_signature_url || data.principalSignature);
   const classTeacherSigBase64 = await loadImageAsBase64(data.classTeacherSignature);
+  const formTeacherSigBase64 = await loadImageAsBase64(data.formTeacherSignature);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -714,13 +716,16 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   // ========== SIGNATURES SECTION ==========
   let signaturesY = remarksY + 25;
 
-  if (signaturesY > pageHeight - 45) {
+  if (signaturesY > pageHeight - 65) {
     doc.addPage();
     signaturesY = 20;
   }
 
-  const sigWidth = (pageWidth - margin * 2) / 3;
+  const sigWidth = (pageWidth - margin * 2) / 2;
+  const sigRowHeight = 30;
 
+  // ===== First Row: Class Teacher + Form Teacher =====
+  
   // Class Teacher Signature
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
@@ -744,47 +749,68 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   doc.setFont('helvetica', 'bold');
   doc.text("Class Teacher's Signature", margin, signaturesY + 22);
 
-  // Date
-  const dateX = margin + sigWidth;
-  doc.line(dateX, signaturesY + 15, dateX + sigWidth - 10, signaturesY + 15);
+  // Form Teacher Signature (if applicable)
+  const formTeacherX = margin + sigWidth;
+  doc.line(formTeacherX, signaturesY + 15, formTeacherX + sigWidth - 10, signaturesY + 15);
   doc.setFillColor(250, 250, 250);
-  doc.rect(dateX, signaturesY, sigWidth - 10, 14, 'F');
-  doc.setTextColor(...secondaryColor);
-  doc.setFontSize(7);
-  doc.text(new Date().toLocaleDateString(), dateX + (sigWidth - 10) / 2, signaturesY + 8, { align: 'center' });
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Date', dateX, signaturesY + 22);
-
-  // Principal Signature
-  const principalX = margin + sigWidth * 2;
-  doc.line(principalX, signaturesY + 15, principalX + sigWidth - 10, signaturesY + 15);
-  doc.setFillColor(250, 250, 250);
-  doc.rect(principalX, signaturesY, sigWidth - 10, 14, 'F');
+  doc.rect(formTeacherX, signaturesY, sigWidth - 10, 14, 'F');
   
-  // Display actual signature if available, otherwise placeholder
-  if (principalSigBase64) {
-    addImageToPDF(doc, principalSigBase64, principalX + 5, signaturesY + 1, sigWidth - 20, 12);
+  if (formTeacherSigBase64) {
+    addImageToPDF(doc, formTeacherSigBase64, formTeacherX + 5, signaturesY + 1, sigWidth - 20, 12);
   } else {
     doc.setTextColor(...secondaryColor);
     doc.setFontSize(6);
-    doc.text('[e-Signature]', principalX + (sigWidth - 10) / 2, signaturesY + 8, { align: 'center' });
+    doc.text('[e-Signature]', formTeacherX + (sigWidth - 10) / 2, signaturesY + 8, { align: 'center' });
   }
   
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text("Principal's Signature", principalX, signaturesY + 22);
+  doc.text("Form Teacher's Signature", formTeacherX, signaturesY + 22);
+
+  // ===== Second Row: Date + Principal =====
+  const row2Y = signaturesY + sigRowHeight;
+
+  // Date
+  doc.line(margin, row2Y + 15, margin + sigWidth - 10, row2Y + 15);
+  doc.setFillColor(250, 250, 250);
+  doc.rect(margin, row2Y, sigWidth - 10, 14, 'F');
+  doc.setTextColor(...secondaryColor);
+  doc.setFontSize(7);
+  doc.text(new Date().toLocaleDateString(), margin + (sigWidth - 10) / 2, row2Y + 8, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Date', margin, row2Y + 22);
+
+  // Principal Signature
+  const principalX = margin + sigWidth;
+  doc.line(principalX, row2Y + 15, principalX + sigWidth - 10, row2Y + 15);
+  doc.setFillColor(250, 250, 250);
+  doc.rect(principalX, row2Y, sigWidth - 10, 14, 'F');
+  
+  // Display actual signature if available, otherwise placeholder
+  if (principalSigBase64) {
+    addImageToPDF(doc, principalSigBase64, principalX + 5, row2Y + 1, sigWidth - 20, 12);
+  } else {
+    doc.setTextColor(...secondaryColor);
+    doc.setFontSize(6);
+    doc.text('[e-Signature]', principalX + (sigWidth - 10) / 2, row2Y + 8, { align: 'center' });
+  }
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Principal's Signature", principalX, row2Y + 22);
 
   if (principalName) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.text(principalName, principalX, signaturesY + 27);
+    doc.text(principalName, principalX, row2Y + 27);
   }
 
   // ========== PERFORMANCE CHART (Simple bar representation) ==========
-  let perfChartY = signaturesY + 35;
+  let perfChartY = row2Y + 35;
 
   if (perfChartY > pageHeight - 40) {
     doc.addPage();
@@ -1058,6 +1084,7 @@ export async function generateResultPDFAsBase64(data: ResultData): Promise<strin
   const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url || data.schoolLogo);
   const principalSigBase64 = await loadImageAsBase64(schoolSettings?.principal_signature_url || data.principalSignature);
   const classTeacherSigBase64 = await loadImageAsBase64(data.classTeacherSignature);
+  const formTeacherSigBase64 = await loadImageAsBase64(data.formTeacherSignature);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1175,9 +1202,11 @@ export async function generateResultPDFAsBase64(data: ResultData): Promise<strin
 
   // Signatures Section
   let sigY = remarksY + 20;
-  const sigWidth = (pageWidth - margin * 2) / 3;
+  const sigWidth = (pageWidth - margin * 2) / 2;
   doc.setFontSize(7);
 
+  // ===== First Row: Class Teacher + Form Teacher =====
+  
   // Class Teacher Signature
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
@@ -1192,18 +1221,44 @@ export async function generateResultPDFAsBase64(data: ResultData): Promise<strin
   doc.setFont('helvetica', 'bold');
   doc.text("Class Teacher", margin, sigY + 18);
 
-  // Principal Signature
-  const principalX = margin + sigWidth * 2;
-  doc.line(principalX, sigY + 12, principalX + sigWidth - 10, sigY + 12);
-  if (principalSigBase64) {
-    addImageToPDF(doc, principalSigBase64, principalX + 5, sigY, sigWidth - 20, 10);
+  // Form Teacher Signature
+  const formTeacherX = margin + sigWidth;
+  doc.line(formTeacherX, sigY + 12, formTeacherX + sigWidth - 10, sigY + 12);
+  if (formTeacherSigBase64) {
+    addImageToPDF(doc, formTeacherSigBase64, formTeacherX + 5, sigY, sigWidth - 20, 10);
   } else {
     doc.setTextColor(...secondaryColor);
-    doc.text('[e-Signature]', principalX + (sigWidth - 10) / 2, sigY + 6, { align: 'center' });
+    doc.text('[e-Signature]', formTeacherX + (sigWidth - 10) / 2, sigY + 6, { align: 'center' });
   }
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
-  doc.text("Principal", principalX, sigY + 18);
+  doc.text("Form Teacher", formTeacherX, sigY + 18);
+
+  // ===== Second Row: Date + Principal =====
+  const row2Y = sigY + 25;
+
+  // Date
+  doc.line(margin, row2Y + 12, margin + sigWidth - 10, row2Y + 12);
+  doc.setFillColor(250, 250, 250);
+  doc.rect(margin, row2Y, sigWidth - 10, 11, 'F');
+  doc.setTextColor(...secondaryColor);
+  doc.text(new Date().toLocaleDateString(), margin + (sigWidth - 10) / 2, row2Y + 6, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Date", margin, row2Y + 18);
+
+  // Principal Signature
+  const principalX = margin + sigWidth;
+  doc.line(principalX, row2Y + 12, principalX + sigWidth - 10, row2Y + 12);
+  if (principalSigBase64) {
+    addImageToPDF(doc, principalSigBase64, principalX + 5, row2Y, sigWidth - 20, 10);
+  } else {
+    doc.setTextColor(...secondaryColor);
+    doc.text('[e-Signature]', principalX + (sigWidth - 10) / 2, row2Y + 6, { align: 'center' });
+  }
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Principal", principalX, row2Y + 18);
 
   // Footer
   doc.setFontSize(7);
