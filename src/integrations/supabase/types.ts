@@ -476,6 +476,7 @@ export type Database = {
           class_teacher_id: string | null
           class_teacher_remark: string | null
           created_at: string
+          form_teacher_id: string | null
           id: string
           principal_remark: string | null
           published_at: string | null
@@ -497,6 +498,7 @@ export type Database = {
           class_teacher_id?: string | null
           class_teacher_remark?: string | null
           created_at?: string
+          form_teacher_id?: string | null
           id?: string
           principal_remark?: string | null
           published_at?: string | null
@@ -518,6 +520,7 @@ export type Database = {
           class_teacher_id?: string | null
           class_teacher_remark?: string | null
           created_at?: string
+          form_teacher_id?: string | null
           id?: string
           principal_remark?: string | null
           published_at?: string | null
@@ -541,6 +544,13 @@ export type Database = {
           {
             foreignKeyName: "results_class_teacher_id_fkey"
             columns: ["class_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "results_form_teacher_id_fkey"
+            columns: ["form_teacher_id"]
             isOneToOne: false
             referencedRelation: "teachers"
             referencedColumns: ["id"]

@@ -80,6 +80,7 @@ serve(async (req: Request) => {
           class_teacher_remark,
           principal_remark,
           class_teacher_id,
+          form_teacher_id,
           class_arm_id,
           term_id,
           term:terms(
@@ -358,8 +359,10 @@ serve(async (req: Request) => {
     if (scalesError) throw scalesError;
     if (schoolError) throw schoolError;
 
-    // 9) Teacher signature (optional)
+    // 9) Teacher signatures (class teacher and form teacher)
     let classTeacherSignatureUrl: string | null = null;
+    let formTeacherSignatureUrl: string | null = null;
+    
     if (resultRow.class_teacher_id) {
       const { data: teacherRow } = await supabase
         .from("teachers")
@@ -367,6 +370,29 @@ serve(async (req: Request) => {
         .eq("id", resultRow.class_teacher_id)
         .maybeSingle();
       classTeacherSignatureUrl = (teacherRow as any)?.signature_url ?? null;
+    }
+    
+    // Check for form teacher - either from form_teacher_id on result or by finding form teacher assigned to class
+    if ((resultRow as any).form_teacher_id) {
+      const { data: formTeacherRow } = await supabase
+        .from("teachers")
+        .select("signature_url")
+        .eq("id", (resultRow as any).form_teacher_id)
+        .maybeSingle();
+      formTeacherSignatureUrl = (formTeacherRow as any)?.signature_url ?? null;
+    } else {
+      // Try to find a form teacher assigned to this class arm via teacher_subjects
+      const { data: formTeacherAssignment } = await supabase
+        .from("teacher_subjects")
+        .select("teacher:teachers!inner(id, signature_url, is_form_teacher)")
+        .eq("class_arm_id", resultRow.class_arm_id)
+        .eq("teacher.is_form_teacher", true)
+        .limit(1)
+        .maybeSingle();
+      
+      if (formTeacherAssignment?.teacher) {
+        formTeacherSignatureUrl = (formTeacherAssignment.teacher as any)?.signature_url ?? null;
+      }
     }
 
     // 10) Log usage + increment
@@ -404,6 +430,7 @@ serve(async (req: Request) => {
         class_teacher_remark: (resultRow as any).class_teacher_remark,
         principal_remark: (resultRow as any).principal_remark,
         class_teacher_signature_url: classTeacherSignatureUrl,
+        form_teacher_signature_url: formTeacherSignatureUrl,
         term: (resultRow as any).term,
         student: {
           ...student,
