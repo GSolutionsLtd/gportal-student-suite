@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TeachersTab } from "@/components/admin/teachers/TeachersTab";
 import { TeacherAssignmentsTab } from "@/components/admin/teachers/TeacherAssignmentsTab";
+import { FormTeacherAssignmentsTab } from "@/components/admin/teachers/FormTeacherAssignmentsTab";
 
 const TeacherManagement = () => {
   return (
@@ -16,6 +17,7 @@ const TeacherManagement = () => {
         <TabsList>
           <TabsTrigger value="teachers">Teachers</TabsTrigger>
           <TabsTrigger value="assignments">Subject Assignments</TabsTrigger>
+          <TabsTrigger value="form-teachers">Form Teachers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="teachers">
@@ -24,6 +26,10 @@ const TeacherManagement = () => {
 
         <TabsContent value="assignments">
           <TeacherAssignmentsTab />
+        </TabsContent>
+
+        <TabsContent value="form-teachers">
+          <FormTeacherAssignmentsTab />
         </TabsContent>
       </Tabs>
     </div>

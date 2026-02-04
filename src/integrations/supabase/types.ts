@@ -91,6 +91,7 @@ export type Database = {
           capacity: number | null
           class_id: string
           created_at: string
+          form_teacher_id: string | null
           id: string
           is_active: boolean
           name: string
@@ -100,6 +101,7 @@ export type Database = {
           capacity?: number | null
           class_id: string
           created_at?: string
+          form_teacher_id?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -109,6 +111,7 @@ export type Database = {
           capacity?: number | null
           class_id?: string
           created_at?: string
+          form_teacher_id?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -120,6 +123,13 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_arms_form_teacher_id_fkey"
+            columns: ["form_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
         ]

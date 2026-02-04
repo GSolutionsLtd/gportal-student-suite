@@ -49,6 +49,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Label } from "@/components/ui/label";
 
 interface ResultItem {
   id: string;
@@ -108,6 +109,12 @@ interface Term {
   session: { name: string };
 }
 
+interface Teacher {
+  id: string;
+  staff_id: string;
+  profile?: { full_name: string };
+}
+
 export default function ResultApproval() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -127,6 +134,13 @@ export default function ResultApproval() {
   const [selectedApprovedIds, setSelectedApprovedIds] = useState<Set<string>>(new Set());
   const [selectedPublishedIds, setSelectedPublishedIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("pending");
+
+  // Form teacher approval dialog state
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [resultToApprove, setResultToApprove] = useState<ResultItem | null>(null);
+  const [formTeachers, setFormTeachers] = useState<Teacher[]>([]);
+  const [selectedFormTeacherId, setSelectedFormTeacherId] = useState<string>("");
+  const [classArmFormTeacherId, setClassArmFormTeacherId] = useState<string | null>(null);
 
   // Filters
   const [classArms, setClassArms] = useState<ClassArm[]>([]);
@@ -153,6 +167,40 @@ export default function ResultApproval() {
     ]);
     setClassArms((classArmsData as ClassArm[]) || []);
     setTerms((termsData as Term[]) || []);
+  };
+
+  const fetchFormTeachers = async () => {
+    const { data, error } = await supabase
+      .from("teachers")
+      .select("id, staff_id, user_id")
+      .eq("is_active", true)
+      .order("staff_id");
+
+    if (error || !data) return;
+
+    const userIds = data.map((t) => t.user_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", userIds);
+
+    const profileMap = new Map(profiles?.map((p) => [p.id, p]));
+    const teachersWithProfiles = data.map((t) => ({
+      id: t.id,
+      staff_id: t.staff_id,
+      profile: profileMap.get(t.user_id),
+    })) as Teacher[];
+
+    setFormTeachers(teachersWithProfiles);
+  };
+
+  const getClassArmFormTeacher = async (classArmId: string): Promise<string | null> => {
+    const { data } = await supabase
+      .from("class_arms")
+      .select("form_teacher_id")
+      .eq("id", classArmId)
+      .maybeSingle();
+    return data?.form_teacher_id || null;
   };
 
   const applyFilters = () => {
@@ -360,35 +408,62 @@ export default function ResultApproval() {
     }
   };
 
-  const handleApprove = async (result: ResultItem) => {
+  const openApproveDialog = async (result: ResultItem) => {
+    setResultToApprove(result);
+    await fetchFormTeachers();
+    
+    // Get the default form teacher from class arm
+    const defaultFormTeacherId = await getClassArmFormTeacher(result.class_arm_id);
+    setClassArmFormTeacherId(defaultFormTeacherId);
+    setSelectedFormTeacherId(defaultFormTeacherId || "");
+    
+    setApproveDialogOpen(true);
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!resultToApprove) return;
+
     try {
       setProcessing(true);
 
       // First compute aggregates
-      const { success, hasScores } = await computeResultAggregates(result.id);
+      const { success, hasScores } = await computeResultAggregates(resultToApprove.id);
       if (!hasScores) {
         toast({ title: "Cannot Approve", description: "No scores entered for this result. Cannot approve.", variant: "destructive" });
         return;
       }
 
       // Compute grades
-      await computeGrades(result.id);
+      await computeGrades(resultToApprove.id);
 
-      // Update status
+      // Update status with form_teacher_id
+      const updateData: Record<string, unknown> = {
+        status: "approved",
+        approved_by: user?.id,
+        approved_at: new Date().toISOString(),
+      };
+      
+      if (selectedFormTeacherId) {
+        updateData.form_teacher_id = selectedFormTeacherId;
+      }
+
       const { error } = await supabase
         .from("results")
-        .update({ status: "approved", approved_by: user?.id, approved_at: new Date().toISOString() })
-        .eq("id", result.id);
+        .update(updateData)
+        .eq("id", resultToApprove.id);
 
       if (error) throw error;
 
       // Compute class positions
-      await computeClassPositions(result.class_arm_id, result.term_id);
+      await computeClassPositions(resultToApprove.class_arm_id, resultToApprove.term_id);
 
       // Send email notification
-      sendNotification("approved", [result.id]);
+      sendNotification("approved", [resultToApprove.id]);
 
-      toast({ title: "Result Approved", description: `Result for ${result.student.first_name} ${result.student.last_name} has been approved.` });
+      toast({ title: "Result Approved", description: `Result for ${resultToApprove.student.first_name} ${resultToApprove.student.last_name} has been approved.` });
+      setApproveDialogOpen(false);
+      setResultToApprove(null);
+      setSelectedFormTeacherId("");
       fetchResults();
     } catch (error) {
       console.error("Error approving result:", error);
@@ -396,6 +471,10 @@ export default function ResultApproval() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleApprove = async (result: ResultItem) => {
+    await openApproveDialog(result);
   };
 
   const handleBulkApprove = async () => {
@@ -1091,6 +1170,57 @@ export default function ResultApproval() {
             <Button variant="destructive" onClick={handleReject} disabled={processing || !rejectReason.trim()}>
               {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Reject Result
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve with Form Teacher Dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={(open) => {
+        setApproveDialogOpen(open);
+        if (!open) {
+          setResultToApprove(null);
+          setSelectedFormTeacherId("");
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Result</DialogTitle>
+            <DialogDescription>
+              {resultToApprove && `Approve result for ${resultToApprove.student.first_name} ${resultToApprove.student.last_name}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="form-teacher">Form Teacher (Optional)</Label>
+              <Select
+                value={selectedFormTeacherId}
+                onValueChange={setSelectedFormTeacherId}
+              >
+                <SelectTrigger id="form-teacher">
+                  <SelectValue placeholder="Select form teacher..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Form Teacher</SelectItem>
+                  {formTeachers.map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {teacher.profile?.full_name || teacher.staff_id} ({teacher.staff_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {classArmFormTeacherId && (
+                <p className="text-xs text-muted-foreground">
+                  Default form teacher from class arm assignment is pre-selected.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleApproveConfirm} disabled={processing}>
+              {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+              Approve Result
             </Button>
           </DialogFooter>
         </DialogContent>
