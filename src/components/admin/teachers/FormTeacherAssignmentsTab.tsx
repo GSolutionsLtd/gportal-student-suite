@@ -110,34 +110,10 @@ export const FormTeacherAssignmentsTab = () => {
       .from("teachers")
       .select("id, staff_id, user_id")
       .eq("is_active", true)
-      .eq("is_form_teacher", true)
       .order("staff_id");
 
     if (error) {
-      // Fallback: get all active teachers if is_form_teacher filter fails
-      const { data: allTeachers } = await supabase
-        .from("teachers")
-        .select("id, staff_id, user_id")
-        .eq("is_active", true)
-        .order("staff_id");
-      
-      if (allTeachers) {
-        await enrichTeachersWithProfiles(allTeachers);
-      }
-      return;
-    }
-
-    if (data && data.length === 0) {
-      // No form teachers found, get all active teachers
-      const { data: allTeachers } = await supabase
-        .from("teachers")
-        .select("id, staff_id, user_id")
-        .eq("is_active", true)
-        .order("staff_id");
-      
-      if (allTeachers) {
-        await enrichTeachersWithProfiles(allTeachers);
-      }
+      toast.error("Failed to fetch teachers");
       return;
     }
 

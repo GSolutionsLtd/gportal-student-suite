@@ -1,3 +1,4 @@
+import React from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 import { Button } from "./ui/button";
@@ -25,32 +26,36 @@ const buttonVariants = {
   warning: "default",
 } as const;
 
-export function RoleCard({ icon: Icon, title, description, color, onClick, delay = 0 }: RoleCardProps) {
-  return (
-    <div
-      className={cn(
-        "group relative p-6 rounded-2xl bg-card border border-border/50",
-        "hover:shadow-xl hover:border-primary/30 transition-all duration-300",
-        "animate-slide-up cursor-pointer"
-      )}
-      style={{ animationDelay: `${delay}ms` }}
-      onClick={onClick}
-    >
-      <div className="flex flex-col items-center text-center gap-4">
-        <div className={cn(
-          "p-4 rounded-2xl transition-all duration-300 group-hover:text-primary-foreground group-hover:scale-110",
-          colorClasses[color]
-        )}>
-          <Icon className="h-8 w-8" />
+export const RoleCard = React.forwardRef<HTMLDivElement, RoleCardProps>(
+  ({ icon: Icon, title, description, color, onClick, delay = 0 }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "group relative p-6 rounded-2xl bg-card border border-border/50",
+          "hover:shadow-xl hover:border-primary/30 transition-all duration-300",
+          "animate-slide-up cursor-pointer"
+        )}
+        style={{ animationDelay: `${delay}ms` }}
+        onClick={onClick}
+      >
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className={cn(
+            "p-4 rounded-2xl transition-all duration-300 group-hover:text-primary-foreground group-hover:scale-110",
+            colorClasses[color]
+          )}>
+            <Icon className="h-8 w-8" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg text-foreground mb-2">{title}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">{description}</p>
+          </div>
+          <Button variant={buttonVariants[color]} size="sm" className="w-full">
+            Sign In as {title}
+          </Button>
         </div>
-        <div>
-          <h3 className="font-semibold text-lg text-foreground mb-2">{title}</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-4">{description}</p>
-        </div>
-        <Button variant={buttonVariants[color]} size="sm" className="w-full">
-          Sign In as {title}
-        </Button>
       </div>
-    </div>
-  );
-}
+    );
+  }
+);
+RoleCard.displayName = "RoleCard";
