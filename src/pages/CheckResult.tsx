@@ -1163,7 +1163,7 @@ export default function CheckResult() {
               </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 mt-8">
+            <div className="grid gap-6 md:grid-cols-3 mt-8">
               <div>
                 <div className="h-16 border-b border-border flex items-end pb-2">
                   {result.class_teacher_signature_url ? (
@@ -1175,7 +1175,20 @@ export default function CheckResult() {
                     />
                   ) : null}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">Class Teacher Signature</p>
+                <p className="text-xs text-muted-foreground mt-2">Class Teacher's Signature</p>
+              </div>
+              <div>
+                <div className="h-16 border-b border-border flex items-end pb-2">
+                  {result.form_teacher_signature_url ? (
+                    <img
+                      src={result.form_teacher_signature_url}
+                      alt="Form teacher signature"
+                      className="h-14 object-contain"
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Form Teacher's Signature</p>
               </div>
               <div>
                 <div className="h-16 border-b border-border flex items-end pb-2 justify-start">
@@ -1188,7 +1201,7 @@ export default function CheckResult() {
                     />
                   ) : null}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">Principal Signature</p>
+                <p className="text-xs text-muted-foreground mt-2">Principal's Signature</p>
               </div>
             </div>
           </div>

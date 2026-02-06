@@ -194,7 +194,10 @@ export default function BulkPDFDownload() {
     result: StudentResult,
     schoolSettings: any,
     classSize: number,
-    logoBase64: string | null
+    logoBase64: string | null,
+    classTeacherSigBase64: string | null,
+    formTeacherSigBase64: string | null,
+    principalSigBase64: string | null
   ): Promise<Blob> => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -377,10 +380,83 @@ export default function BulkPDFDownload() {
       },
     });
 
-    // Footer
-    const footerY = doc.internal.pageSize.getHeight() - 30;
+    const tableEndY = (doc as any).lastAutoTable.finalY || yPos + 50;
+
+    // ===== SIGNATURES SECTION =====
+    let sigY = tableEndY + 15;
+    const sigWidthHalf = (pageWidth - margin * 2) / 2;
+
+    // First Row: Class Teacher + Form Teacher
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
     doc.setFontSize(7);
-    doc.setTextColor(...secondaryColor);
+
+    // Class Teacher Signature
+    doc.setFillColor(250, 250, 250);
+    doc.rect(margin, sigY, sigWidthHalf - 10, 14, 'F');
+    doc.line(margin, sigY + 15, margin + sigWidthHalf - 10, sigY + 15);
+    if (classTeacherSigBase64) {
+      addImageToPDF(doc, classTeacherSigBase64, margin + 5, sigY + 1, sigWidthHalf - 20, 12);
+    } else {
+      doc.setTextColor(100, 100, 100);
+      doc.text('[e-Signature]', margin + (sigWidthHalf - 10) / 2, sigY + 8, { align: 'center' });
+    }
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("Class Teacher's Signature", margin, sigY + 22);
+
+    // Form Teacher Signature
+    const ftX = margin + sigWidthHalf;
+    doc.setFillColor(250, 250, 250);
+    doc.rect(ftX, sigY, sigWidthHalf - 10, 14, 'F');
+    doc.line(ftX, sigY + 15, ftX + sigWidthHalf - 10, sigY + 15);
+    if (formTeacherSigBase64) {
+      addImageToPDF(doc, formTeacherSigBase64, ftX + 5, sigY + 1, sigWidthHalf - 20, 12);
+    } else {
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7);
+      doc.text('[e-Signature]', ftX + (sigWidthHalf - 10) / 2, sigY + 8, { align: 'center' });
+    }
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("Form Teacher's Signature", ftX, sigY + 22);
+
+    // Second Row: Date + Principal
+    const row2Y = sigY + 30;
+    doc.setFillColor(250, 250, 250);
+    doc.rect(margin, row2Y, sigWidthHalf - 10, 14, 'F');
+    doc.line(margin, row2Y + 15, margin + sigWidthHalf - 10, row2Y + 15);
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(7);
+    doc.text(new Date().toLocaleDateString(), margin + (sigWidthHalf - 10) / 2, row2Y + 8, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("Date", margin, row2Y + 22);
+
+    const prX = margin + sigWidthHalf;
+    doc.setFillColor(250, 250, 250);
+    doc.rect(prX, row2Y, sigWidthHalf - 10, 14, 'F');
+    doc.line(prX, row2Y + 15, prX + sigWidthHalf - 10, row2Y + 15);
+    if (principalSigBase64) {
+      addImageToPDF(doc, principalSigBase64, prX + 5, row2Y + 1, sigWidthHalf - 20, 12);
+    } else {
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7);
+      doc.text('[e-Signature]', prX + (sigWidthHalf - 10) / 2, row2Y + 8, { align: 'center' });
+    }
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("Principal's Signature", prX, row2Y + 22);
+
+    // Footer
+    const footerY = doc.internal.pageSize.getHeight() - 10;
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont("helvetica", "normal");
     doc.text(
       `Printed on: ${new Date().toLocaleDateString()}`,
       pageWidth / 2,
@@ -408,8 +484,9 @@ export default function BulkPDFDownload() {
       // Fetch school settings
       const schoolSettings = await getSchoolSettings();
       
-      // Load logo image once for all PDFs
+      // Load logo and principal signature once for all PDFs
       const logoBase64 = await loadImageAsBase64(schoolSettings?.logo_url);
+      const principalSigBase64 = await loadImageAsBase64(schoolSettings?.principal_signature_url);
 
       // Fetch all published results for the selected class and term
       const { data: results, error } = await supabase
@@ -422,7 +499,9 @@ export default function BulkPDFDownload() {
           class_position,
           student_id,
           term_id,
-          class_arm_id
+          class_arm_id,
+          class_teacher_id,
+          form_teacher_id
         `
         )
         .eq("class_arm_id", selectedClassArm)
@@ -481,6 +560,32 @@ export default function BulkPDFDownload() {
 
         if (!student || !components) continue;
 
+        // Fetch class teacher and form teacher signatures
+        let classTeacherSigBase64: string | null = null;
+        let formTeacherSigBase64: string | null = null;
+
+        if ((result as any).class_teacher_id) {
+          const { data: teacher } = await supabase
+            .from("teachers")
+            .select("signature_url")
+            .eq("id", (result as any).class_teacher_id)
+            .maybeSingle();
+          if (teacher?.signature_url) {
+            classTeacherSigBase64 = await loadImageAsBase64(teacher.signature_url);
+          }
+        }
+
+        if ((result as any).form_teacher_id) {
+          const { data: teacher } = await supabase
+            .from("teachers")
+            .select("signature_url")
+            .eq("id", (result as any).form_teacher_id)
+            .maybeSingle();
+          if (teacher?.signature_url) {
+            formTeacherSigBase64 = await loadImageAsBase64(teacher.signature_url);
+          }
+        }
+
         const studentResult: StudentResult = {
           id: result.id,
           student: student,
@@ -505,7 +610,10 @@ export default function BulkPDFDownload() {
           studentResult,
           schoolSettings,
           classSize,
-          logoBase64
+          logoBase64,
+          classTeacherSigBase64,
+          formTeacherSigBase64,
+          principalSigBase64
         );
 
         // Add to ZIP
