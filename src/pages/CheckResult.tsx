@@ -395,6 +395,8 @@ export default function CheckResult() {
       formTeacherSignature: result.form_teacher_signature_url || undefined,
       principalSignature: (schoolSettings as any)?.principal_signature_url || undefined,
       principalName: (schoolSettings as any)?.principal_name || undefined,
+      approvedAt: (result as any).approved_at || undefined,
+      publishedAt: (result as any).published_at || undefined,
     };
 
     try {
@@ -497,6 +499,8 @@ export default function CheckResult() {
         formTeacherSignature: result.form_teacher_signature_url || undefined,
         principalSignature: (schoolSettings as any)?.principal_signature_url || undefined,
         principalName: (schoolSettings as any)?.principal_name || undefined,
+        approvedAt: (result as any).approved_at || undefined,
+        publishedAt: (result as any).published_at || undefined,
       };
 
       const pdfBase64 = await generateResultPDFAsBase64(pdfData);
@@ -1176,6 +1180,9 @@ export default function CheckResult() {
                   ) : null}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">Class Teacher's Signature</p>
+                {(result as any).approved_at && (
+                  <p className="text-xs text-muted-foreground">Date: {new Date((result as any).approved_at).toLocaleDateString()}</p>
+                )}
               </div>
               <div>
                 <div className="h-16 border-b border-border flex items-end pb-2">
@@ -1189,6 +1196,9 @@ export default function CheckResult() {
                   ) : null}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">Form Teacher's Signature</p>
+                {(result as any).approved_at && (
+                  <p className="text-xs text-muted-foreground">Date: {new Date((result as any).approved_at).toLocaleDateString()}</p>
+                )}
               </div>
               <div>
                 <div className="h-16 border-b border-border flex items-end pb-2 justify-start">
@@ -1202,6 +1212,9 @@ export default function CheckResult() {
                   ) : null}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">Principal's Signature</p>
+                {(result as any).published_at && (
+                  <p className="text-xs text-muted-foreground">Date: {new Date((result as any).published_at).toLocaleDateString()}</p>
+                )}
               </div>
             </div>
           </div>
