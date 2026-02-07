@@ -38,6 +38,8 @@ interface ResultData {
   formTeacherSignature?: string;
   classTeacherRemark?: string;
   principalRemark?: string;
+  approvedAt?: string;
+  publishedAt?: string;
 }
 
 interface CumulativeTermData {
@@ -748,6 +750,11 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text("Class Teacher's Signature", margin, signaturesY + 22);
+  if (data.approvedAt) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.text(`Date: ${new Date(data.approvedAt).toLocaleDateString()}`, margin, signaturesY + 26);
+  }
 
   // Form Teacher Signature (if applicable)
   const formTeacherX = margin + sigWidth;
@@ -767,6 +774,11 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text("Form Teacher's Signature", formTeacherX, signaturesY + 22);
+  if (data.approvedAt) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.text(`Date: ${new Date(data.approvedAt).toLocaleDateString()}`, formTeacherX, signaturesY + 26);
+  }
 
   // ===== Second Row: Date + Principal =====
   const row2Y = signaturesY + sigRowHeight;
@@ -807,6 +819,11 @@ export async function generateComprehensiveResultPDF(data: ResultData): Promise<
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.text(principalName, principalX, row2Y + 27);
+  }
+  if (data.publishedAt) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.text(`Date: ${new Date(data.publishedAt).toLocaleDateString()}`, principalX, principalName ? row2Y + 31 : row2Y + 27);
   }
 
   // ========== PERFORMANCE CHART (Simple bar representation) ==========

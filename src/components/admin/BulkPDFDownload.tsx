@@ -132,6 +132,8 @@ interface StudentResult {
     grade: string | null;
     remark: string | null;
   }[];
+  approved_at: string | null;
+  published_at: string | null;
 }
 
 export default function BulkPDFDownload() {
@@ -405,6 +407,11 @@ export default function BulkPDFDownload() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.text("Class Teacher's Signature", margin, sigY + 22);
+    if ((result as any).approved_at) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      doc.text(`Date: ${new Date((result as any).approved_at).toLocaleDateString()}`, margin, sigY + 26);
+    }
 
     // Form Teacher Signature
     const ftX = margin + sigWidthHalf;
@@ -422,6 +429,11 @@ export default function BulkPDFDownload() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.text("Form Teacher's Signature", ftX, sigY + 22);
+    if ((result as any).approved_at) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      doc.text(`Date: ${new Date((result as any).approved_at).toLocaleDateString()}`, ftX, sigY + 26);
+    }
 
     // Second Row: Date + Principal
     const row2Y = sigY + 30;
@@ -451,6 +463,11 @@ export default function BulkPDFDownload() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.text("Principal's Signature", prX, row2Y + 22);
+    if ((result as any).published_at) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      doc.text(`Date: ${new Date((result as any).published_at).toLocaleDateString()}`, prX, row2Y + 26);
+    }
 
     // Footer
     const footerY = doc.internal.pageSize.getHeight() - 10;
@@ -501,7 +518,9 @@ export default function BulkPDFDownload() {
           term_id,
           class_arm_id,
           class_teacher_id,
-          form_teacher_id
+          form_teacher_id,
+          approved_at,
+          published_at
         `
         )
         .eq("class_arm_id", selectedClassArm)
@@ -603,6 +622,8 @@ export default function BulkPDFDownload() {
             class: { name: selectedClassArmData?.class?.name || "" },
           },
           components: components as any,
+          approved_at: (result as any).approved_at || null,
+          published_at: (result as any).published_at || null,
         };
 
         // Generate PDF

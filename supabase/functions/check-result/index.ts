@@ -83,6 +83,8 @@ serve(async (req: Request) => {
           form_teacher_id,
           class_arm_id,
           term_id,
+          approved_at,
+          published_at,
           term:terms(
             name,
             session:academic_sessions(name)
@@ -429,6 +431,8 @@ serve(async (req: Request) => {
         remarks: resultRow.remarks,
         class_teacher_remark: (resultRow as any).class_teacher_remark,
         principal_remark: (resultRow as any).principal_remark,
+        approved_at: (resultRow as any).approved_at,
+        published_at: (resultRow as any).published_at,
         class_teacher_signature_url: classTeacherSignatureUrl,
         form_teacher_signature_url: formTeacherSignatureUrl,
         term: (resultRow as any).term,

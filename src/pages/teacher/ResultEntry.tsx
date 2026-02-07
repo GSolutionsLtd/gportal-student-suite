@@ -455,7 +455,7 @@ export default function ResultEntry() {
 
     // Only set up auto-save if we have students and are in editable state
     if (selectedAssignment && students.length > 0 && 
-        resultStatus !== "submitted" && resultStatus !== "approved" && resultStatus !== "published") {
+        resultStatus !== "approved" && resultStatus !== "published") {
       autoSaveIntervalRef.current = setInterval(async () => {
         if (hasUnsavedChangesRef.current && !saving && !submitting) {
           await saveScores(true);
@@ -679,7 +679,7 @@ export default function ResultEntry() {
                       exam_score: null,
                       total_score: null,
                     };
-                    const isReadOnly = resultStatus === "submitted" || resultStatus === "approved" || resultStatus === "published";
+                    const isReadOnly = resultStatus === "approved" || resultStatus === "published";
                     
                     return (
                       <TableRow key={student.id} className="hover:bg-muted/30">
@@ -752,7 +752,7 @@ export default function ResultEntry() {
           </div>
 
           {/* Actions */}
-          {students.length > 0 && resultStatus !== "submitted" && resultStatus !== "approved" && resultStatus !== "published" && (
+          {students.length > 0 && resultStatus !== "approved" && resultStatus !== "published" && (
             <div className="flex items-center justify-between p-4 border-t border-border bg-muted/30">
               <p className="text-xs text-muted-foreground">
                 Auto-saves every 30 seconds when changes are made
