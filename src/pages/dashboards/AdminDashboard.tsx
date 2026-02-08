@@ -165,6 +165,7 @@ export default function AdminDashboard() {
             .select(`
               id,
               submitted_at,
+              class_arm_id,
               class_arm:class_arms(
                 name,
                 class:classes(name)
@@ -173,13 +174,12 @@ export default function AdminDashboard() {
             `)
             .eq("status", "submitted")
             .eq("term_id", term.id)
-            .order("submitted_at", { ascending: false })
-            .limit(10);
+            .order("submitted_at", { ascending: false });
 
-          // Group by class_arm to get unique submissions
+          // Group by class_arm_id to get unique submissions per class
           const grouped = new Map<string, any>();
           (pendingData || []).forEach((result: any) => {
-            const key = result.class_arm?.name;
+            const key = result.class_arm_id;
             if (key && !grouped.has(key)) {
               grouped.set(key, {
                 ...result,
