@@ -425,10 +425,9 @@ export default function ResultEntry() {
 
       setLastSavedAt(new Date());
       setHasUnsavedChanges(false);
-      setResultStatus("draft");
       
       if (!isAutoSave) {
-        toast({ title: "Success", description: "Scores saved as draft" });
+        toast({ title: "Success", description: "Scores saved successfully" });
       }
       
       return true;

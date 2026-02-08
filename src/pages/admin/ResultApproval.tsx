@@ -31,6 +31,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle,
@@ -602,7 +612,29 @@ export default function ResultApproval() {
     }
   };
 
-  const handleUnapprove = async (result: ResultItem) => {
+  // Unapprove confirmation dialog state
+  const [unapproveDialogOpen, setUnapproveDialogOpen] = useState(false);
+  const [resultToUnapprove, setResultToUnapprove] = useState<ResultItem | null>(null);
+  const [isBulkUnapprove, setIsBulkUnapprove] = useState(false);
+
+  const openUnapproveDialog = (result: ResultItem | null, bulk = false) => {
+    setResultToUnapprove(result);
+    setIsBulkUnapprove(bulk);
+    setUnapproveDialogOpen(true);
+  };
+
+  const confirmUnapprove = async () => {
+    setUnapproveDialogOpen(false);
+    if (isBulkUnapprove) {
+      await executeBulkUnapprove();
+    } else if (resultToUnapprove) {
+      await executeUnapprove(resultToUnapprove);
+    }
+    setResultToUnapprove(null);
+    setIsBulkUnapprove(false);
+  };
+
+  const executeUnapprove = async (result: ResultItem) => {
     try {
       setProcessing(true);
       const { error } = await supabase
@@ -622,7 +654,7 @@ export default function ResultApproval() {
     }
   };
 
-  const handleBulkUnapprove = async () => {
+  const executeBulkUnapprove = async () => {
     if (selectedApprovedIds.size === 0) return;
 
     try {
@@ -972,7 +1004,7 @@ export default function ResultApproval() {
               </CardTitle>
               {selectedApprovedIds.size > 0 && (
                 <div className="flex gap-2">
-                  <Button onClick={handleBulkUnapprove} disabled={processing} variant="outline" className="gap-2">
+                  <Button onClick={() => openUnapproveDialog(null, true)} disabled={processing} variant="outline" className="gap-2">
                     <Undo2 className="h-4 w-4" />
                     Unapprove Selected ({selectedApprovedIds.size})
                   </Button>
@@ -1038,7 +1070,7 @@ export default function ResultApproval() {
                             <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleUnapprove(result)} disabled={processing} className="gap-1">
+                            <Button size="sm" variant="outline" onClick={() => openUnapproveDialog(result)} disabled={processing} className="gap-1">
                               <Undo2 className="h-3 w-3" />
                               Unapprove
                             </Button>
@@ -1281,6 +1313,27 @@ export default function ResultApproval() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unapprove Confirmation Dialog */}
+      <AlertDialog open={unapproveDialogOpen} onOpenChange={setUnapproveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Unapprove</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isBulkUnapprove
+                ? `Are you sure you want to unapprove ${selectedApprovedIds.size} result(s)? They will be moved back to Pending Approval and will need to be re-approved.`
+                : `Are you sure you want to unapprove the result for ${resultToUnapprove?.student.first_name} ${resultToUnapprove?.student.last_name}? It will be moved back to Pending Approval.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUnapprove}>
+              <Undo2 className="h-4 w-4 mr-2" />
+              Unapprove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
