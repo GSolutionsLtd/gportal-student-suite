@@ -47,6 +47,7 @@ import {
   Calendar,
   Globe,
   EyeOff,
+  Undo2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
@@ -601,6 +602,51 @@ export default function ResultApproval() {
     }
   };
 
+  const handleUnapprove = async (result: ResultItem) => {
+    try {
+      setProcessing(true);
+      const { error } = await supabase
+        .from("results")
+        .update({ status: "submitted", approved_by: null, approved_at: null, form_teacher_id: null })
+        .eq("id", result.id);
+
+      if (error) throw error;
+
+      toast({ title: "Result Unapproved", description: `Result for ${result.student.first_name} ${result.student.last_name} moved back to Pending Approval.` });
+      fetchResults();
+    } catch (error) {
+      console.error("Error unapproving result:", error);
+      toast({ title: "Error", description: "Failed to unapprove result", variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleBulkUnapprove = async () => {
+    if (selectedApprovedIds.size === 0) return;
+
+    try {
+      setProcessing(true);
+      const ids = Array.from(selectedApprovedIds);
+
+      const { error } = await supabase
+        .from("results")
+        .update({ status: "submitted", approved_by: null, approved_at: null, form_teacher_id: null })
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast({ title: "Results Unapproved", description: `${ids.length} result(s) moved back to Pending Approval.` });
+      setSelectedApprovedIds(new Set());
+      fetchResults();
+    } catch (error) {
+      console.error("Error bulk unapproving results:", error);
+      toast({ title: "Error", description: "Failed to unapprove results", variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleBulkUnpublish = async () => {
     if (selectedPublishedIds.size === 0) return;
 
@@ -925,10 +971,16 @@ export default function ResultApproval() {
                 Approved Results (Ready to Publish)
               </CardTitle>
               {selectedApprovedIds.size > 0 && (
-                <Button onClick={handleBulkPublish} disabled={processing} className="gap-2">
-                  <Send className="h-4 w-4" />
-                  Publish Selected ({selectedApprovedIds.size})
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleBulkUnapprove} disabled={processing} variant="outline" className="gap-2">
+                    <Undo2 className="h-4 w-4" />
+                    Unapprove Selected ({selectedApprovedIds.size})
+                  </Button>
+                  <Button onClick={handleBulkPublish} disabled={processing} className="gap-2">
+                    <Send className="h-4 w-4" />
+                    Publish Selected ({selectedApprovedIds.size})
+                  </Button>
+                </div>
               )}
             </CardHeader>
             <CardContent>
@@ -985,6 +1037,10 @@ export default function ResultApproval() {
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)}>
                               <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleUnapprove(result)} disabled={processing} className="gap-1">
+                              <Undo2 className="h-3 w-3" />
+                              Unapprove
                             </Button>
                             <Button size="sm" onClick={() => handlePublish(result)} disabled={processing} className="gap-1">
                               <Send className="h-3 w-3" />
