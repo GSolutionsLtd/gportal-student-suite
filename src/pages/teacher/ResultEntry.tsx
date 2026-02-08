@@ -679,7 +679,7 @@ export default function ResultEntry() {
                       exam_score: null,
                       total_score: null,
                     };
-                    const isReadOnly = resultStatus === "approved" || resultStatus === "published";
+                    const isReadOnly = resultStatus === "published";
                     
                     return (
                       <TableRow key={student.id} className="hover:bg-muted/30">
