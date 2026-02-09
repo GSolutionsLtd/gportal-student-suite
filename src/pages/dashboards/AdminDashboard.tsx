@@ -38,7 +38,7 @@ interface PendingResult {
   class_arm: { name: string; class: { name: string } };
   term: { name: string };
   student: { first_name: string; last_name: string; admission_number: string };
-  submitter_name: string;
+  contributing_teachers: string[];
   submitted_at: string;
 }
 
@@ -164,7 +164,6 @@ export default function AdminDashboard() {
             .select(`
               id,
               submitted_at,
-              submitted_by,
               class_arm_id,
               student:students(first_name, last_name, admission_number),
               class_arm:class_arms(
@@ -178,19 +177,28 @@ export default function AdminDashboard() {
             .order("submitted_at", { ascending: false })
             .limit(10);
 
-          // Enrich with submitter name
+          // Enrich with ALL contributing teachers from result_components
           const enriched = await Promise.all(
             (pendingData || []).map(async (result: any) => {
-              let submitter_name = "";
-              if (result.submitted_by) {
-                const { data: profile } = await supabase
+              // Get distinct teachers who entered scores for this result
+              const { data: components } = await supabase
+                .from("result_components")
+                .select("entered_by")
+                .eq("result_id", result.id)
+                .not("entered_by", "is", null);
+
+              const uniqueTeacherIds = [...new Set((components || []).map((c: any) => c.entered_by))];
+              
+              let contributing_teachers: string[] = [];
+              if (uniqueTeacherIds.length > 0) {
+                const { data: profiles } = await supabase
                   .from("profiles")
-                  .select("full_name")
-                  .eq("id", result.submitted_by)
-                  .maybeSingle();
-                submitter_name = profile?.full_name || "";
+                  .select("id, full_name")
+                  .in("id", uniqueTeacherIds);
+                contributing_teachers = (profiles || []).map((p: any) => p.full_name);
               }
-              return { ...result, submitter_name };
+
+              return { ...result, contributing_teachers };
             })
           );
 
@@ -368,9 +376,9 @@ export default function AdminDashboard() {
                     <p className="text-sm text-muted-foreground">
                       {item.class_arm?.class?.name} {item.class_arm?.name} • {item.term?.name}
                     </p>
-                    {item.submitter_name && (
+                    {item.contributing_teachers.length > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Submitted by: {item.submitter_name}
+                        Scores by: {item.contributing_teachers.join(", ")}
                       </p>
                     )}
                   </div>
