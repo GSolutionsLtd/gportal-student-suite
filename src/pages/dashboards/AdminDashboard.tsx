@@ -37,10 +37,9 @@ interface PendingResult {
   id: string;
   class_arm: { name: string; class: { name: string } };
   term: { name: string };
-  teacher_name: string;
-  subject_name: string;
+  student: { first_name: string; last_name: string; admission_number: string };
+  submitter_name: string;
   submitted_at: string;
-  student_count: number;
 }
 
 interface DashboardStats {
@@ -158,14 +157,16 @@ export default function AdminDashboard() {
           }
         }
 
-        // Fetch pending approvals with details
+        // Fetch pending approvals with details - show individual student results
         if (term) {
           const { data: pendingData } = await supabase
             .from("results")
             .select(`
               id,
               submitted_at,
+              submitted_by,
               class_arm_id,
+              student:students(first_name, last_name, admission_number),
               class_arm:class_arms(
                 name,
                 class:classes(name)
@@ -174,23 +175,26 @@ export default function AdminDashboard() {
             `)
             .eq("status", "submitted")
             .eq("term_id", term.id)
-            .order("submitted_at", { ascending: false });
+            .order("submitted_at", { ascending: false })
+            .limit(10);
 
-          // Group by class_arm_id to get unique submissions per class
-          const grouped = new Map<string, any>();
-          (pendingData || []).forEach((result: any) => {
-            const key = result.class_arm_id;
-            if (key && !grouped.has(key)) {
-              grouped.set(key, {
-                ...result,
-                student_count: 1,
-              });
-            } else if (key) {
-              grouped.get(key).student_count++;
-            }
-          });
+          // Enrich with submitter name
+          const enriched = await Promise.all(
+            (pendingData || []).map(async (result: any) => {
+              let submitter_name = "";
+              if (result.submitted_by) {
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("full_name")
+                  .eq("id", result.submitted_by)
+                  .maybeSingle();
+                submitter_name = profile?.full_name || "";
+              }
+              return { ...result, submitter_name };
+            })
+          );
 
-          setPendingApprovals(Array.from(grouped.values()).slice(0, 5));
+          setPendingApprovals(enriched);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -359,11 +363,16 @@ export default function AdminDashboard() {
                 >
                   <div className="flex-1">
                     <p className="font-medium text-foreground">
-                      {item.class_arm?.class?.name} {item.class_arm?.name}
+                      {item.student?.first_name} {item.student?.last_name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {item.student_count} student{item.student_count !== 1 ? "s" : ""} • {item.term?.name}
+                      {item.class_arm?.class?.name} {item.class_arm?.name} • {item.term?.name}
                     </p>
+                    {item.submitter_name && (
+                      <p className="text-xs text-muted-foreground">
+                        Submitted by: {item.submitter_name}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground mb-2">
