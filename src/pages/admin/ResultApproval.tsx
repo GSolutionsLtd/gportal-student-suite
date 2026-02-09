@@ -592,7 +592,29 @@ export default function ResultApproval() {
     }
   };
 
-  const handleUnpublish = async (result: ResultItem) => {
+  // Unpublish confirmation dialog state
+  const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false);
+  const [resultToUnpublish, setResultToUnpublish] = useState<ResultItem | null>(null);
+  const [isBulkUnpublish, setIsBulkUnpublish] = useState(false);
+
+  const openUnpublishDialog = (result: ResultItem | null, bulk = false) => {
+    setResultToUnpublish(result);
+    setIsBulkUnpublish(bulk);
+    setUnpublishDialogOpen(true);
+  };
+
+  const confirmUnpublish = async () => {
+    setUnpublishDialogOpen(false);
+    if (isBulkUnpublish) {
+      await executeBulkUnpublish();
+    } else if (resultToUnpublish) {
+      await executeUnpublish(resultToUnpublish);
+    }
+    setResultToUnpublish(null);
+    setIsBulkUnpublish(false);
+  };
+
+  const executeUnpublish = async (result: ResultItem) => {
     try {
       setProcessing(true);
       const { error } = await supabase
@@ -679,7 +701,7 @@ export default function ResultApproval() {
     }
   };
 
-  const handleBulkUnpublish = async () => {
+  const executeBulkUnpublish = async () => {
     if (selectedPublishedIds.size === 0) return;
 
     try {
@@ -1098,7 +1120,7 @@ export default function ResultApproval() {
                 Published Results (Visible to Students)
               </CardTitle>
               {selectedPublishedIds.size > 0 && (
-                <Button onClick={handleBulkUnpublish} disabled={processing} variant="outline" className="gap-2">
+                <Button onClick={() => openUnpublishDialog(null, true)} disabled={processing} variant="outline" className="gap-2">
                   <EyeOff className="h-4 w-4" />
                   Unpublish Selected ({selectedPublishedIds.size})
                 </Button>
@@ -1159,7 +1181,7 @@ export default function ResultApproval() {
                             <Button variant="ghost" size="icon" onClick={() => openViewDialog(result)}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleUnpublish(result)} disabled={processing} className="gap-1">
+                            <Button size="sm" variant="outline" onClick={() => openUnpublishDialog(result)} disabled={processing} className="gap-1">
                               <EyeOff className="h-3 w-3" />
                               Unpublish
                             </Button>
@@ -1330,6 +1352,26 @@ export default function ResultApproval() {
             <AlertDialogAction onClick={confirmUnapprove}>
               <Undo2 className="h-4 w-4 mr-2" />
               Unapprove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Unpublish Confirmation Dialog */}
+      <AlertDialog open={unpublishDialogOpen} onOpenChange={setUnpublishDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Unpublish</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isBulkUnpublish
+                ? `Are you sure you want to unpublish ${selectedPublishedIds.size} result(s)? Students will no longer be able to view them.`
+                : `Are you sure you want to unpublish the result for ${resultToUnpublish?.student.first_name} ${resultToUnpublish?.student.last_name}? The student will no longer be able to view it.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUnpublish}>
+              <EyeOff className="h-4 w-4 mr-2" />
+              Unpublish
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
