@@ -90,9 +90,7 @@ interface ResultItem {
       name: string;
     };
   };
-  submitter?: {
-    full_name: string;
-  };
+  contributing_teachers: string[];
   components: {
     id: string;
     subject_id: string;
@@ -261,40 +259,70 @@ export default function ResultApproval() {
     if (error) throw error;
     if (!results || results.length === 0) return [];
 
-    const enrichedResults = await Promise.all(
-      results.map(async (result) => {
-        const [{ data: student }, { data: term }, { data: classArm }, { data: components }] = await Promise.all([
-          supabase.from("students").select("first_name, last_name, admission_number").eq("id", result.student_id).maybeSingle(),
-          supabase.from("terms").select("name, session:academic_sessions(name)").eq("id", result.term_id).maybeSingle(),
-          supabase.from("class_arms").select("name, class:classes(name)").eq("id", result.class_arm_id).maybeSingle(),
-          supabase.from("result_components").select("id, subject_id, test1_score, test2_score, exam_score, total_score, grade").eq("result_id", result.id),
-        ]);
+    const resultIds = results.map((r) => r.id);
+    const studentIds = [...new Set(results.map((r) => r.student_id))];
+    const termIds = [...new Set(results.map((r) => r.term_id))];
+    const classArmIds = [...new Set(results.map((r) => r.class_arm_id))];
 
-        let submitter = null;
-        if (result.submitted_by) {
-          const { data: submitterData } = await supabase.from("profiles").select("full_name").eq("id", result.submitted_by).maybeSingle();
-          submitter = submitterData;
-        }
+    const [studentsRes, termsRes, classArmsRes, componentsRes] = await Promise.all([
+      supabase.from("students").select("id, first_name, last_name, admission_number").in("id", studentIds),
+      supabase.from("terms").select("id, name, session:academic_sessions(name)").in("id", termIds),
+      supabase.from("class_arms").select("id, name, class:classes(name)").in("id", classArmIds),
+      supabase
+        .from("result_components")
+        .select("id, result_id, subject_id, test1_score, test2_score, exam_score, total_score, grade, entered_by")
+        .in("result_id", resultIds),
+    ]);
 
-        const enrichedComponents = await Promise.all(
-          (components || []).map(async (comp) => {
-            const { data: subject } = await supabase.from("subjects").select("name, code").eq("id", comp.subject_id).maybeSingle();
-            return { ...comp, subject: subject || { name: "Unknown", code: "N/A" } };
-          })
-        );
+    const components = componentsRes.data || [];
+    const subjectIds = [...new Set(components.map((c) => c.subject_id))];
+    const teacherIds = [...new Set(components.map((c) => c.entered_by).filter(Boolean))] as string[];
 
-        return {
-          ...result,
-          student: student || { first_name: "Unknown", last_name: "Student", admission_number: "N/A" },
-          term: term || { name: "Unknown Term", session: { name: "Unknown Session" } },
-          class_arm: classArm || { name: "Unknown", class: { name: "Unknown Class" } },
-          submitter,
-          components: enrichedComponents,
-        };
-      })
-    );
+    const [subjectsRes, profilesRes] = await Promise.all([
+      subjectIds.length > 0
+        ? supabase.from("subjects").select("id, name, code").in("id", subjectIds)
+        : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
+      teacherIds.length > 0
+        ? supabase.from("profiles").select("id, full_name").in("id", teacherIds)
+        : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    ]);
 
-    return enrichedResults as ResultItem[];
+    const studentMap = new Map((studentsRes.data || []).map((s) => [s.id, s]));
+    const termMap = new Map((termsRes.data || []).map((t) => [t.id, t]));
+    const classArmMap = new Map((classArmsRes.data || []).map((ca) => [ca.id, ca]));
+    const subjectMap = new Map((subjectsRes.data || []).map((s) => [s.id, s]));
+    const profileMap = new Map((profilesRes.data || []).map((p) => [p.id, p.full_name]));
+
+    const componentsByResult = new Map<string, typeof components>();
+    components.forEach((comp) => {
+      const list = componentsByResult.get(comp.result_id) || [];
+      list.push(comp);
+      componentsByResult.set(comp.result_id, list);
+    });
+
+    return results.map((result) => {
+      const resultComponents = (componentsByResult.get(result.id) || []).map((comp) => ({
+        ...comp,
+        subject: subjectMap.get(comp.subject_id) || { name: "Unknown", code: "N/A" },
+      }));
+
+      const contributing_teachers = [
+        ...new Set(
+          (componentsByResult.get(result.id) || [])
+            .map((comp) => (comp.entered_by ? profileMap.get(comp.entered_by) : null))
+            .filter((name): name is string => Boolean(name))
+        ),
+      ];
+
+      return {
+        ...result,
+        student: studentMap.get(result.student_id) || { first_name: "Unknown", last_name: "Student", admission_number: "N/A" },
+        term: termMap.get(result.term_id) || { name: "Unknown Term", session: { name: "Unknown Session" } },
+        class_arm: classArmMap.get(result.class_arm_id) || { name: "Unknown", class: { name: "Unknown Class" } },
+        components: resultComponents,
+        contributing_teachers,
+      };
+    }) as ResultItem[];
   };
 
   const fetchSubmittedResults = async () => {
@@ -962,7 +990,7 @@ export default function ResultApproval() {
                       <TableHead>Student</TableHead>
                       <TableHead>Class</TableHead>
                       <TableHead>Term</TableHead>
-                      <TableHead>Submitted By</TableHead>
+                      <TableHead>Contributing Teachers</TableHead>
                       <TableHead>Submitted At</TableHead>
                       <TableHead>Average</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -987,7 +1015,9 @@ export default function ResultApproval() {
                             <p className="text-sm text-muted-foreground">{result.term.session?.name}</p>
                           </div>
                         </TableCell>
-                        <TableCell>{result.submitter?.full_name || "-"}</TableCell>
+                        <TableCell>
+                          {result.contributing_teachers.length > 0 ? result.contributing_teachers.join(", ") : "-"}
+                        </TableCell>
                         <TableCell>
                           {result.submitted_at ? format(new Date(result.submitted_at), "MMM d, yyyy HH:mm") : "-"}
                         </TableCell>

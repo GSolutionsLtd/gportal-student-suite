@@ -37,6 +37,7 @@ import SchoolSettings from "./pages/admin/SchoolSettings";
 import ClassPromotion from "./pages/admin/ClassPromotion";
 import BulkPDFDownload from "./components/admin/BulkPDFDownload";
 import ScoreReset from "./pages/admin/ScoreReset";
+import Broadsheet from "./pages/admin/Broadsheet";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -98,6 +99,7 @@ function App() {
               >
                 <Route index element={<AdminDashboard />} />
                 <Route path="results" element={<AdminResultApproval />} />
+                <Route path="broadsheet" element={<Broadsheet />} />
                 <Route path="academic" element={<AcademicConfig />} />
                 <Route path="teachers" element={<TeacherManagement />} />
                 <Route path="pins" element={<PinManagement />} />
