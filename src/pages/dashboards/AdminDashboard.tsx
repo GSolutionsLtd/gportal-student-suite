@@ -175,32 +175,46 @@ export default function AdminDashboard() {
             .eq("status", "submitted")
             .eq("term_id", term.id)
             .order("submitted_at", { ascending: false })
-            .limit(10);
+            .limit(100);
 
-          // Enrich with ALL contributing teachers from result_components
-          const enriched = await Promise.all(
-            (pendingData || []).map(async (result: any) => {
-              // Get distinct teachers who entered scores for this result
-              const { data: components } = await supabase
+          const resultIds = (pendingData || []).map((result: any) => result.id);
+          const { data: components } = resultIds.length
+            ? await supabase
                 .from("result_components")
-                .select("entered_by")
-                .eq("result_id", result.id)
-                .not("entered_by", "is", null);
+                .select("result_id, entered_by")
+                .in("result_id", resultIds)
+                .not("entered_by", "is", null)
+            : { data: [] as { result_id: string; entered_by: string }[] };
 
-              const uniqueTeacherIds = [...new Set((components || []).map((c: any) => c.entered_by))];
-              
-              let contributing_teachers: string[] = [];
-              if (uniqueTeacherIds.length > 0) {
-                const { data: profiles } = await supabase
-                  .from("profiles")
-                  .select("id, full_name")
-                  .in("id", uniqueTeacherIds);
-                contributing_teachers = (profiles || []).map((p: any) => p.full_name);
-              }
+          const teacherIds = [
+            ...new Set((components || []).map((component: any) => component.entered_by).filter(Boolean)),
+          ] as string[];
 
-              return { ...result, contributing_teachers };
-            })
-          );
+          const { data: profiles } = teacherIds.length
+            ? await supabase
+                .from("profiles")
+                .select("id, full_name")
+                .in("id", teacherIds)
+            : { data: [] as { id: string; full_name: string }[] };
+
+          const teacherNameById = new Map((profiles || []).map((profile: any) => [profile.id, profile.full_name]));
+
+          const contributorsByResult = new Map<string, string[]>();
+          (components || []).forEach((component: any) => {
+            const teacherName = teacherNameById.get(component.entered_by);
+            if (!teacherName) return;
+
+            const existing = contributorsByResult.get(component.result_id) || [];
+            if (!existing.includes(teacherName)) {
+              existing.push(teacherName);
+              contributorsByResult.set(component.result_id, existing);
+            }
+          });
+
+          const enriched = (pendingData || []).map((result: any) => ({
+            ...result,
+            contributing_teachers: contributorsByResult.get(result.id) || [],
+          }));
 
           setPendingApprovals(enriched);
         }
