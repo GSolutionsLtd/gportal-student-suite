@@ -39,6 +39,8 @@ import ClassPromotion from "./pages/admin/ClassPromotion";
 import BulkPDFDownload from "./components/admin/BulkPDFDownload";
 import ScoreReset from "./pages/admin/ScoreReset";
 import Broadsheet from "./pages/admin/Broadsheet";
+import ComplianceReporting from "./pages/admin/ComplianceReporting";
+import AcademicIntelligence from "./pages/admin/AcademicIntelligence";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -110,6 +112,8 @@ function App() {
                 <Route path="promotion" element={<ClassPromotion />} />
                 <Route path="bulk-download" element={<BulkPDFDownload />} />
                 <Route path="score-reset" element={<ScoreReset />} />
+                <Route path="compliance" element={<ComplianceReporting />} />
+                <Route path="intelligence" element={<AcademicIntelligence />} />
               </Route>
 
               {/* Teacher Routes */}
