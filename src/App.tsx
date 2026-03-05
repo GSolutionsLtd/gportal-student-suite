@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 import CheckResult from "./pages/CheckResult";
 import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
+import InstallApp from "./pages/InstallApp";
 
 // Dashboard Layouts
 import { DashboardLayout } from "./components/layouts/DashboardLayout";
@@ -71,6 +72,7 @@ function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/check-result" element={<CheckResult />} />
               <Route path="/payment/callback" element={<PaymentCallback />} />
+              <Route path="/install" element={<InstallApp />} />
 
               {/* Super Admin Routes */}
               <Route 
