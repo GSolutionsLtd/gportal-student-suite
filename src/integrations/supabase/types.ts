@@ -269,6 +269,44 @@ export type Database = {
         }
         Relationships: []
       }
+      parent_students: {
+        Row: {
+          id: string
+          is_active: boolean
+          linked_at: string
+          linked_by: string | null
+          parent_user_id: string
+          relationship: string
+          student_id: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          linked_at?: string
+          linked_by?: string | null
+          parent_user_id: string
+          relationship?: string
+          student_id: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          linked_at?: string
+          linked_by?: string | null
+          parent_user_id?: string
+          relationship?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parent_students_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pin_usage_logs: {
         Row: {
           id: string
@@ -1092,7 +1130,7 @@ export type Database = {
       is_admin_or_super: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "teacher" | "student"
+      app_role: "super_admin" | "admin" | "teacher" | "student" | "parent"
       audit_action:
         | "create"
         | "update"
@@ -1238,7 +1276,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "teacher", "student"],
+      app_role: ["super_admin", "admin", "teacher", "student", "parent"],
       audit_action: [
         "create",
         "update",

@@ -51,6 +51,11 @@ import SchoolManagement from "./pages/super-admin/SchoolManagement";
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
 
+// Parent pages
+import ParentDashboard from "./pages/dashboards/ParentDashboard";
+import ParentStudentResults from "./pages/parent/StudentResults";
+import ParentLinkedStudents from "./pages/parent/LinkedStudents";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -143,6 +148,20 @@ function App() {
                 <Route index element={<StudentDashboard />} />
                 <Route path="results" element={<StudentMyResults />} />
                 <Route path="analytics" element={<PerformanceAnalytics />} />
+              </Route>
+
+              {/* Parent Routes */}
+              <Route
+                path="/parent"
+                element={
+                  <ProtectedRoute allowedRoles={["parent"]}>
+                    <DashboardLayout role="parent" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ParentDashboard />} />
+                <Route path="students" element={<ParentLinkedStudents />} />
+                <Route path="results/:studentId" element={<ParentStudentResults />} />
               </Route>
 
               {/* Catch-all */}

@@ -69,6 +69,10 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "My Results", icon: ClipboardList, href: "/student/results" },
     { label: "Performance Analytics", icon: BarChart3, href: "/student/analytics" },
   ],
+  parent: [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/parent" },
+    { label: "My Students", icon: Users, href: "/parent/students" },
+  ],
 };
 
 interface DashboardLayoutProps {

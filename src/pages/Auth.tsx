@@ -28,6 +28,7 @@ const roleIcons: Record<UserRole, typeof UserCog> = {
   admin: Users,
   teacher: School,
   student: GraduationCap,
+  parent: Users,
 };
 
 const roleColors: Record<UserRole, string> = {
@@ -35,6 +36,7 @@ const roleColors: Record<UserRole, string> = {
   admin: "bg-accent/10 text-accent border-accent/20",
   teacher: "bg-success/10 text-success border-success/20",
   student: "bg-warning/10 text-warning border-warning/20",
+  parent: "bg-secondary text-secondary-foreground border-secondary/20",
 };
 
 // Validation schemas
@@ -197,7 +199,7 @@ export default function Auth() {
     }
   };
 
-  const roles: UserRole[] = ["super_admin", "admin", "teacher", "student"];
+  const roles: UserRole[] = ["super_admin", "admin", "teacher", "student", "parent"];
 
   if (authLoading) {
     return (
