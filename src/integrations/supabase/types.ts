@@ -358,6 +358,8 @@ export type Database = {
           id: string
           max_usage: number
           pin_code: string
+          pin_type: string
+          price: number
           serial_number: string
           status: Database["public"]["Enums"]["pin_status"]
           student_id: string | null
@@ -373,6 +375,8 @@ export type Database = {
           id?: string
           max_usage?: number
           pin_code: string
+          pin_type?: string
+          price?: number
           serial_number: string
           status?: Database["public"]["Enums"]["pin_status"]
           student_id?: string | null
@@ -388,6 +392,8 @@ export type Database = {
           id?: string
           max_usage?: number
           pin_code?: string
+          pin_type?: string
+          price?: number
           serial_number?: string
           status?: Database["public"]["Enums"]["pin_status"]
           student_id?: string | null
@@ -536,6 +542,7 @@ export type Database = {
           term_id: string
           total_score: number | null
           updated_at: string
+          verification_code: string | null
         }
         Insert: {
           approved_at?: string | null
@@ -558,6 +565,7 @@ export type Database = {
           term_id: string
           total_score?: number | null
           updated_at?: string
+          verification_code?: string | null
         }
         Update: {
           approved_at?: string | null
@@ -580,6 +588,7 @@ export type Database = {
           term_id?: string
           total_score?: number | null
           updated_at?: string
+          verification_code?: string | null
         }
         Relationships: [
           {
@@ -1109,6 +1118,7 @@ export type Database = {
       }
       generate_admission_number: { Args: never; Returns: string }
       generate_pin_code: { Args: never; Returns: string }
+      generate_verification_code: { Args: never; Returns: string }
       get_grade_for_score: {
         Args: { p_score: number }
         Returns: {

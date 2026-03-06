@@ -31,6 +31,8 @@ export const GeneratePinsTab = () => {
     max_usage: 5,
     expires_days: 90,
     prefix: "PIN",
+    pin_type: "multi_use",
+    price: 0,
   });
   const [generatedPins, setGeneratedPins] = useState<GeneratedPin[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -101,10 +103,12 @@ export const GeneratePinsTab = () => {
           serial_number,
           pin_code,
           term_id: formData.term_id,
-          max_usage: formData.max_usage,
+          max_usage: formData.pin_type === "unlimited" ? 9999 : formData.pin_type === "single_use" ? 1 : formData.max_usage,
           expires_at: expiresAt.toISOString(),
           generated_by: user?.id,
           status: "active" as const,
+          pin_type: formData.pin_type,
+          price: formData.price,
         });
 
         newPins.push({ serial_number, pin_code });
@@ -239,6 +243,43 @@ export const GeneratePinsTab = () => {
                   }
                   maxLength={5}
                   placeholder="PIN"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>PIN Type</Label>
+                <Select
+                  value={formData.pin_type}
+                  onValueChange={(value) => {
+                    const updates: Record<string, any> = { pin_type: value };
+                    if (value === "single_use") updates.max_usage = 1;
+                    else if (value === "unlimited") updates.max_usage = 9999;
+                    else updates.max_usage = 5;
+                    setFormData((prev) => ({ ...prev, ...updates }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single_use">Single Use (1x)</SelectItem>
+                    <SelectItem value="multi_use">Multi Use</SelectItem>
+                    <SelectItem value="unlimited">Unlimited</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price">Price (₦)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  min={0}
+                  value={formData.price}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
+                  }
                 />
               </div>
             </div>
