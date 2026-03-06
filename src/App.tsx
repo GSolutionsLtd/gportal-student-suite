@@ -56,6 +56,11 @@ import ParentDashboard from "./pages/dashboards/ParentDashboard";
 import ParentStudentResults from "./pages/parent/StudentResults";
 import ParentLinkedStudents from "./pages/parent/LinkedStudents";
 
+// Security & Monetisation
+import VerifyResult from "./pages/VerifyResult";
+import ResultSecurity from "./pages/admin/ResultSecurity";
+import PinMonetisation from "./pages/admin/PinMonetisation";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -80,6 +85,7 @@ function App() {
               <Route path="/check-result" element={<CheckResult />} />
               <Route path="/payment/callback" element={<PaymentCallback />} />
               <Route path="/install" element={<InstallApp />} />
+              <Route path="/verify-result" element={<VerifyResult />} />
 
               {/* Super Admin Routes */}
               <Route 
@@ -119,6 +125,8 @@ function App() {
                 <Route path="score-reset" element={<ScoreReset />} />
                 <Route path="compliance" element={<ComplianceReporting />} />
                 <Route path="intelligence" element={<AcademicIntelligence />} />
+                <Route path="security" element={<ResultSecurity />} />
+                <Route path="monetisation" element={<PinMonetisation />} />
               </Route>
 
               {/* Teacher Routes */}
