@@ -72,13 +72,14 @@ export function CrossTermAnalysis({ rows, loading, exporting, selectedSubject, o
         const first = orderedScores[0] || 0;
         const last = orderedScores[orderedScores.length - 1] || 0;
         const improvement = Number((last - first).toFixed(2));
+        const trend: "up" | "down" | "stable" = improvement > 2 ? "up" : improvement < -2 ? "down" : "stable";
 
         return {
           student: s.student,
           admission_number: s.admission,
           class: s.cls,
           termScores,
-          trend: improvement > 2 ? "up" : improvement < -2 ? "down" : "stable",
+          trend,
           improvement,
         };
       })
