@@ -5,6 +5,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "./TablePagination";
 
 export interface BroadsheetRow {
   student: string;
