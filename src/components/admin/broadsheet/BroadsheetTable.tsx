@@ -87,6 +87,7 @@ export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onE
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} startIndex={startIndex} onPageChange={goToPage} />
             </div>
           )}
         </CardContent>

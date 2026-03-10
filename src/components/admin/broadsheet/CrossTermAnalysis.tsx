@@ -180,6 +180,7 @@ export function CrossTermAnalysis({ rows, loading, exporting, selectedSubject, o
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} startIndex={startIndex} onPageChange={goToPage} />
             </div>
           )}
         </CardContent>
