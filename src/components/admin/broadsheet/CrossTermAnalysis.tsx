@@ -97,6 +97,8 @@ export function CrossTermAnalysis({ rows, loading, exporting, selectedSubject, o
     return { students: crossTermStudents, terms: termsList, chartData: chart };
   }, [rows, selectedSubject]);
 
+  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage } = usePagination(students);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
