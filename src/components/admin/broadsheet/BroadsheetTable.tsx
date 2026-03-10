@@ -32,6 +32,8 @@ interface BroadsheetTableProps {
 }
 
 export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onExportExcel, onExportPdf }: BroadsheetTableProps) {
+  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage } = usePagination(rows);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
