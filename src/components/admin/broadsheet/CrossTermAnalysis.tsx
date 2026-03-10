@@ -6,6 +6,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "./TablePagination";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { BroadsheetRow } from "./BroadsheetTable";
 
