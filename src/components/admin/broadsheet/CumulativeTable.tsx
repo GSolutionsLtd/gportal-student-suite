@@ -80,9 +80,9 @@ export function CumulativeTable({ rows, loading, exporting, onExportExcel, onExp
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row, i) => (
+                  {paginatedItems.map((row, i) => (
                     <TableRow key={`${row.admission_number}-${i}`}>
-                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="text-muted-foreground">{startIndex + i + 1}</TableCell>
                       <TableCell className="font-medium">{row.student}</TableCell>
                       <TableCell>{row.admission_number}</TableCell>
                       <TableCell>{row.class}</TableCell>
