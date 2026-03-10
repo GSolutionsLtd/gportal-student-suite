@@ -155,9 +155,9 @@ export function CrossTermAnalysis({ rows, loading, exporting, selectedSubject, o
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.map((s, i) => (
+                  {paginatedItems.map((s, i) => (
                     <TableRow key={s.admission_number}>
-                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="text-muted-foreground">{startIndex + i + 1}</TableCell>
                       <TableCell className="font-medium">{s.student}</TableCell>
                       <TableCell>{s.admission_number}</TableCell>
                       <TableCell>{s.class}</TableCell>
