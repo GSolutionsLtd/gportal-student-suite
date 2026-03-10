@@ -6,6 +6,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { FileSpreadsheet, FileText, Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "./TablePagination";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { BroadsheetRow } from "./BroadsheetTable";
 
@@ -95,6 +97,8 @@ export function CrossTermAnalysis({ rows, loading, exporting, selectedSubject, o
     return { students: crossTermStudents, terms: termsList, chartData: chart };
   }, [rows, selectedSubject]);
 
+  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage } = usePagination(students);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -151,9 +155,9 @@ export function CrossTermAnalysis({ rows, loading, exporting, selectedSubject, o
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.map((s, i) => (
+                  {paginatedItems.map((s, i) => (
                     <TableRow key={s.admission_number}>
-                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="text-muted-foreground">{startIndex + i + 1}</TableCell>
                       <TableCell className="font-medium">{s.student}</TableCell>
                       <TableCell>{s.admission_number}</TableCell>
                       <TableCell>{s.class}</TableCell>
@@ -176,6 +180,7 @@ export function CrossTermAnalysis({ rows, loading, exporting, selectedSubject, o
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} startIndex={startIndex} onPageChange={goToPage} />
             </div>
           )}
         </CardContent>

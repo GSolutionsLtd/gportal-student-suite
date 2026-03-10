@@ -5,6 +5,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import { usePagination } from "@/hooks/usePagination";
+import { TablePagination } from "./TablePagination";
 
 export interface BroadsheetRow {
   student: string;
@@ -30,6 +32,8 @@ interface BroadsheetTableProps {
 }
 
 export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onExportExcel, onExportPdf }: BroadsheetTableProps) {
+  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage } = usePagination(rows);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -66,9 +70,9 @@ export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onE
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row, i) => (
+                  {paginatedItems.map((row, i) => (
                     <TableRow key={`${row.admission_number}-${i}`}>
-                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="text-muted-foreground">{startIndex + i + 1}</TableCell>
                       <TableCell className="font-medium">{row.student}</TableCell>
                       <TableCell>{row.admission_number}</TableCell>
                       <TableCell>{row.class}</TableCell>
@@ -83,6 +87,7 @@ export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onE
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} startIndex={startIndex} onPageChange={goToPage} />
             </div>
           )}
         </CardContent>
