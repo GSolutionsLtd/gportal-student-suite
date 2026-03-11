@@ -32,7 +32,7 @@ interface BroadsheetTableProps {
 }
 
 export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onExportExcel, onExportPdf }: BroadsheetTableProps) {
-  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage } = usePagination(rows);
+  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage, changePageSize } = usePagination(rows);
 
   return (
     <div className="space-y-4">
