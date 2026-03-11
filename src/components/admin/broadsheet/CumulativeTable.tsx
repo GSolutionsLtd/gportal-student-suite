@@ -42,7 +42,7 @@ function getTrendIcon(best: number, lowest: number, avg: number) {
 }
 
 export function CumulativeTable({ rows, loading, exporting, onExportExcel, onExportPdf }: CumulativeTableProps) {
-  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage } = usePagination(rows);
+  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage, changePageSize } = usePagination(rows);
 
   return (
     <div className="space-y-4">
