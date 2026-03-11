@@ -41,6 +41,7 @@ import ScoreReset from "./pages/admin/ScoreReset";
 import Broadsheet from "./pages/admin/Broadsheet";
 import ComplianceReporting from "./pages/admin/ComplianceReporting";
 import AcademicIntelligence from "./pages/admin/AcademicIntelligence";
+import CommunicationEngine from "./pages/admin/CommunicationEngine";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -127,6 +128,7 @@ function App() {
                 <Route path="intelligence" element={<AcademicIntelligence />} />
                 <Route path="security" element={<ResultSecurity />} />
                 <Route path="monetisation" element={<PinMonetisation />} />
+                <Route path="communications" element={<CommunicationEngine />} />
               </Route>
 
               {/* Teacher Routes */}

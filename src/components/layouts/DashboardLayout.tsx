@@ -26,6 +26,7 @@ import {
   Calendar,
   Layers,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -59,6 +60,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Compliance & Reporting", icon: FileCheck, href: "/admin/compliance" },
     { label: "Result Security", icon: Shield, href: "/admin/security" },
     { label: "PIN Monetisation", icon: Key, href: "/admin/monetisation" },
+    { label: "Communications", icon: MessageSquare, href: "/admin/communications" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },

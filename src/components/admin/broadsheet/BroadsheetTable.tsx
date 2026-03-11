@@ -32,7 +32,7 @@ interface BroadsheetTableProps {
 }
 
 export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onExportExcel, onExportPdf }: BroadsheetTableProps) {
-  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage } = usePagination(rows);
+  const { paginatedItems, currentPage, totalPages, totalItems, pageSize, startIndex, goToPage, changePageSize } = usePagination(rows);
 
   return (
     <div className="space-y-4">
@@ -87,7 +87,7 @@ export function BroadsheetTable({ rows, loading, exporting, selectedSubject, onE
                   ))}
                 </TableBody>
               </Table>
-              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} startIndex={startIndex} onPageChange={goToPage} />
+              <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} startIndex={startIndex} onPageChange={goToPage} onPageSizeChange={changePageSize} />
             </div>
           )}
         </CardContent>
