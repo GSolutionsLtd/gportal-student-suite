@@ -128,6 +128,7 @@ function App() {
                 <Route path="intelligence" element={<AcademicIntelligence />} />
                 <Route path="security" element={<ResultSecurity />} />
                 <Route path="monetisation" element={<PinMonetisation />} />
+                <Route path="communications" element={<CommunicationEngine />} />
               </Route>
 
               {/* Teacher Routes */}
