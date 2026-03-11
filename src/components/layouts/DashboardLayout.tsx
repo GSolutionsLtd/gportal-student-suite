@@ -26,6 +26,7 @@ import {
   Calendar,
   Layers,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 
 interface NavItem {
