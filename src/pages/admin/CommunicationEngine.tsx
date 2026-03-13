@@ -75,7 +75,7 @@ export default function CommunicationEngine() {
 
   // Bulk notification state
   const [bulkType, setBulkType] = useState<NotificationType>("result_published");
-  const [bulkChannel, setBulkChannel] = useState<"email" | "sms" | "both">("email");
+  const [bulkChannel, setBulkChannel] = useState<"email" | "sms" | "whatsapp" | "both" | "all">("email");
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [targetAudience, setTargetAudience] = useState<"all_parents" | "class" | "individual">("all_parents");
