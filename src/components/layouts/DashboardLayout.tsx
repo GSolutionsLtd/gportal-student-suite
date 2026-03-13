@@ -27,6 +27,7 @@ import {
   Layers,
   Loader2,
   MessageSquare,
+  Bell,
 } from "lucide-react";
 
 interface NavItem {
@@ -76,6 +77,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/parent" },
     { label: "My Students", icon: Users, href: "/parent/students" },
+    { label: "Messages", icon: MessageSquare, href: "/parent/messages" },
+    { label: "Notifications", icon: Bell, href: "/parent/preferences" },
   ],
 };
 

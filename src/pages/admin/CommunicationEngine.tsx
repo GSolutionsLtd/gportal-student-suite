@@ -75,7 +75,7 @@ export default function CommunicationEngine() {
 
   // Bulk notification state
   const [bulkType, setBulkType] = useState<NotificationType>("result_published");
-  const [bulkChannel, setBulkChannel] = useState<"email" | "sms" | "both">("email");
+  const [bulkChannel, setBulkChannel] = useState<"email" | "sms" | "whatsapp" | "both" | "all">("email");
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [targetAudience, setTargetAudience] = useState<"all_parents" | "class" | "individual">("all_parents");
@@ -203,7 +203,7 @@ export default function CommunicationEngine() {
         if (error) throw error;
       }
 
-      if (bulkChannel === "sms" || bulkChannel === "both") {
+      if (bulkChannel === "sms" || bulkChannel === "both" || bulkChannel === "all") {
         for (const resultId of ids) {
           const result = publishedResults.find((r: any) => r.id === resultId);
           if (!result) continue;
@@ -217,6 +217,35 @@ export default function CommunicationEngine() {
           ).length;
 
           await supabase.functions.invoke("send-sms-notification", {
+            body: {
+              phoneNumber: student.guardian_phone,
+              studentName: `${student.first_name} ${student.last_name}`,
+              admissionNumber: student.admission_number,
+              termName: term?.name || "",
+              sessionName: term?.session?.name || "",
+              averageScore: result.average_score,
+              classPosition: result.class_position,
+              classSize,
+            },
+          });
+        }
+      }
+
+      // WhatsApp channel
+      if (bulkChannel === "whatsapp" || bulkChannel === "all") {
+        for (const resultId of ids) {
+          const result = publishedResults.find((r: any) => r.id === resultId);
+          if (!result) continue;
+          const student = result.student as any;
+          const term = result.term as any;
+          if (!student?.guardian_phone) continue;
+
+          const classSize = publishedResults.filter((r: any) =>
+            (r.class_arm as any)?.name === (result.class_arm as any)?.name &&
+            (r.term as any)?.name === term?.name
+          ).length;
+
+          await supabase.functions.invoke("send-whatsapp-notification", {
             body: {
               phoneNumber: student.guardian_phone,
               studentName: `${student.first_name} ${student.last_name}`,
@@ -407,9 +436,11 @@ export default function CommunicationEngine() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="email">Email Only</SelectItem>
-                      <SelectItem value="sms">SMS Only</SelectItem>
-                      <SelectItem value="both">Email + SMS</SelectItem>
+                       <SelectItem value="email">Email Only</SelectItem>
+                       <SelectItem value="sms">SMS Only</SelectItem>
+                       <SelectItem value="whatsapp">WhatsApp Only</SelectItem>
+                       <SelectItem value="both">Email + SMS</SelectItem>
+                       <SelectItem value="all">All Channels</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

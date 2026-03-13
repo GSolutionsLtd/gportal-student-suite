@@ -56,6 +56,8 @@ import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
 import ParentDashboard from "./pages/dashboards/ParentDashboard";
 import ParentStudentResults from "./pages/parent/StudentResults";
 import ParentLinkedStudents from "./pages/parent/LinkedStudents";
+import ParentMessageTeacher from "./pages/parent/MessageTeacher";
+import ParentNotificationPreferences from "./pages/parent/NotificationPreferences";
 
 // Security & Monetisation
 import VerifyResult from "./pages/VerifyResult";
@@ -172,6 +174,8 @@ function App() {
                 <Route index element={<ParentDashboard />} />
                 <Route path="students" element={<ParentLinkedStudents />} />
                 <Route path="results/:studentId" element={<ParentStudentResults />} />
+                <Route path="messages" element={<ParentMessageTeacher />} />
+                <Route path="preferences" element={<ParentNotificationPreferences />} />
               </Route>
 
               {/* Catch-all */}
