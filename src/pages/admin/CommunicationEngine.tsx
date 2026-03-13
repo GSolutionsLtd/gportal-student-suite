@@ -407,9 +407,11 @@ export default function CommunicationEngine() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="email">Email Only</SelectItem>
-                      <SelectItem value="sms">SMS Only</SelectItem>
-                      <SelectItem value="both">Email + SMS</SelectItem>
+                       <SelectItem value="email">Email Only</SelectItem>
+                       <SelectItem value="sms">SMS Only</SelectItem>
+                       <SelectItem value="whatsapp">WhatsApp Only</SelectItem>
+                       <SelectItem value="both">Email + SMS</SelectItem>
+                       <SelectItem value="all">All Channels</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
