@@ -236,6 +236,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          id: string
+          performance_alerts: boolean
+          result_published: boolean
+          sms_enabled: boolean
+          updated_at: string
+          user_id: string
+          whatsapp_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          performance_alerts?: boolean
+          result_published?: boolean
+          sms_enabled?: boolean
+          updated_at?: string
+          user_id: string
+          whatsapp_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          performance_alerts?: boolean
+          result_published?: boolean
+          sms_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+          whatsapp_enabled?: boolean
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -303,6 +339,60 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parent_teacher_messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          parent_user_id: string
+          replied_at: string | null
+          reply: string | null
+          student_id: string
+          subject: string
+          teacher_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          parent_user_id: string
+          replied_at?: string | null
+          reply?: string | null
+          student_id: string
+          subject: string
+          teacher_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          parent_user_id?: string
+          replied_at?: string | null
+          reply?: string | null
+          student_id?: string
+          subject?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parent_teacher_messages_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_teacher_messages_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
         ]
