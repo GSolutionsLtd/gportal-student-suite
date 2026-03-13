@@ -203,7 +203,7 @@ export default function CommunicationEngine() {
         if (error) throw error;
       }
 
-      if (bulkChannel === "sms" || bulkChannel === "both") {
+      if (bulkChannel === "sms" || bulkChannel === "both" || bulkChannel === "all") {
         for (const resultId of ids) {
           const result = publishedResults.find((r: any) => r.id === resultId);
           if (!result) continue;
