@@ -27,6 +27,7 @@ import {
   Layers,
   Loader2,
   MessageSquare,
+  Bell,
 } from "lucide-react";
 
 interface NavItem {

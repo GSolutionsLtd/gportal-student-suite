@@ -231,6 +231,35 @@ export default function CommunicationEngine() {
         }
       }
 
+      // WhatsApp channel
+      if (bulkChannel === "whatsapp" || bulkChannel === "all") {
+        for (const resultId of ids) {
+          const result = publishedResults.find((r: any) => r.id === resultId);
+          if (!result) continue;
+          const student = result.student as any;
+          const term = result.term as any;
+          if (!student?.guardian_phone) continue;
+
+          const classSize = publishedResults.filter((r: any) =>
+            (r.class_arm as any)?.name === (result.class_arm as any)?.name &&
+            (r.term as any)?.name === term?.name
+          ).length;
+
+          await supabase.functions.invoke("send-whatsapp-notification", {
+            body: {
+              phoneNumber: student.guardian_phone,
+              studentName: `${student.first_name} ${student.last_name}`,
+              admissionNumber: student.admission_number,
+              termName: term?.name || "",
+              sessionName: term?.session?.name || "",
+              averageScore: result.average_score,
+              classPosition: result.class_position,
+              classSize,
+            },
+          });
+        }
+      }
+
       toast({ title: "Notifications sent", description: `Sent to ${ids.length} guardian(s) via ${bulkChannel}.` });
       setSelectedResultIds(new Set());
       fetchLogs();

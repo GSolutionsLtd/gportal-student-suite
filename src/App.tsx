@@ -174,6 +174,8 @@ function App() {
                 <Route index element={<ParentDashboard />} />
                 <Route path="students" element={<ParentLinkedStudents />} />
                 <Route path="results/:studentId" element={<ParentStudentResults />} />
+                <Route path="messages" element={<ParentMessageTeacher />} />
+                <Route path="preferences" element={<ParentNotificationPreferences />} />
               </Route>
 
               {/* Catch-all */}
