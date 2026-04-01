@@ -135,6 +135,8 @@ function App() {
                 <Route path="security" element={<ResultSecurity />} />
                 <Route path="monetisation" element={<PinMonetisation />} />
                 <Route path="communications" element={<CommunicationEngine />} />
+                <Route path="parent-linking" element={<ParentLinking />} />
+
               </Route>
 
               {/* Teacher Routes */}
