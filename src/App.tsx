@@ -138,7 +138,8 @@ function App() {
                 <Route path="monetisation" element={<PinMonetisation />} />
                 <Route path="communications" element={<CommunicationEngine />} />
                 <Route path="parent-linking" element={<ParentLinking />} />
-
+                <Route path="cbt" element={<CBTManagement />} />
+                <Route path="fees" element={<FeeManagement />} />
               </Route>
 
               {/* Teacher Routes */}
