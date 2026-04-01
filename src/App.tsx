@@ -27,6 +27,8 @@ import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
 import TeacherResultEntry from "./pages/teacher/ResultEntry";
 import TeacherClassesOverview from "./pages/teacher/ClassesOverview";
 import TeacherProfile from "./pages/teacher/TeacherProfile";
+import TeacherParentMessages from "./pages/teacher/ParentMessages";
+
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import StudentMyResults from "./pages/student/MyResults";
 import AdminResultApproval from "./pages/admin/ResultApproval";
