@@ -199,7 +199,7 @@ export default function Auth() {
     }
   };
 
-  const roles: UserRole[] = ["super_admin", "admin", "teacher", "student", "parent"];
+  const roles: UserRole[] = ["admin", "teacher", "student", "parent"];
 
   if (authLoading) {
     return (
