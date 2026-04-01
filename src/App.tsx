@@ -27,6 +27,8 @@ import TeacherDashboard from "./pages/dashboards/TeacherDashboard";
 import TeacherResultEntry from "./pages/teacher/ResultEntry";
 import TeacherClassesOverview from "./pages/teacher/ClassesOverview";
 import TeacherProfile from "./pages/teacher/TeacherProfile";
+import TeacherParentMessages from "./pages/teacher/ParentMessages";
+
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import StudentMyResults from "./pages/student/MyResults";
 import AdminResultApproval from "./pages/admin/ResultApproval";
@@ -42,6 +44,8 @@ import Broadsheet from "./pages/admin/Broadsheet";
 import ComplianceReporting from "./pages/admin/ComplianceReporting";
 import AcademicIntelligence from "./pages/admin/AcademicIntelligence";
 import CommunicationEngine from "./pages/admin/CommunicationEngine";
+import ParentLinking from "./pages/admin/ParentLinking";
+
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -131,6 +135,8 @@ function App() {
                 <Route path="security" element={<ResultSecurity />} />
                 <Route path="monetisation" element={<PinMonetisation />} />
                 <Route path="communications" element={<CommunicationEngine />} />
+                <Route path="parent-linking" element={<ParentLinking />} />
+
               </Route>
 
               {/* Teacher Routes */}
@@ -146,6 +152,8 @@ function App() {
                 <Route path="classes" element={<TeacherClassesOverview />} />
                 <Route path="results" element={<TeacherResultEntry />} />
                 <Route path="profile" element={<TeacherProfile />} />
+                <Route path="messages" element={<TeacherParentMessages />} />
+
               </Route>
 
               {/* Student Routes */}
