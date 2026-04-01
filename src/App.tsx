@@ -171,6 +171,8 @@ function App() {
                 <Route index element={<StudentDashboard />} />
                 <Route path="results" element={<StudentMyResults />} />
                 <Route path="analytics" element={<PerformanceAnalytics />} />
+                <Route path="cbt" element={<StudentCBTExam />} />
+                <Route path="fees" element={<StudentFeePayment />} />
               </Route>
 
               {/* Parent Routes */}
