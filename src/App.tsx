@@ -42,6 +42,8 @@ import Broadsheet from "./pages/admin/Broadsheet";
 import ComplianceReporting from "./pages/admin/ComplianceReporting";
 import AcademicIntelligence from "./pages/admin/AcademicIntelligence";
 import CommunicationEngine from "./pages/admin/CommunicationEngine";
+import ParentLinking from "./pages/admin/ParentLinking";
+
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
