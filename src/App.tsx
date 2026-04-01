@@ -56,7 +56,8 @@ import SchoolManagement from "./pages/super-admin/SchoolManagement";
 
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
-
+import StudentCBTExam from "./pages/student/CBTExam";
+import StudentFeePayment from "./pages/student/FeePayment";
 // Parent pages
 import ParentDashboard from "./pages/dashboards/ParentDashboard";
 import ParentStudentResults from "./pages/parent/StudentResults";
