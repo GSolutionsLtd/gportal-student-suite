@@ -62,6 +62,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Result Security", icon: Shield, href: "/admin/security" },
     { label: "PIN Monetisation", icon: Key, href: "/admin/monetisation" },
     { label: "Communications", icon: MessageSquare, href: "/admin/communications" },
+    { label: "Parent Linking", icon: Users, href: "/admin/parent-linking" },
+
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },
