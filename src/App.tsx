@@ -152,6 +152,8 @@ function App() {
                 <Route path="classes" element={<TeacherClassesOverview />} />
                 <Route path="results" element={<TeacherResultEntry />} />
                 <Route path="profile" element={<TeacherProfile />} />
+                <Route path="messages" element={<TeacherParentMessages />} />
+
               </Route>
 
               {/* Student Routes */}
