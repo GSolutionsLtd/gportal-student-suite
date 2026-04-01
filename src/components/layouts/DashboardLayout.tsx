@@ -28,6 +28,7 @@ import {
   Loader2,
   MessageSquare,
   Bell,
+  Monitor,
 } from "lucide-react";
 
 interface NavItem {
