@@ -45,7 +45,8 @@ import ComplianceReporting from "./pages/admin/ComplianceReporting";
 import AcademicIntelligence from "./pages/admin/AcademicIntelligence";
 import CommunicationEngine from "./pages/admin/CommunicationEngine";
 import ParentLinking from "./pages/admin/ParentLinking";
-
+import CBTManagement from "./pages/admin/CBTManagement";
+import FeeManagement from "./pages/admin/FeeManagement";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
