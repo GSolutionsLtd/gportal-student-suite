@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,11 @@ interface Message {
   student_name: string;
 }
 
+interface TeacherOption {
+  id: string;
+  name: string;
+}
+
 export default function MessageTeacher() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -37,15 +42,12 @@ export default function MessageTeacher() {
   const [sending, setSending] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
 
-  // Compose state
   const [linkedStudents, setLinkedStudents] = useState<any[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [subject, setSubject] = useState("");
   const [messageText, setMessageText] = useState("");
-
-  // Detail view
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 
   useEffect(() => {
@@ -73,13 +75,18 @@ export default function MessageTeacher() {
     const teacherIds = [...new Set(data.map((m) => m.teacher_id))];
     const studentIds = [...new Set(data.map((m) => m.student_id))];
 
-    const [teachersRes, studentsRes, profilesRes] = await Promise.all([
+    const [teachersRes, studentsRes] = await Promise.all([
       supabase.from("teachers").select("id, user_id").in("id", teacherIds),
       supabase.from("students").select("id, first_name, last_name").in("id", studentIds),
-      supabase.from("profiles").select("id, full_name"),
     ]);
 
-    const profileMap = new Map((profilesRes.data || []).map((p) => [p.id, p.full_name]));
+    const teacherUserIds = (teachersRes.data || []).map((t) => t.user_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", teacherUserIds);
+
+    const profileMap = new Map((profiles || []).map((p) => [p.id, p.full_name]));
     const teacherMap = new Map((teachersRes.data || []).map((t) => [t.id, profileMap.get(t.user_id) || "Unknown Teacher"]));
     const studentMap = new Map((studentsRes.data || []).map((s) => [s.id, `${s.first_name} ${s.last_name}`]));
 
@@ -107,35 +114,55 @@ export default function MessageTeacher() {
 
     setLinkedStudents(students || []);
 
-    // Fetch teachers assigned to these students' classes
+    // Gather all teachers: from teacher_subjects AND form teachers from class_arms
     const classArmIds = [...new Set((students || []).map((s) => s.current_class_arm_id).filter(Boolean))];
-    if (classArmIds.length > 0) {
-      const { data: assignments } = await supabase
-        .from("teacher_subjects")
-        .select("teacher_id, class_arm_id")
-        .in("class_arm_id", classArmIds);
+    if (classArmIds.length === 0) return;
 
-      const teacherIds = [...new Set((assignments || []).map((a) => a.teacher_id))];
-      if (teacherIds.length > 0) {
-        const { data: teacherData } = await supabase
-          .from("teachers")
-          .select("id, user_id")
-          .in("id", teacherIds)
-          .eq("is_active", true);
+    // Fetch subject-assigned teachers AND form teachers in parallel
+    const [assignmentsRes, classArmsRes] = await Promise.all([
+      supabase.from("teacher_subjects").select("teacher_id").in("class_arm_id", classArmIds),
+      supabase.from("class_arms").select("form_teacher_id").in("id", classArmIds).not("form_teacher_id", "is", null),
+    ]);
 
-        const userIds = (teacherData || []).map((t) => t.user_id);
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds);
+    const teacherIdSet = new Set<string>();
+    (assignmentsRes.data || []).forEach((a) => teacherIdSet.add(a.teacher_id));
+    (classArmsRes.data || []).forEach((ca) => {
+      if (ca.form_teacher_id) teacherIdSet.add(ca.form_teacher_id);
+    });
 
-        const profileMap = new Map((profiles || []).map((p) => [p.id, p.full_name]));
-        setTeachers((teacherData || []).map((t) => ({
-          id: t.id,
-          name: profileMap.get(t.user_id) || "Unknown Teacher",
-        })));
+    const allTeacherIds = [...teacherIdSet];
+    if (allTeacherIds.length === 0) {
+      // Fallback: load ALL active teachers so parents can still message
+      const { data: allTeachers } = await supabase
+        .from("teachers")
+        .select("id, user_id")
+        .eq("is_active", true);
+
+      if (allTeachers && allTeachers.length > 0) {
+        const userIds = allTeachers.map((t) => t.user_id);
+        const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+        const profMap = new Map((profs || []).map((p) => [p.id, p.full_name]));
+        setTeachers(allTeachers.map((t) => ({ id: t.id, name: profMap.get(t.user_id) || "Unknown Teacher" })));
       }
+      return;
     }
+
+    const { data: teacherData } = await supabase
+      .from("teachers")
+      .select("id, user_id")
+      .in("id", allTeacherIds)
+      .eq("is_active", true);
+
+    if (!teacherData || teacherData.length === 0) return;
+
+    const userIds = teacherData.map((t) => t.user_id);
+    const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+    const profMap = new Map((profs || []).map((p) => [p.id, p.full_name]));
+
+    setTeachers(teacherData.map((t) => ({
+      id: t.id,
+      name: profMap.get(t.user_id) || "Unknown Teacher",
+    })));
   };
 
   const handleSend = async () => {
@@ -200,34 +227,22 @@ export default function MessageTeacher() {
       ) : (
         <div className="space-y-3">
           {messages.map((msg) => (
-            <Card
-              key={msg.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setSelectedMessage(msg)}
-            >
+            <Card key={msg.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedMessage(msg)}>
               <CardContent className="py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-sm truncate">{msg.subject}</p>
                       {msg.reply ? (
-                        <Badge variant="default" className="text-xs shrink-0">
-                          <CheckCircle className="h-3 w-3 mr-1" />Replied
-                        </Badge>
+                        <Badge variant="default" className="text-xs shrink-0"><CheckCircle className="h-3 w-3 mr-1" />Replied</Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs shrink-0">
-                          <Clock className="h-3 w-3 mr-1" />Pending
-                        </Badge>
+                        <Badge variant="secondary" className="text-xs shrink-0"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      To: {msg.teacher_name} • Re: {msg.student_name}
-                    </p>
+                    <p className="text-xs text-muted-foreground">To: {msg.teacher_name} • Re: {msg.student_name}</p>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{msg.message}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {format(new Date(msg.created_at), "dd MMM yyyy")}
-                  </span>
+                  <span className="text-xs text-muted-foreground shrink-0">{format(new Date(msg.created_at), "dd MMM yyyy")}</span>
                 </div>
               </CardContent>
             </Card>
@@ -235,12 +250,9 @@ export default function MessageTeacher() {
         </div>
       )}
 
-      {/* Message Detail Dialog */}
       <Dialog open={!!selectedMessage} onOpenChange={() => setSelectedMessage(null)}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{selectedMessage?.subject}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{selectedMessage?.subject}</DialogTitle></DialogHeader>
           {selectedMessage && (
             <div className="space-y-4">
               <div className="text-xs text-muted-foreground">
@@ -265,12 +277,9 @@ export default function MessageTeacher() {
         </DialogContent>
       </Dialog>
 
-      {/* Compose Dialog */}
       <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Message to Teacher</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>New Message to Teacher</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Student</Label>
@@ -288,9 +297,13 @@ export default function MessageTeacher() {
               <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
                 <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
                 <SelectContent>
-                  {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
+                  {teachers.length === 0 ? (
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">No teachers found. Please contact admin.</div>
+                  ) : (
+                    teachers.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -305,7 +318,7 @@ export default function MessageTeacher() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setComposeOpen(false)}>Cancel</Button>
-            <Button onClick={handleSend} disabled={sending}>
+            <Button onClick={handleSend} disabled={sending || teachers.length === 0}>
               {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
               Send
             </Button>
