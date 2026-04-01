@@ -86,6 +86,239 @@ export type Database = {
         }
         Relationships: []
       }
+      cbt_answers: {
+        Row: {
+          answered_at: string | null
+          attempt_id: string
+          id: string
+          is_correct: boolean | null
+          marks_awarded: number | null
+          question_id: string
+          selected_answer: string | null
+        }
+        Insert: {
+          answered_at?: string | null
+          attempt_id: string
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number | null
+          question_id: string
+          selected_answer?: string | null
+        }
+        Update: {
+          answered_at?: string | null
+          attempt_id?: string
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number | null
+          question_id?: string
+          selected_answer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_attempts: {
+        Row: {
+          created_at: string | null
+          exam_id: string
+          id: string
+          percentage: number | null
+          score: number | null
+          started_at: string | null
+          status: string | null
+          student_id: string
+          submitted_at: string | null
+          time_spent_seconds: number | null
+          total_marks: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          percentage?: number | null
+          score?: number | null
+          started_at?: string | null
+          status?: string | null
+          student_id: string
+          submitted_at?: string | null
+          time_spent_seconds?: number | null
+          total_marks?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          percentage?: number | null
+          score?: number | null
+          started_at?: string | null
+          status?: string | null
+          student_id?: string
+          submitted_at?: string | null
+          time_spent_seconds?: number | null
+          total_marks?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_attempts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_attempts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_exam_questions: {
+        Row: {
+          exam_id: string
+          id: string
+          question_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          exam_id: string
+          id?: string
+          question_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          exam_id?: string
+          id?: string
+          question_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_exam_questions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exam_questions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_exams: {
+        Row: {
+          class_arm_id: string
+          created_at: string | null
+          created_by: string
+          duration_minutes: number
+          end_time: string | null
+          id: string
+          max_attempts: number | null
+          pass_mark: number | null
+          question_bank_id: string | null
+          show_result_immediately: boolean | null
+          shuffle_options: boolean | null
+          shuffle_questions: boolean | null
+          start_time: string | null
+          status: string | null
+          subject_id: string
+          term_id: string
+          title: string
+          total_marks: number
+          updated_at: string | null
+        }
+        Insert: {
+          class_arm_id: string
+          created_at?: string | null
+          created_by: string
+          duration_minutes?: number
+          end_time?: string | null
+          id?: string
+          max_attempts?: number | null
+          pass_mark?: number | null
+          question_bank_id?: string | null
+          show_result_immediately?: boolean | null
+          shuffle_options?: boolean | null
+          shuffle_questions?: boolean | null
+          start_time?: string | null
+          status?: string | null
+          subject_id: string
+          term_id: string
+          title: string
+          total_marks?: number
+          updated_at?: string | null
+        }
+        Update: {
+          class_arm_id?: string
+          created_at?: string | null
+          created_by?: string
+          duration_minutes?: number
+          end_time?: string | null
+          id?: string
+          max_attempts?: number | null
+          pass_mark?: number | null
+          question_bank_id?: string | null
+          show_result_immediately?: boolean | null
+          shuffle_options?: boolean | null
+          shuffle_questions?: boolean | null
+          start_time?: string | null
+          status?: string | null
+          subject_id?: string
+          term_id?: string
+          title?: string
+          total_marks?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_exams_class_arm_id_fkey"
+            columns: ["class_arm_id"]
+            isOneToOne: false
+            referencedRelation: "class_arms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_question_bank_id_fkey"
+            columns: ["question_bank_id"]
+            isOneToOne: false
+            referencedRelation: "question_banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_arms: {
         Row: {
           capacity: number | null
@@ -202,6 +435,139 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      fee_payments: {
+        Row: {
+          amount_paid: number
+          created_at: string | null
+          fee_structure_id: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          paystack_reference: string | null
+          receipt_number: string | null
+          status: string | null
+          student_id: string
+          updated_at: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          amount_paid: number
+          created_at?: string | null
+          fee_structure_id: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          paystack_reference?: string | null
+          receipt_number?: string | null
+          status?: string | null
+          student_id: string
+          updated_at?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          amount_paid?: number
+          created_at?: string | null
+          fee_structure_id?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          paystack_reference?: string | null
+          receipt_number?: string | null
+          status?: string | null
+          student_id?: string
+          updated_at?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_payments_fee_structure_id_fkey"
+            columns: ["fee_structure_id"]
+            isOneToOne: false
+            referencedRelation: "fee_structures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_payments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_structures: {
+        Row: {
+          amount: number
+          class_id: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_compulsory: boolean | null
+          name: string
+          session_id: string
+          term_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          class_id?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_compulsory?: boolean | null
+          name: string
+          session_id: string
+          term_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          class_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_compulsory?: boolean | null
+          name?: string
+          session_id?: string
+          term_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_structures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_structures_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "academic_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_structures_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       grading_scales: {
         Row: {
@@ -540,6 +906,110 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      question_banks: {
+        Row: {
+          class_id: string
+          created_at: string | null
+          created_by: string
+          id: string
+          is_active: boolean | null
+          subject_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          class_id: string
+          created_at?: string | null
+          created_by: string
+          id?: string
+          is_active?: boolean | null
+          subject_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          class_id?: string
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          is_active?: boolean | null
+          subject_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_banks_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_banks_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      questions: {
+        Row: {
+          correct_answer: string
+          created_at: string | null
+          explanation: string | null
+          id: string
+          marks: number | null
+          option_a: string | null
+          option_b: string | null
+          option_c: string | null
+          option_d: string | null
+          question_bank_id: string
+          question_text: string
+          question_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          marks?: number | null
+          option_a?: string | null
+          option_b?: string | null
+          option_c?: string | null
+          option_d?: string | null
+          question_bank_id: string
+          question_text: string
+          question_type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          marks?: number | null
+          option_a?: string | null
+          option_b?: string | null
+          option_c?: string | null
+          option_d?: string | null
+          question_bank_id?: string
+          question_text?: string
+          question_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_question_bank_id_fkey"
+            columns: ["question_bank_id"]
+            isOneToOne: false
+            referencedRelation: "question_banks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       result_components: {
         Row: {
@@ -1208,6 +1678,7 @@ export type Database = {
       }
       generate_admission_number: { Args: never; Returns: string }
       generate_pin_code: { Args: never; Returns: string }
+      generate_receipt_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
       get_grade_for_score: {
         Args: { p_score: number }

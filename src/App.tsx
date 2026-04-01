@@ -45,7 +45,8 @@ import ComplianceReporting from "./pages/admin/ComplianceReporting";
 import AcademicIntelligence from "./pages/admin/AcademicIntelligence";
 import CommunicationEngine from "./pages/admin/CommunicationEngine";
 import ParentLinking from "./pages/admin/ParentLinking";
-
+import CBTManagement from "./pages/admin/CBTManagement";
+import FeeManagement from "./pages/admin/FeeManagement";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -55,7 +56,8 @@ import SchoolManagement from "./pages/super-admin/SchoolManagement";
 
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
-
+import StudentCBTExam from "./pages/student/CBTExam";
+import StudentFeePayment from "./pages/student/FeePayment";
 // Parent pages
 import ParentDashboard from "./pages/dashboards/ParentDashboard";
 import ParentStudentResults from "./pages/parent/StudentResults";
@@ -136,7 +138,8 @@ function App() {
                 <Route path="monetisation" element={<PinMonetisation />} />
                 <Route path="communications" element={<CommunicationEngine />} />
                 <Route path="parent-linking" element={<ParentLinking />} />
-
+                <Route path="cbt" element={<CBTManagement />} />
+                <Route path="fees" element={<FeeManagement />} />
               </Route>
 
               {/* Teacher Routes */}
@@ -168,6 +171,8 @@ function App() {
                 <Route index element={<StudentDashboard />} />
                 <Route path="results" element={<StudentMyResults />} />
                 <Route path="analytics" element={<PerformanceAnalytics />} />
+                <Route path="cbt" element={<StudentCBTExam />} />
+                <Route path="fees" element={<StudentFeePayment />} />
               </Route>
 
               {/* Parent Routes */}

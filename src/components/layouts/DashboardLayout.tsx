@@ -28,6 +28,7 @@ import {
   Loader2,
   MessageSquare,
   Bell,
+  Monitor,
 } from "lucide-react";
 
 interface NavItem {
@@ -63,7 +64,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "PIN Monetisation", icon: Key, href: "/admin/monetisation" },
     { label: "Communications", icon: MessageSquare, href: "/admin/communications" },
     { label: "Parent Linking", icon: Users, href: "/admin/parent-linking" },
-
+    { label: "CBT Management", icon: Monitor, href: "/admin/cbt" },
+    { label: "Fee Management", icon: Key, href: "/admin/fees" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },
@@ -77,6 +79,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", icon: LayoutDashboard, href: "/student" },
     { label: "My Results", icon: ClipboardList, href: "/student/results" },
     { label: "Experience Intelligence", icon: BarChart3, href: "/student/analytics" },
+    { label: "CBT Exams", icon: Monitor, href: "/student/cbt" },
+    { label: "School Fees", icon: Key, href: "/student/fees" },
   ],
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/parent" },
