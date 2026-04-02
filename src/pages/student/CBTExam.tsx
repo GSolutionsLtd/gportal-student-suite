@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Loader2, Monitor, Clock, Play, CheckCircle, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getLinkedStudentByUserId } from "@/lib/studentAccount";
 
 export default function CBTExam() {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function CBTExam() {
   const [exams, setExams] = useState<any[]>([]);
   const [myAttempts, setMyAttempts] = useState<any[]>([]);
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [studentLinked, setStudentLinked] = useState(true);
 
   // Exam taking state
   const [activeExam, setActiveExam] = useState<any>(null);
@@ -43,8 +45,16 @@ export default function CBTExam() {
 
   const loadStudentData = async () => {
     setLoading(true);
-    const { data: student } = await supabase.from("students").select("id, current_class_arm_id").eq("user_id", user!.id).maybeSingle();
-    if (!student) { setLoading(false); return; }
+    const student = await getLinkedStudentByUserId(user!.id);
+    if (!student) {
+      setStudentLinked(false);
+      setExams([]);
+      setMyAttempts([]);
+      setLoading(false);
+      return;
+    }
+
+    setStudentLinked(true);
     setStudentId(student.id);
 
     const [examsRes, attemptsRes] = await Promise.all([
@@ -151,6 +161,20 @@ export default function CBTExam() {
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
   if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  if (!studentLinked) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+          <h3 className="text-lg font-medium">Student account not linked yet</h3>
+          <p className="mt-2 text-muted-foreground">
+            Ask an admin to link your signed-up account to your student record so your exams can load.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Active exam view
   if (activeExam && examQuestions.length > 0) {

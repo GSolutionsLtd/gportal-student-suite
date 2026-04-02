@@ -30,6 +30,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { generateResultPDF } from "@/utils/pdfGenerator";
+import { getLinkedStudentByUserId } from "@/lib/studentAccount";
 
 interface ResultComponent {
   id: string;
@@ -81,13 +82,7 @@ export default function MyResults() {
       setLoading(true);
 
       // Get student record
-      const { data: student, error: studentError } = await supabase
-        .from("students")
-        .select("id, first_name, last_name, admission_number")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (studentError) throw studentError;
+      const student = await getLinkedStudentByUserId(user.id);
       if (!student) {
         toast({ title: "Error", description: "Student record not found", variant: "destructive" });
         return;

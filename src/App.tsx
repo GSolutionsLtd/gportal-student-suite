@@ -28,6 +28,7 @@ import TeacherResultEntry from "./pages/teacher/ResultEntry";
 import TeacherClassesOverview from "./pages/teacher/ClassesOverview";
 import TeacherProfile from "./pages/teacher/TeacherProfile";
 import TeacherParentMessages from "./pages/teacher/ParentMessages";
+import TeacherCBTManagement from "./pages/teacher/TeacherCBTManagement";
 
 import StudentDashboard from "./pages/dashboards/StudentDashboard";
 import StudentMyResults from "./pages/student/MyResults";
@@ -64,6 +65,7 @@ import ParentStudentResults from "./pages/parent/StudentResults";
 import ParentLinkedStudents from "./pages/parent/LinkedStudents";
 import ParentMessageTeacher from "./pages/parent/MessageTeacher";
 import ParentNotificationPreferences from "./pages/parent/NotificationPreferences";
+import StudentLinking from "./pages/admin/StudentLinking";
 
 // Security & Monetisation
 import VerifyResult from "./pages/VerifyResult";
@@ -138,6 +140,7 @@ function App() {
                 <Route path="monetisation" element={<PinMonetisation />} />
                 <Route path="communications" element={<CommunicationEngine />} />
                 <Route path="parent-linking" element={<ParentLinking />} />
+                <Route path="student-linking" element={<StudentLinking />} />
                 <Route path="cbt" element={<CBTManagement />} />
                 <Route path="fees" element={<FeeManagement />} />
               </Route>
@@ -156,6 +159,7 @@ function App() {
                 <Route path="results" element={<TeacherResultEntry />} />
                 <Route path="profile" element={<TeacherProfile />} />
                 <Route path="messages" element={<TeacherParentMessages />} />
+                <Route path="cbt" element={<TeacherCBTManagement />} />
 
               </Route>
 

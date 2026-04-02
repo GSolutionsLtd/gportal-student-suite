@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,6 +44,7 @@ export default function MessageTeacher() {
 
   const [linkedStudents, setLinkedStudents] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+  const [teacherIdsByStudent, setTeacherIdsByStudent] = useState<Record<string, string[]>>({});
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [subject, setSubject] = useState("");
@@ -51,118 +52,46 @@ export default function MessageTeacher() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 
   useEffect(() => {
-    if (user) fetchAll();
+    if (user) {
+      void fetchAll();
+    }
   }, [user]);
+
+  useEffect(() => {
+    if (!selectedStudent) {
+      setSelectedTeacher("");
+      return;
+    }
+
+    const allowedTeacherIds = teacherIdsByStudent[selectedStudent] || [];
+    if (allowedTeacherIds.length > 0 && !allowedTeacherIds.includes(selectedTeacher)) {
+      setSelectedTeacher("");
+    }
+  }, [selectedStudent, selectedTeacher, teacherIdsByStudent]);
+
+  const filteredTeachers = useMemo(() => {
+    if (!selectedStudent) return teachers;
+    const allowedTeacherIds = teacherIdsByStudent[selectedStudent] || [];
+    if (allowedTeacherIds.length === 0) return teachers;
+    return teachers.filter((teacher) => allowedTeacherIds.includes(teacher.id));
+  }, [selectedStudent, teacherIdsByStudent, teachers]);
 
   const fetchAll = async () => {
     setIsLoading(true);
-    await Promise.all([fetchMessages(), fetchLinkedStudents()]);
-    setIsLoading(false);
-  };
+    try {
+      const { data, error } = await supabase.functions.invoke("parent-messaging-context");
 
-  const fetchMessages = async () => {
-    const { data } = await supabase
-      .from("parent_teacher_messages")
-      .select("id, subject, message, reply, replied_at, is_read, created_at, teacher_id, student_id")
-      .eq("parent_user_id", user!.id)
-      .order("created_at", { ascending: false });
+      if (error) throw error;
 
-    if (!data || data.length === 0) {
-      setMessages([]);
-      return;
+      setMessages(data?.messages || []);
+      setLinkedStudents(data?.linkedStudents || []);
+      setTeachers(data?.teachers || []);
+      setTeacherIdsByStudent(data?.teacherIdsByStudent || {});
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
-
-    const teacherIds = [...new Set(data.map((m) => m.teacher_id))];
-    const studentIds = [...new Set(data.map((m) => m.student_id))];
-
-    const [teachersRes, studentsRes] = await Promise.all([
-      supabase.from("teachers").select("id, user_id").in("id", teacherIds),
-      supabase.from("students").select("id, first_name, last_name").in("id", studentIds),
-    ]);
-
-    const teacherUserIds = (teachersRes.data || []).map((t) => t.user_id);
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("id", teacherUserIds);
-
-    const profileMap = new Map((profiles || []).map((p) => [p.id, p.full_name]));
-    const teacherMap = new Map((teachersRes.data || []).map((t) => [t.id, profileMap.get(t.user_id) || "Unknown Teacher"]));
-    const studentMap = new Map((studentsRes.data || []).map((s) => [s.id, `${s.first_name} ${s.last_name}`]));
-
-    setMessages(data.map((m) => ({
-      ...m,
-      teacher_name: teacherMap.get(m.teacher_id) || "Unknown",
-      student_name: studentMap.get(m.student_id) || "Unknown",
-    })));
-  };
-
-  const fetchLinkedStudents = async () => {
-    const { data: links } = await supabase
-      .from("parent_students")
-      .select("student_id")
-      .eq("parent_user_id", user!.id)
-      .eq("is_active", true);
-
-    if (!links || links.length === 0) return;
-
-    const studentIds = links.map((l) => l.student_id);
-    const { data: students } = await supabase
-      .from("students")
-      .select("id, first_name, last_name, current_class_arm_id")
-      .in("id", studentIds);
-
-    setLinkedStudents(students || []);
-
-    // Gather all teachers: from teacher_subjects AND form teachers from class_arms
-    const classArmIds = [...new Set((students || []).map((s) => s.current_class_arm_id).filter(Boolean))];
-    if (classArmIds.length === 0) return;
-
-    // Fetch subject-assigned teachers AND form teachers in parallel
-    const [assignmentsRes, classArmsRes] = await Promise.all([
-      supabase.from("teacher_subjects").select("teacher_id").in("class_arm_id", classArmIds),
-      supabase.from("class_arms").select("form_teacher_id").in("id", classArmIds).not("form_teacher_id", "is", null),
-    ]);
-
-    const teacherIdSet = new Set<string>();
-    (assignmentsRes.data || []).forEach((a) => teacherIdSet.add(a.teacher_id));
-    (classArmsRes.data || []).forEach((ca) => {
-      if (ca.form_teacher_id) teacherIdSet.add(ca.form_teacher_id);
-    });
-
-    const allTeacherIds = [...teacherIdSet];
-    if (allTeacherIds.length === 0) {
-      // Fallback: load ALL active teachers so parents can still message
-      const { data: allTeachers } = await supabase
-        .from("teachers")
-        .select("id, user_id")
-        .eq("is_active", true);
-
-      if (allTeachers && allTeachers.length > 0) {
-        const userIds = allTeachers.map((t) => t.user_id);
-        const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
-        const profMap = new Map((profs || []).map((p) => [p.id, p.full_name]));
-        setTeachers(allTeachers.map((t) => ({ id: t.id, name: profMap.get(t.user_id) || "Unknown Teacher" })));
-      }
-      return;
-    }
-
-    const { data: teacherData } = await supabase
-      .from("teachers")
-      .select("id, user_id")
-      .in("id", allTeacherIds)
-      .eq("is_active", true);
-
-    if (!teacherData || teacherData.length === 0) return;
-
-    const userIds = teacherData.map((t) => t.user_id);
-    const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
-    const profMap = new Map((profs || []).map((p) => [p.id, p.full_name]));
-
-    setTeachers(teacherData.map((t) => ({
-      id: t.id,
-      name: profMap.get(t.user_id) || "Unknown Teacher",
-    })));
   };
 
   const handleSend = async () => {
@@ -188,7 +117,7 @@ export default function MessageTeacher() {
       setMessageText("");
       setSelectedStudent("");
       setSelectedTeacher("");
-      fetchMessages();
+      await fetchAll();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -297,10 +226,10 @@ export default function MessageTeacher() {
               <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
                 <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
                 <SelectContent>
-                  {teachers.length === 0 ? (
+                  {filteredTeachers.length === 0 ? (
                     <div className="px-2 py-4 text-sm text-muted-foreground text-center">No teachers found. Please contact admin.</div>
                   ) : (
-                    teachers.map((t) => (
+                    filteredTeachers.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))
                   )}
@@ -318,7 +247,7 @@ export default function MessageTeacher() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setComposeOpen(false)}>Cancel</Button>
-            <Button onClick={handleSend} disabled={sending || teachers.length === 0}>
+            <Button onClick={handleSend} disabled={sending || filteredTeachers.length === 0}>
               {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
               Send
             </Button>

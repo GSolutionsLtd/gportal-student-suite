@@ -51,12 +51,14 @@ Deno.serve(async (req) => {
     }
 
     const transaction = paystackData.data;
+    const paymentType = transaction.metadata?.type || (transaction.metadata?.school_id ? "school_subscription" : "unknown");
 
     if (transaction.status !== "success") {
       return new Response(
         JSON.stringify({
           success: false,
           status: transaction.status,
+          paymentType,
           message: "Payment not successful",
         }),
         {
@@ -69,6 +71,48 @@ Deno.serve(async (req) => {
     // Extract metadata
     const schoolId = transaction.metadata?.school_id;
     const durationMonths = transaction.metadata?.duration_months || 1;
+
+    if (paymentType === "school_fee") {
+      const paymentId = transaction.metadata?.payment_id;
+      const feeName = transaction.metadata?.fee_name || "School Fee";
+
+      if (paymentId) {
+        const { data: receiptData } = await supabase.rpc("generate_receipt_number");
+
+        const { error } = await supabase
+          .from("fee_payments")
+          .update({
+            status: "paid",
+            paid_at: transaction.paid_at,
+            verified_at: new Date().toISOString(),
+            payment_reference: transaction.reference,
+            paystack_reference: transaction.reference,
+            receipt_number: receiptData || null,
+          })
+          .eq("id", paymentId);
+
+        if (error) {
+          console.error("Error updating fee payment:", error);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          paymentType: "school_fee",
+          status: transaction.status,
+          amount: transaction.amount / 100,
+          currency: transaction.currency,
+          paid_at: transaction.paid_at,
+          feeName,
+          message: "Payment verified successfully",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     if (schoolId) {
       // Calculate new subscription end date
@@ -95,6 +139,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        paymentType: "school_subscription",
         status: transaction.status,
         amount: transaction.amount / 100,
         currency: transaction.currency,
