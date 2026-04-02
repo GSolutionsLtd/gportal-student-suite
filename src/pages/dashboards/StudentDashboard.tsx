@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   GraduationCap,
   Award,
