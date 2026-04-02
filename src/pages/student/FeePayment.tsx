@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, DollarSign, CheckCircle, Clock, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { getLinkedStudentByUserId } from "@/lib/studentAccount";
 
 export default function FeePayment() {
   const { user } = useAuth();
@@ -17,13 +18,22 @@ export default function FeePayment() {
   const [fees, setFees] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [paying, setPaying] = useState<string | null>(null);
+  const [studentLinked, setStudentLinked] = useState(true);
 
   useEffect(() => { if (user) loadData(); }, [user]);
 
   const loadData = async () => {
     setLoading(true);
-    const { data: student } = await supabase.from("students").select("id, current_class_arm_id").eq("user_id", user!.id).maybeSingle();
-    if (!student) { setLoading(false); return; }
+    const student = await getLinkedStudentByUserId(user!.id);
+    if (!student) {
+      setStudentLinked(false);
+      setFees([]);
+      setPayments([]);
+      setLoading(false);
+      return;
+    }
+
+    setStudentLinked(true);
     setStudentId(student.id);
 
     // Get class for this student
@@ -33,9 +43,23 @@ export default function FeePayment() {
       classId = arm?.class_id || null;
     }
 
+    const [{ data: currentSession }, { data: currentTerm }] = await Promise.all([
+      supabase.from("academic_sessions").select("id").eq("is_current", true).maybeSingle(),
+      supabase.from("terms").select("id").eq("is_current", true).maybeSingle(),
+    ]);
+
     // Load applicable fee structures
-    const { data: allFees } = await supabase.from("fee_structures").select("*").eq("is_active", true);
-    const applicable = (allFees || []).filter((f) => !f.class_id || f.class_id === classId);
+    const feeQuery = supabase.from("fee_structures").select("*").eq("is_active", true);
+    if (currentSession?.id) {
+      feeQuery.eq("session_id", currentSession.id);
+    }
+
+    const { data: allFees } = await feeQuery;
+    const applicable = (allFees || []).filter((f) => {
+      const matchesClass = !f.class_id || f.class_id === classId;
+      const matchesTerm = !f.term_id || f.term_id === currentTerm?.id;
+      return matchesClass && matchesTerm;
+    });
     setFees(applicable);
 
     // Load my payments
@@ -51,25 +75,14 @@ export default function FeePayment() {
     if (!studentId) return;
     setPaying(fee.id);
     try {
-      // Create payment record
-      const { data: payment, error } = await supabase.from("fee_payments").insert({
-        student_id: studentId,
-        fee_structure_id: fee.id,
-        amount_paid: fee.amount,
-        payment_method: "online",
-        status: "pending",
-      }).select("id").single();
-
-      if (error) throw error;
-
-      // Initialize Paystack payment
       const { data: initData, error: initError } = await supabase.functions.invoke("initialize-payment", {
         body: {
+          type: "school_fee",
+          student_id: studentId,
+          fee_structure_id: fee.id,
           email: user!.email,
-          amount: Math.round(Number(fee.amount) * 100),
-          reference: `FEE-${payment.id}`,
+          amount: Number(fee.amount),
           callback_url: `${window.location.origin}/payment/callback`,
-          metadata: { payment_id: payment.id, fee_name: fee.name, type: "school_fee" },
         },
       });
 
@@ -91,6 +104,20 @@ export default function FeePayment() {
   const totalPaid = payments.filter((p) => p.status === "paid").reduce((sum, p) => sum + Number(p.amount_paid), 0);
 
   if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+
+  if (!studentLinked) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <CreditCard className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+          <h3 className="text-lg font-medium">Student account not linked yet</h3>
+          <p className="mt-2 text-muted-foreground">
+            Ask an admin to link your signed-up account to your student record so your fee items can load.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">

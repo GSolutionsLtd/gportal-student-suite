@@ -64,6 +64,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "PIN Monetisation", icon: Key, href: "/admin/monetisation" },
     { label: "Communications", icon: MessageSquare, href: "/admin/communications" },
     { label: "Parent Linking", icon: Users, href: "/admin/parent-linking" },
+    { label: "Student Linking", icon: GraduationCap, href: "/admin/student-linking" },
     { label: "CBT Management", icon: Monitor, href: "/admin/cbt" },
     { label: "Fee Management", icon: Key, href: "/admin/fees" },
   ],
@@ -71,6 +72,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },
     { label: "My Classes", icon: Layers, href: "/teacher/classes" },
     { label: "Result Entry", icon: ClipboardList, href: "/teacher/results" },
+    { label: "CBT Management", icon: Monitor, href: "/teacher/cbt" },
     { label: "Parent Messages", icon: MessageSquare, href: "/teacher/messages" },
     { label: "My Profile", icon: Users, href: "/teacher/profile" },
 

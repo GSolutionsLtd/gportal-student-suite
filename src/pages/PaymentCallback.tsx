@@ -10,8 +10,9 @@ type PaymentStatus = "loading" | "success" | "failed" | "error";
 interface PaymentDetails {
   reference: string;
   amount: number;
-  plan: string;
-  schoolName: string;
+  paymentType: "school_subscription" | "school_fee" | "unknown";
+  label: string;
+  destinationLabel: string;
 }
 
 export default function PaymentCallback() {
@@ -44,13 +45,19 @@ export default function PaymentCallback() {
       if (error) throw error;
 
       if (data.success) {
+        const paymentType = data.paymentType || "unknown";
         setStatus("success");
-        setMessage("Your payment was successful! Your subscription has been activated.");
+        setMessage(
+          paymentType === "school_fee"
+            ? "Your payment was successful and your fee record has been updated."
+            : "Your payment was successful! Your subscription has been activated.",
+        );
         setDetails({
           reference: reference,
           amount: data.amount || 0,
-          plan: data.plan || "Unknown Plan",
-          schoolName: data.schoolName || "Your School",
+          paymentType,
+          label: paymentType === "school_fee" ? data.feeName || "School Fee" : data.plan || "Subscription",
+          destinationLabel: paymentType === "school_fee" ? "Back to Fees" : "Back to Schools",
         });
       } else {
         setStatus("failed");
@@ -67,7 +74,7 @@ export default function PaymentCallback() {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
-    }).format(amount / 100);
+    }).format(amount);
   };
 
   return (
@@ -129,12 +136,8 @@ export default function PaymentCallback() {
                 <span className="font-semibold">{formatAmount(details.amount)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Plan:</span>
-                <span>{details.plan}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">School:</span>
-                <span>{details.schoolName}</span>
+                <span className="text-muted-foreground">Type:</span>
+                <span>{details.label}</span>
               </div>
             </div>
 
@@ -142,14 +145,14 @@ export default function PaymentCallback() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => navigate("/super-admin/schools")}
+                onClick={() => navigate(details.paymentType === "school_fee" ? "/student/fees" : "/super-admin/schools")}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Schools
+                {details.destinationLabel}
               </Button>
               <Button
                 className="flex-1"
-                onClick={() => navigate("/super-admin")}
+                onClick={() => navigate(details.paymentType === "school_fee" ? "/student" : "/super-admin")}
               >
                 <Home className="h-4 w-4 mr-2" />
                 Dashboard
@@ -173,7 +176,7 @@ export default function PaymentCallback() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => navigate("/super-admin/schools")}
+                onClick={() => navigate("/")}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Try Again

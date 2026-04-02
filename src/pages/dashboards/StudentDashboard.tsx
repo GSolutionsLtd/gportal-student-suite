@@ -17,6 +17,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getLinkedStudentByUserId } from "@/lib/studentAccount";
 
 interface ResultSummary {
   id: string;
@@ -55,6 +56,7 @@ export default function StudentDashboard() {
   });
   const [latestResults, setLatestResults] = useState<LatestResult[]>([]);
   const [resultHistory, setResultHistory] = useState<ResultSummary[]>([]);
+  const [studentLinked, setStudentLinked] = useState(true);
 
   useEffect(() => {
     fetchStudentData();
@@ -67,17 +69,14 @@ export default function StudentDashboard() {
       setLoading(true);
 
       // Get student record
-      const { data: student, error: studentError } = await supabase
-        .from("students")
-        .select("id, first_name, last_name, admission_number, current_class_arm_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (studentError) throw studentError;
+      const student = await getLinkedStudentByUserId(user.id);
       if (!student) {
+        setStudentLinked(false);
         setLoading(false);
         return;
       }
+
+      setStudentLinked(true);
 
       // Get class info
       let className = "";
@@ -237,6 +236,14 @@ export default function StudentDashboard() {
           View All Results
         </Button>
       </div>
+
+      {!studentLinked && (
+        <Alert>
+          <AlertDescription>
+            Your signed-up student account has not been linked to your school record yet. Ask an admin to connect it so your results, CBT exams, and fees can appear.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Stats Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
