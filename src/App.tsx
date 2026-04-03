@@ -48,12 +48,15 @@ import CommunicationEngine from "./pages/admin/CommunicationEngine";
 import ParentLinking from "./pages/admin/ParentLinking";
 import CBTManagement from "./pages/admin/CBTManagement";
 import FeeManagement from "./pages/admin/FeeManagement";
+import MessageMonitoring from "./pages/admin/MessageMonitoring";
+import CBTScoreSync from "./pages/admin/CBTScoreSync";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
 import SystemSettings from "./pages/super-admin/SystemSettings";
 import AuditLogs from "./pages/super-admin/AuditLogs";
 import SchoolManagement from "./pages/super-admin/SchoolManagement";
+import SchoolFeatures from "./pages/super-admin/SchoolFeatures";
 
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
@@ -112,6 +115,7 @@ function App() {
                 <Route path="users" element={<UserManagement />} />
                 <Route path="settings" element={<SystemSettings />} />
                 <Route path="audit" element={<AuditLogs />} />
+                <Route path="features" element={<SchoolFeatures />} />
               </Route>
 
               {/* Admin Routes */}
@@ -143,6 +147,8 @@ function App() {
                 <Route path="student-linking" element={<StudentLinking />} />
                 <Route path="cbt" element={<CBTManagement />} />
                 <Route path="fees" element={<FeeManagement />} />
+                <Route path="messages" element={<MessageMonitoring />} />
+                <Route path="cbt-sync" element={<CBTScoreSync />} />
               </Route>
 
               {/* Teacher Routes */}
@@ -160,7 +166,6 @@ function App() {
                 <Route path="profile" element={<TeacherProfile />} />
                 <Route path="messages" element={<TeacherParentMessages />} />
                 <Route path="cbt" element={<TeacherCBTManagement />} />
-
               </Route>
 
               {/* Student Routes */}
