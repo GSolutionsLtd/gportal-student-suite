@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
 
     if (linksError) throw linksError;
 
-    const studentIds = (links || []).map((link) => link.student_id);
+    const studentIds = (links || []).map((link: any) => link.student_id);
 
     const [studentsResponse, messagesResponse] = await Promise.all([
       studentIds.length > 0
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     if (messagesResponse.error) throw messagesResponse.error;
 
     const linkedStudents = studentsResponse.data || [];
-    const classArmIds = [...new Set(linkedStudents.map((student) => student.current_class_arm_id).filter(Boolean))] as string[];
+    const classArmIds = [...new Set(linkedStudents.map((student: any) => student.current_class_arm_id).filter(Boolean))] as string[];
 
     const [teacherAssignmentsResponse, classArmsResponse] = await Promise.all([
       classArmIds.length > 0
@@ -83,23 +83,23 @@ Deno.serve(async (req) => {
     const teacherIdsByStudent = new Map<string, Set<string>>();
     const classTeacherMap = new Map<string, Set<string>>();
 
-    (teacherAssignmentsResponse.data || []).forEach((row) => {
+    (teacherAssignmentsResponse.data || []).forEach((row: any) => {
       const existing = classTeacherMap.get(row.class_arm_id) || new Set<string>();
       existing.add(row.teacher_id);
       classTeacherMap.set(row.class_arm_id, existing);
     });
 
-    (classArmsResponse.data || []).forEach((classArm) => {
+    (classArmsResponse.data || []).forEach((classArm: any) => {
       if (!classArm.form_teacher_id) return;
       const existing = classTeacherMap.get(classArm.id) || new Set<string>();
       existing.add(classArm.form_teacher_id);
       classTeacherMap.set(classArm.id, existing);
     });
 
-    linkedStudents.forEach((student) => {
+    linkedStudents.forEach((student: any) => {
       const teacherIds = new Set<string>();
       const classTeachers = student.current_class_arm_id ? classTeacherMap.get(student.current_class_arm_id) : undefined;
-      classTeachers?.forEach((teacherId) => teacherIds.add(teacherId));
+      classTeachers?.forEach((teacherId: string) => teacherIds.add(teacherId));
       teacherIdsByStudent.set(student.id, teacherIds);
     });
 
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
         .eq("is_active", true);
 
       if (fallbackError) throw fallbackError;
-      teacherIds = (fallbackTeachers || []).map((teacher) => teacher.id);
+      teacherIds = (fallbackTeachers || []).map((teacher: any) => teacher.id);
     }
 
     const { data: teachers, error: teachersError } = await adminClient
@@ -123,9 +123,9 @@ Deno.serve(async (req) => {
 
     if (teachersError) throw teachersError;
 
-    const teacherUserIds = (teachers || []).map((teacher) => teacher.user_id);
-    const messageTeacherIds = [...new Set((messagesResponse.data || []).map((message) => message.teacher_id))];
-    const missingTeacherIds = messageTeacherIds.filter((teacherId) => !(teachers || []).some((teacher) => teacher.id === teacherId));
+    const teacherUserIds = (teachers || []).map((teacher: any) => teacher.user_id);
+    const messageTeacherIds = [...new Set((messagesResponse.data || []).map((message: any) => message.teacher_id))];
+    const missingTeacherIds = messageTeacherIds.filter((teacherId: string) => !(teachers || []).some((teacher: any) => teacher.id === teacherId));
 
     if (missingTeacherIds.length > 0) {
       const { data: missingTeachers, error: missingTeachersError } = await adminClient
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
 
       if (missingTeachersError) throw missingTeachersError;
       teachers?.push(...(missingTeachers || []));
-      teacherUserIds.push(...(missingTeachers || []).map((teacher) => teacher.user_id));
+      teacherUserIds.push(...(missingTeachers || []).map((teacher: any) => teacher.user_id));
     }
 
     const { data: teacherProfiles, error: profilesError } = await adminClient
@@ -145,30 +145,69 @@ Deno.serve(async (req) => {
 
     if (profilesError) throw profilesError;
 
-    const teacherNameByUserId = new Map((teacherProfiles || []).map((profile) => [profile.id, profile.full_name]));
-    const teacherNameById = new Map((teachers || []).map((teacher) => [teacher.id, teacherNameByUserId.get(teacher.user_id) || "Unknown Teacher"]));
+    const teacherNameByUserId = new Map((teacherProfiles || []).map((profile: any) => [profile.id, profile.full_name]));
+    const teacherNameById = new Map((teachers || []).map((teacher: any) => [teacher.id, teacherNameByUserId.get(teacher.user_id) || "Unknown Teacher"]));
     const studentNameById = new Map(
-      linkedStudents.map((student) => [student.id, `${student.first_name} ${student.last_name}`.trim()]),
+      linkedStudents.map((student: any) => [student.id, `${student.first_name} ${student.last_name}`.trim()]),
     );
 
-    const availableTeachers = (teachers || []).map((teacher) => ({
+    const availableTeachers = (teachers || []).map((teacher: any) => ({
       id: teacher.id,
       name: teacherNameById.get(teacher.id) || "Unknown Teacher",
     }));
+
+    // Add Admin users as contactable entities
+    // We use a special prefix "admin_" to distinguish admin entries from teacher entries
+    const { data: adminRoles } = await adminClient
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
+
+    if (adminRoles && adminRoles.length > 0) {
+      const adminUserIds = adminRoles.map((r: any) => r.user_id);
+      const { data: adminProfiles } = await adminClient
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", adminUserIds);
+
+      // We need a teacher record for the admin to store messages.
+      // Check if admin has a teacher record, if not we'll create a virtual mapping.
+      // For messaging, we'll use admin user_id as teacher_id reference via teachers table.
+      const { data: adminTeachers } = await adminClient
+        .from("teachers")
+        .select("id, user_id")
+        .in("user_id", adminUserIds);
+
+      const adminTeacherMap = new Map((adminTeachers || []).map((t: any) => [t.user_id, t.id]));
+
+      (adminProfiles || []).forEach((profile: any) => {
+        const teacherId = adminTeacherMap.get(profile.id);
+        if (teacherId) {
+          // Admin has a teacher record, add them as a teacher option
+          const alreadyExists = availableTeachers.some((t: any) => t.id === teacherId);
+          if (!alreadyExists) {
+            availableTeachers.push({
+              id: teacherId,
+              name: `${profile.full_name} (Admin)`,
+            });
+          }
+        }
+      });
+    }
 
     const teacherIdsByStudentRecord = Object.fromEntries(
       [...teacherIdsByStudent.entries()].map(([studentId, ids]) => [studentId, Array.from(ids)]),
     );
 
-    const messages = (messagesResponse.data || []).map((message) => ({
+    const messages = (messagesResponse.data || []).map((message: any) => ({
       ...message,
-      teacher_name: teacherNameById.get(message.teacher_id) || "Unknown Teacher",
+      teacher_name: teacherNameById.get(message.teacher_id) || "Admin",
       student_name: studentNameById.get(message.student_id) || "Unknown Student",
     }));
 
     return new Response(
       JSON.stringify({
-        linkedStudents: linkedStudents.map((student) => ({
+        linkedStudents: linkedStudents.map((student: any) => ({
           id: student.id,
           first_name: student.first_name,
           last_name: student.last_name,

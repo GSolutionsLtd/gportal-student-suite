@@ -1269,6 +1269,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           email: string | null
+          enabled_features: Json
           id: string
           logo_url: string | null
           max_students: number | null
@@ -1286,6 +1287,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           email?: string | null
+          enabled_features?: Json
           id?: string
           logo_url?: string | null
           max_students?: number | null
@@ -1303,6 +1305,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           email?: string | null
+          enabled_features?: Json
           id?: string
           logo_url?: string | null
           max_students?: number | null
