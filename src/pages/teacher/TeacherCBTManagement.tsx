@@ -70,6 +70,7 @@ export default function TeacherCBTManagement() {
     shuffle_questions: true,
     shuffle_options: false,
     show_result_immediately: true,
+    exam_type: "exam",
   });
 
   useEffect(() => {
