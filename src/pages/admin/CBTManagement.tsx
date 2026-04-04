@@ -518,6 +518,17 @@ export default function CBTManagement() {
               <div><Label>Pass Mark</Label><Input type="number" value={examForm.pass_mark} onChange={(e) => setExamForm({ ...examForm, pass_mark: parseInt(e.target.value) || 40 })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <div><Label>Exam Type (for Score Sync)</Label>
+                <Select value={examForm.exam_type} onValueChange={(v) => setExamForm({ ...examForm, exam_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="test1">Test 1</SelectItem>
+                    <SelectItem value="test2">Test 2</SelectItem>
+                    <SelectItem value="other">Other Assessment</SelectItem>
+                    <SelectItem value="exam">Exam</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Max Attempts</Label><Input type="number" value={examForm.max_attempts} onChange={(e) => setExamForm({ ...examForm, max_attempts: parseInt(e.target.value) || 1 })} /></div>
             </div>
             <div className="space-y-2">
