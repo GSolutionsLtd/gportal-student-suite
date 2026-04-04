@@ -165,22 +165,13 @@ export default function SchoolManagement() {
 
       const adminIds = adminRoles.map((r) => r.user_id);
 
-      // Get profile info for admins
+      // Get profile info for all admins (allow reassignment)
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, email, full_name")
         .in("id", adminIds);
 
-      // Get already assigned admins
-      const { data: assignedAdmins } = await supabase
-        .from("school_admins")
-        .select("user_id");
-
-      const assignedIds = new Set((assignedAdmins || []).map((a) => a.user_id));
-
-      // Filter out already assigned admins
-      const available = (profiles || []).filter((p) => !assignedIds.has(p.id));
-      setAvailableAdmins(available);
+      setAvailableAdmins(profiles || []);
     } catch (error) {
       console.error("Error fetching available admins:", error);
     }
