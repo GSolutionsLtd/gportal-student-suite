@@ -843,9 +843,11 @@ export default function SchoolManagement() {
               </div>
             </div>
 
-            {!editingSchool && availableAdmins.length > 0 && (
+            {availableAdmins.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="admin">Assign Primary Admin</Label>
+                <Label htmlFor="admin">
+                  {editingSchool ? "Reassign Primary Admin" : "Assign Primary Admin"}
+                </Label>
                 <Select value={selectedAdmin} onValueChange={setSelectedAdmin}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an admin (optional)" />
