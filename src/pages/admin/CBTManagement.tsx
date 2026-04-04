@@ -52,7 +52,7 @@ export default function CBTManagement() {
     title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "",
     duration_minutes: 60, total_marks: 100, pass_mark: 40,
     shuffle_questions: true, shuffle_options: false, show_result_immediately: true,
-    max_attempts: 1, status: "draft",
+    max_attempts: 1, status: "draft", exam_type: "exam",
   });
 
   // Results
