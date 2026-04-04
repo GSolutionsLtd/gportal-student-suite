@@ -317,7 +317,7 @@ export default function CBTManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>CBT Exams</CardTitle>
-                <Button onClick={() => { setEditingExam(null); setExamForm({ title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "", duration_minutes: 60, total_marks: 100, pass_mark: 40, shuffle_questions: true, shuffle_options: false, show_result_immediately: true, max_attempts: 1, status: "draft" }); setExamDialog(true); }}>
+                <Button onClick={() => { setEditingExam(null); setExamForm({ title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "", duration_minutes: 60, total_marks: 100, pass_mark: 40, shuffle_questions: true, shuffle_options: false, show_result_immediately: true, max_attempts: 1, status: "draft", exam_type: "exam" }); setExamDialog(true); }}>
                   <Plus className="h-4 w-4 mr-2" />New Exam
                 </Button>
               </div>
