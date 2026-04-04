@@ -216,7 +216,7 @@ export default function SchoolManagement() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = (school: SchoolData) => {
+  const openEditDialog = async (school: SchoolData) => {
     setEditingSchool(school);
     setFormData({
       name: school.name,
@@ -230,6 +230,16 @@ export default function SchoolManagement() {
       subscription_status: school.subscription_status,
       subscription_days: 30,
     });
+
+    // Pre-load current admin for this school
+    const { data: currentAdmin } = await supabase
+      .from("school_admins")
+      .select("user_id")
+      .eq("school_id", school.id)
+      .eq("is_primary", true)
+      .maybeSingle();
+    setSelectedAdmin(currentAdmin?.user_id || "");
+
     setDialogOpen(true);
   };
 
