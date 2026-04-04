@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserRole, ROLE_LABELS } from "@/types/auth";
 import { useAuth } from "@/hooks/useAuth";
+import { useSchoolFeatures } from "@/hooks/useSchoolFeatures";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import {
   LayoutDashboard,
@@ -35,6 +36,7 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   href: string;
+  feature?: "results" | "cbt" | "finance";
   children?: { label: string; href: string }[];
 }
 
@@ -52,39 +54,39 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Academic Setup", icon: Calendar, href: "/admin/academic" },
     { label: "Students", icon: GraduationCap, href: "/admin/students" },
     { label: "Teachers", icon: School, href: "/admin/teachers" },
-    { label: "Result Approval", icon: FileCheck, href: "/admin/results" },
-    { label: "Broadsheet & Cumulative", icon: ClipboardList, href: "/admin/broadsheet" },
-    { label: "Score Reset", icon: BarChart3, href: "/admin/score-reset" },
-    { label: "Bulk PDF Download", icon: ClipboardList, href: "/admin/bulk-download" },
-    { label: "PIN Management", icon: Key, href: "/admin/pins" },
+    { label: "Result Approval", icon: FileCheck, href: "/admin/results", feature: "results" },
+    { label: "Broadsheet & Cumulative", icon: ClipboardList, href: "/admin/broadsheet", feature: "results" },
+    { label: "Score Reset", icon: BarChart3, href: "/admin/score-reset", feature: "results" },
+    { label: "Bulk PDF Download", icon: ClipboardList, href: "/admin/bulk-download", feature: "results" },
+    { label: "PIN Management", icon: Key, href: "/admin/pins", feature: "results" },
     { label: "Class Promotion", icon: Layers, href: "/admin/promotion" },
     { label: "School Settings", icon: Settings, href: "/admin/settings" },
-    { label: "Academic Intelligence", icon: BarChart3, href: "/admin/intelligence" },
-    { label: "Compliance & Reporting", icon: FileCheck, href: "/admin/compliance" },
-    { label: "Result Security", icon: Shield, href: "/admin/security" },
-    { label: "PIN Monetisation", icon: Key, href: "/admin/monetisation" },
+    { label: "Academic Intelligence", icon: BarChart3, href: "/admin/intelligence", feature: "results" },
+    { label: "Compliance & Reporting", icon: FileCheck, href: "/admin/compliance", feature: "results" },
+    { label: "Result Security", icon: Shield, href: "/admin/security", feature: "results" },
+    { label: "PIN Monetisation", icon: Key, href: "/admin/monetisation", feature: "results" },
     { label: "Communications", icon: MessageSquare, href: "/admin/communications" },
     { label: "Message Monitoring", icon: MessageSquare, href: "/admin/messages" },
     { label: "Parent Linking", icon: Users, href: "/admin/parent-linking" },
     { label: "Student Linking", icon: GraduationCap, href: "/admin/student-linking" },
-    { label: "CBT Management", icon: Monitor, href: "/admin/cbt" },
-    { label: "CBT Score Sync", icon: Monitor, href: "/admin/cbt-sync" },
-    { label: "Fee Management", icon: Key, href: "/admin/fees" },
+    { label: "CBT Management", icon: Monitor, href: "/admin/cbt", feature: "cbt" },
+    { label: "CBT Score Sync", icon: Monitor, href: "/admin/cbt-sync", feature: "cbt" },
+    { label: "Fee Management", icon: Key, href: "/admin/fees", feature: "finance" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },
     { label: "My Classes", icon: Layers, href: "/teacher/classes" },
-    { label: "Result Entry", icon: ClipboardList, href: "/teacher/results" },
-    { label: "CBT Management", icon: Monitor, href: "/teacher/cbt" },
+    { label: "Result Entry", icon: ClipboardList, href: "/teacher/results", feature: "results" },
+    { label: "CBT Management", icon: Monitor, href: "/teacher/cbt", feature: "cbt" },
     { label: "Parent Messages", icon: MessageSquare, href: "/teacher/messages" },
     { label: "My Profile", icon: Users, href: "/teacher/profile" },
   ],
   student: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/student" },
-    { label: "My Results", icon: ClipboardList, href: "/student/results" },
-    { label: "Experience Intelligence", icon: BarChart3, href: "/student/analytics" },
-    { label: "CBT Exams", icon: Monitor, href: "/student/cbt" },
-    { label: "School Fees", icon: Key, href: "/student/fees" },
+    { label: "My Results", icon: ClipboardList, href: "/student/results", feature: "results" },
+    { label: "Experience Intelligence", icon: BarChart3, href: "/student/analytics", feature: "results" },
+    { label: "CBT Exams", icon: Monitor, href: "/student/cbt", feature: "cbt" },
+    { label: "School Fees", icon: Key, href: "/student/fees", feature: "finance" },
   ],
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, href: "/parent" },
@@ -102,11 +104,16 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile, signOut, isLoading } = useAuth();
+  const { features } = useSchoolFeatures();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const navItems = roleNavItems[role];
+  // Filter nav items based on school's enabled features
+  const navItems = roleNavItems[role].filter((item) => {
+    if (!item.feature) return true;
+    return features[item.feature];
+  });
 
   const toggleExpanded = (label: string) => {
     setExpandedItems((prev) =>

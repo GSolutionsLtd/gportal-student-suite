@@ -231,6 +231,7 @@ export type Database = {
           created_by: string
           duration_minutes: number
           end_time: string | null
+          exam_type: string
           id: string
           max_attempts: number | null
           pass_mark: number | null
@@ -252,6 +253,7 @@ export type Database = {
           created_by: string
           duration_minutes?: number
           end_time?: string | null
+          exam_type?: string
           id?: string
           max_attempts?: number | null
           pass_mark?: number | null
@@ -273,6 +275,7 @@ export type Database = {
           created_by?: string
           duration_minutes?: number
           end_time?: string | null
+          exam_type?: string
           id?: string
           max_attempts?: number | null
           pass_mark?: number | null
@@ -414,6 +417,7 @@ export type Database = {
           is_active: boolean
           level: number
           name: string
+          school_id: string | null
           updated_at: string
         }
         Insert: {
@@ -423,6 +427,7 @@ export type Database = {
           is_active?: boolean
           level: number
           name: string
+          school_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -432,9 +437,18 @@ export type Database = {
           is_active?: boolean
           level?: number
           name?: string
+          school_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "classes_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fee_payments: {
         Row: {
@@ -1377,6 +1391,7 @@ export type Database = {
           is_active: boolean
           last_name: string
           middle_name: string | null
+          school_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1396,6 +1411,7 @@ export type Database = {
           is_active?: boolean
           last_name: string
           middle_name?: string | null
+          school_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1415,6 +1431,7 @@ export type Database = {
           is_active?: boolean
           last_name?: string
           middle_name?: string | null
+          school_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1424,6 +1441,13 @@ export type Database = {
             columns: ["current_class_arm_id"]
             isOneToOne: false
             referencedRelation: "class_arms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -1436,6 +1460,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          school_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1445,6 +1470,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          school_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1454,9 +1480,18 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          school_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subjects_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teacher_subjects: {
         Row: {
@@ -1526,6 +1561,7 @@ export type Database = {
           is_class_teacher: boolean | null
           is_form_teacher: boolean | null
           qualification: string | null
+          school_id: string | null
           signature_url: string | null
           specialization: string | null
           staff_id: string
@@ -1540,6 +1576,7 @@ export type Database = {
           is_class_teacher?: boolean | null
           is_form_teacher?: boolean | null
           qualification?: string | null
+          school_id?: string | null
           signature_url?: string | null
           specialization?: string | null
           staff_id: string
@@ -1554,13 +1591,22 @@ export type Database = {
           is_class_teacher?: boolean | null
           is_form_teacher?: boolean | null
           qualification?: string | null
+          school_id?: string | null
           signature_url?: string | null
           specialization?: string | null
           staff_id?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teachers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       terms: {
         Row: {

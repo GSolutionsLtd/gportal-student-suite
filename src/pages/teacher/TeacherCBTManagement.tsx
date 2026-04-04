@@ -70,6 +70,7 @@ export default function TeacherCBTManagement() {
     shuffle_questions: true,
     shuffle_options: false,
     show_result_immediately: true,
+    exam_type: "exam",
   });
 
   useEffect(() => {
@@ -279,6 +280,7 @@ export default function TeacherCBTManagement() {
         shuffle_questions: true,
         shuffle_options: false,
         show_result_immediately: true,
+        exam_type: "exam",
       });
       await loadData();
     } catch (error: any) {
@@ -624,6 +626,20 @@ export default function TeacherCBTManagement() {
             </div>
 
             <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Exam Type (for Score Sync)</Label>
+                <Select value={examForm.exam_type} onValueChange={(value) => setExamForm((prev) => ({ ...prev, exam_type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="test1">Test 1</SelectItem>
+                    <SelectItem value="test2">Test 2</SelectItem>
+                    <SelectItem value="other">Other Assessment</SelectItem>
+                    <SelectItem value="exam">Exam</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center justify-between">
                 <Label>Shuffle Questions</Label>
                 <Switch checked={examForm.shuffle_questions} onCheckedChange={(checked) => setExamForm((prev) => ({ ...prev, shuffle_questions: checked }))} />

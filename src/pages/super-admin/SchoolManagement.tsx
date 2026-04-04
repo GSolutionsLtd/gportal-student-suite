@@ -165,22 +165,13 @@ export default function SchoolManagement() {
 
       const adminIds = adminRoles.map((r) => r.user_id);
 
-      // Get profile info for admins
+      // Get profile info for all admins (allow reassignment)
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, email, full_name")
         .in("id", adminIds);
 
-      // Get already assigned admins
-      const { data: assignedAdmins } = await supabase
-        .from("school_admins")
-        .select("user_id");
-
-      const assignedIds = new Set((assignedAdmins || []).map((a) => a.user_id));
-
-      // Filter out already assigned admins
-      const available = (profiles || []).filter((p) => !assignedIds.has(p.id));
-      setAvailableAdmins(available);
+      setAvailableAdmins(profiles || []);
     } catch (error) {
       console.error("Error fetching available admins:", error);
     }
@@ -216,7 +207,7 @@ export default function SchoolManagement() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = (school: SchoolData) => {
+  const openEditDialog = async (school: SchoolData) => {
     setEditingSchool(school);
     setFormData({
       name: school.name,
@@ -230,6 +221,16 @@ export default function SchoolManagement() {
       subscription_status: school.subscription_status,
       subscription_days: 30,
     });
+
+    // Pre-load current admin for this school
+    const { data: currentAdmin } = await supabase
+      .from("school_admins")
+      .select("user_id")
+      .eq("school_id", school.id)
+      .eq("is_primary", true)
+      .maybeSingle();
+    setSelectedAdmin(currentAdmin?.user_id || "");
+
     setDialogOpen(true);
   };
 
@@ -265,6 +266,25 @@ export default function SchoolManagement() {
           .eq("id", editingSchool.id);
 
         if (error) throw error;
+
+        // Assign/reassign admin when editing
+        if (selectedAdmin) {
+          // Remove existing primary admin assignment for this school
+          await supabase
+            .from("school_admins")
+            .delete()
+            .eq("school_id", editingSchool.id)
+            .eq("is_primary", true);
+
+          await supabase
+            .from("school_admins")
+            .insert({
+              school_id: editingSchool.id,
+              user_id: selectedAdmin,
+              is_primary: true,
+            });
+        }
+
         toast({ title: "Success", description: "School updated successfully" });
       } else {
         const { data: newSchool, error } = await supabase
@@ -843,9 +863,11 @@ export default function SchoolManagement() {
               </div>
             </div>
 
-            {!editingSchool && availableAdmins.length > 0 && (
+            {availableAdmins.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="admin">Assign Primary Admin</Label>
+                <Label htmlFor="admin">
+                  {editingSchool ? "Reassign Primary Admin" : "Assign Primary Admin"}
+                </Label>
                 <Select value={selectedAdmin} onValueChange={setSelectedAdmin}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an admin (optional)" />

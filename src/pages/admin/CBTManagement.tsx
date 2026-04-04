@@ -52,7 +52,7 @@ export default function CBTManagement() {
     title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "",
     duration_minutes: 60, total_marks: 100, pass_mark: 40,
     shuffle_questions: true, shuffle_options: false, show_result_immediately: true,
-    max_attempts: 1, status: "draft",
+    max_attempts: 1, status: "draft", exam_type: "exam",
   });
 
   // Results
@@ -164,7 +164,7 @@ export default function CBTManagement() {
     toast({ title: editingExam ? "Updated" : "Created" });
     setExamDialog(false);
     setEditingExam(null);
-    setExamForm({ title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "", duration_minutes: 60, total_marks: 100, pass_mark: 40, shuffle_questions: true, shuffle_options: false, show_result_immediately: true, max_attempts: 1, status: "draft" });
+    setExamForm({ title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "", duration_minutes: 60, total_marks: 100, pass_mark: 40, shuffle_questions: true, shuffle_options: false, show_result_immediately: true, max_attempts: 1, status: "draft", exam_type: "exam" });
     loadExams();
   };
 
@@ -317,7 +317,7 @@ export default function CBTManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>CBT Exams</CardTitle>
-                <Button onClick={() => { setEditingExam(null); setExamForm({ title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "", duration_minutes: 60, total_marks: 100, pass_mark: 40, shuffle_questions: true, shuffle_options: false, show_result_immediately: true, max_attempts: 1, status: "draft" }); setExamDialog(true); }}>
+                <Button onClick={() => { setEditingExam(null); setExamForm({ title: "", subject_id: "", class_arm_id: "", term_id: "", question_bank_id: "", duration_minutes: 60, total_marks: 100, pass_mark: 40, shuffle_questions: true, shuffle_options: false, show_result_immediately: true, max_attempts: 1, status: "draft", exam_type: "exam" }); setExamDialog(true); }}>
                   <Plus className="h-4 w-4 mr-2" />New Exam
                 </Button>
               </div>
@@ -361,6 +361,7 @@ export default function CBTManagement() {
                             duration_minutes: e.duration_minutes, total_marks: e.total_marks, pass_mark: e.pass_mark,
                             shuffle_questions: e.shuffle_questions, shuffle_options: e.shuffle_options,
                             show_result_immediately: e.show_result_immediately, max_attempts: e.max_attempts, status: e.status,
+                            exam_type: e.exam_type || "exam",
                           });
                           setExamDialog(true);
                         }}><Edit className="h-4 w-4" /></Button>
@@ -517,6 +518,17 @@ export default function CBTManagement() {
               <div><Label>Pass Mark</Label><Input type="number" value={examForm.pass_mark} onChange={(e) => setExamForm({ ...examForm, pass_mark: parseInt(e.target.value) || 40 })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <div><Label>Exam Type (for Score Sync)</Label>
+                <Select value={examForm.exam_type} onValueChange={(v) => setExamForm({ ...examForm, exam_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="test1">Test 1</SelectItem>
+                    <SelectItem value="test2">Test 2</SelectItem>
+                    <SelectItem value="other">Other Assessment</SelectItem>
+                    <SelectItem value="exam">Exam</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Max Attempts</Label><Input type="number" value={examForm.max_attempts} onChange={(e) => setExamForm({ ...examForm, max_attempts: parseInt(e.target.value) || 1 })} /></div>
             </div>
             <div className="space-y-2">
