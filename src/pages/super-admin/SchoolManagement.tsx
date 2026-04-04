@@ -265,6 +265,25 @@ export default function SchoolManagement() {
           .eq("id", editingSchool.id);
 
         if (error) throw error;
+
+        // Assign/reassign admin when editing
+        if (selectedAdmin) {
+          // Remove existing primary admin assignment for this school
+          await supabase
+            .from("school_admins")
+            .delete()
+            .eq("school_id", editingSchool.id)
+            .eq("is_primary", true);
+
+          await supabase
+            .from("school_admins")
+            .insert({
+              school_id: editingSchool.id,
+              user_id: selectedAdmin,
+              is_primary: true,
+            });
+        }
+
         toast({ title: "Success", description: "School updated successfully" });
       } else {
         const { data: newSchool, error } = await supabase
