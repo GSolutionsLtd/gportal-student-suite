@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Download, CheckCircle, AlertTriangle, Zap } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Download, CheckCircle, AlertTriangle, Zap, Eye } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface SyncPreview {
@@ -20,8 +21,33 @@ interface SyncPreview {
   score: number;
   total_marks: number;
   percentage: number;
-  score_type: string;
+  exam_type: string;
 }
+
+interface SyncedEntry {
+  student_name: string;
+  admission_number: string;
+  class_arm_name: string;
+  subject_name: string;
+  score_field: string;
+  score_value: number;
+  status: "success" | "error";
+  error_msg?: string;
+}
+
+const EXAM_TYPE_LABELS: Record<string, string> = {
+  test1: "Test 1",
+  test2: "Test 2",
+  other: "Other Assessment",
+  exam: "Exam",
+};
+
+const SCORE_FIELD_MAP: Record<string, string> = {
+  test1: "test1_score",
+  test2: "test2_score",
+  other: "other_assessment_score",
+  exam: "exam_score",
+};
 
 export default function CBTScoreSync() {
   const { user } = useAuth();
@@ -34,10 +60,11 @@ export default function CBTScoreSync() {
   const [terms, setTerms] = useState<any[]>([]);
   const [selectedSession, setSelectedSession] = useState("");
   const [selectedTerm, setSelectedTerm] = useState("");
-  const [scoreType, setScoreType] = useState("exam");
   const [preview, setPreview] = useState<SyncPreview[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; errors: number } | null>(null);
+  const [syncedEntries, setSyncedEntries] = useState<SyncedEntry[]>([]);
+  const [showSyncResults, setShowSyncResults] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -64,12 +91,12 @@ export default function CBTScoreSync() {
     setPreviewLoading(true);
     setPreview([]);
     setSyncResult(null);
+    setSyncedEntries([]);
 
     try {
-      // Get all completed CBT attempts for this term
       const { data: exams } = await supabase
         .from("cbt_exams")
-        .select("id, title, subject_id, class_arm_id, total_marks")
+        .select("id, title, subject_id, class_arm_id, total_marks, exam_type")
         .eq("term_id", selectedTerm)
         .eq("status", "published");
 
@@ -92,23 +119,21 @@ export default function CBTScoreSync() {
         return;
       }
 
-      // Get student details
       const studentIds = [...new Set(attempts.map((a) => a.student_id))];
       const classArmIds = [...new Set(exams.map((e) => e.class_arm_id))];
       const subjectIds = [...new Set(exams.map((e) => e.subject_id))];
 
       const [{ data: students }, { data: classArms }, { data: subjects }] = await Promise.all([
         supabase.from("students").select("id, first_name, last_name, admission_number").in("id", studentIds),
-        supabase.from("class_arms").select("id, name").in("id", classArmIds),
+        supabase.from("class_arms").select("id, name, class_id, class:classes(name)").in("id", classArmIds),
         supabase.from("subjects").select("id, name").in("id", subjectIds),
       ]);
 
       const studentMap = new Map((students || []).map((s) => [s.id, s]));
-      const armMap = new Map((classArms || []).map((a) => [a.id, a.name]));
+      const armMap = new Map((classArms || []).map((a: any) => [a.id, `${a.class?.name || ''} ${a.name}`]));
       const subjectMap = new Map((subjects || []).map((s) => [s.id, s.name]));
       const examMap = new Map(exams.map((e) => [e.id, e]));
 
-      // For each student, pick their best attempt per exam
       const bestAttempts = new Map<string, typeof attempts[0]>();
       attempts.forEach((a) => {
         const key = `${a.student_id}_${a.exam_id}`;
@@ -131,7 +156,7 @@ export default function CBTScoreSync() {
           score: a.score || 0,
           total_marks: exam.total_marks,
           percentage: a.percentage || 0,
-          score_type: scoreType,
+          exam_type: (exam as any).exam_type || "exam",
         };
       });
 
@@ -149,20 +174,19 @@ export default function CBTScoreSync() {
     setSyncing(true);
     setProgress(0);
     setSyncResult(null);
+    const entries: SyncedEntry[] = [];
 
     let synced = 0;
     let errors = 0;
 
     try {
-      // Get all exams for this term to map subject_id + class_arm_id
       const { data: exams } = await supabase
         .from("cbt_exams")
-        .select("id, subject_id, class_arm_id")
+        .select("id, subject_id, class_arm_id, exam_type")
         .eq("term_id", selectedTerm);
 
       const examMap = new Map((exams || []).map((e) => [e.id, e]));
 
-      // Get best attempts
       const examIds = (exams || []).map((e) => e.id);
       const { data: attempts } = await supabase
         .from("cbt_attempts")
@@ -179,15 +203,36 @@ export default function CBTScoreSync() {
         }
       });
 
+      // Get reference data for display
+      const classArmIds = [...new Set((exams || []).map(e => e.class_arm_id))];
+      const subjectIds = [...new Set((exams || []).map(e => e.subject_id))];
+      const studentIds = [...new Set(Array.from(bestAttempts.values()).map(a => a.student_id))];
+
+      const [{ data: students }, { data: classArms }, { data: subjects }] = await Promise.all([
+        supabase.from("students").select("id, first_name, last_name, admission_number").in("id", studentIds),
+        supabase.from("class_arms").select("id, name, class:classes(name)").in("id", classArmIds),
+        supabase.from("subjects").select("id, name").in("id", subjectIds),
+      ]);
+
+      const studentMap = new Map((students || []).map((s) => [s.id, s]));
+      const armMap = new Map((classArms || []).map((a: any) => [a.id, `${a.class?.name || ''} ${a.name}`]));
+      const subjectMap = new Map((subjects || []).map((s) => [s.id, s.name]));
+
       const total = bestAttempts.size;
       let processed = 0;
 
       for (const [, attempt] of bestAttempts) {
-        try {
-          const exam = examMap.get(attempt.exam_id);
-          if (!exam) continue;
+        const exam = examMap.get(attempt.exam_id);
+        if (!exam) { processed++; continue; }
 
-          // Find or create the result record
+        const examType = (exam as any).exam_type || "exam";
+        const scoreField = SCORE_FIELD_MAP[examType] || "exam_score";
+        const scoreValue = attempt.percentage != null ? Math.round(attempt.percentage) : attempt.score;
+        const student = studentMap.get(attempt.student_id);
+        const studentName = student ? `${student.first_name} ${student.last_name}` : "Unknown";
+        const admNo = student?.admission_number || "—";
+
+        try {
           let { data: result } = await supabase
             .from("results")
             .select("id")
@@ -208,24 +253,22 @@ export default function CBTScoreSync() {
               .select("id")
               .single();
 
-            if (createErr) { errors++; continue; }
+            if (createErr) {
+              errors++;
+              entries.push({ student_name: studentName, admission_number: admNo, class_arm_name: armMap.get(exam.class_arm_id) || "—", subject_name: subjectMap.get(exam.subject_id) || "—", score_field: EXAM_TYPE_LABELS[examType], score_value: scoreValue, status: "error", error_msg: createErr.message });
+              processed++;
+              setProgress(Math.round((processed / total) * 100));
+              continue;
+            }
             result = newResult;
           }
 
-          // Find or create result_component for this subject
           let { data: component } = await supabase
             .from("result_components")
             .select("id")
             .eq("result_id", result.id)
             .eq("subject_id", exam.subject_id)
             .maybeSingle();
-
-          const scoreField = scoreType === "test1" ? "test1_score"
-            : scoreType === "test2" ? "test2_score"
-            : scoreType === "other" ? "other_assessment_score"
-            : "exam_score";
-
-          const scoreValue = attempt.percentage != null ? Math.round(attempt.percentage) : attempt.score;
 
           if (component) {
             await supabase
@@ -244,8 +287,10 @@ export default function CBTScoreSync() {
           }
 
           synced++;
-        } catch {
+          entries.push({ student_name: studentName, admission_number: admNo, class_arm_name: armMap.get(exam.class_arm_id) || "—", subject_name: subjectMap.get(exam.subject_id) || "—", score_field: EXAM_TYPE_LABELS[examType], score_value: scoreValue, status: "success" });
+        } catch (err: any) {
           errors++;
+          entries.push({ student_name: studentName, admission_number: admNo, class_arm_name: armMap.get(exam.class_arm_id) || "—", subject_name: subjectMap.get(exam.subject_id) || "—", score_field: EXAM_TYPE_LABELS[examType], score_value: scoreValue, status: "error", error_msg: err.message });
         }
 
         processed++;
@@ -253,6 +298,8 @@ export default function CBTScoreSync() {
       }
 
       setSyncResult({ synced, errors });
+      setSyncedEntries(entries);
+      setShowSyncResults(true);
       toast({
         title: "Sync Complete",
         description: `${synced} scores synced, ${errors} errors`,
@@ -273,7 +320,7 @@ export default function CBTScoreSync() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">CBT Score Sync</h1>
         <p className="text-muted-foreground">
-          Automatically populate student results from CBT exam scores
+          Automatically populate student results from CBT exam scores. Each exam's type (Test 1, Test 2, Other, Exam) determines which score column is populated.
         </p>
       </div>
 
@@ -283,13 +330,13 @@ export default function CBTScoreSync() {
             <Zap className="h-5 w-5" />
             Configure Sync
           </CardTitle>
-          <CardDescription>Select session, term, and score type to pull CBT scores into the result system</CardDescription>
+          <CardDescription>Select session and term — each CBT exam's type auto-maps to the correct score field</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid sm:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-1 block">Session</label>
-              <Select value={selectedSession} onValueChange={(v) => { setSelectedSession(v); setSelectedTerm(""); setPreview([]); }}>
+              <Select value={selectedSession} onValueChange={(v) => { setSelectedSession(v); setSelectedTerm(""); setPreview([]); setSyncedEntries([]); }}>
                 <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
                 <SelectContent>
                   {sessions.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
@@ -298,22 +345,10 @@ export default function CBTScoreSync() {
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Term</label>
-              <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setPreview([]); }}>
+              <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); setPreview([]); setSyncedEntries([]); }}>
                 <SelectTrigger><SelectValue placeholder="Select term" /></SelectTrigger>
                 <SelectContent>
                   {filteredTerms.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Score Type</label>
-              <Select value={scoreType} onValueChange={setScoreType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="test1">Test 1</SelectItem>
-                  <SelectItem value="test2">Test 2</SelectItem>
-                  <SelectItem value="other">Other Assessment</SelectItem>
-                  <SelectItem value="exam">Exam</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -333,12 +368,19 @@ export default function CBTScoreSync() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Score Preview ({preview.length} records)</CardTitle>
-                <CardDescription>Review the scores before syncing to the result system</CardDescription>
+                <CardDescription>Review the scores before syncing. Score type is determined by each exam's configured type.</CardDescription>
               </div>
-              <Button onClick={handleSync} disabled={syncing}>
-                {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
-                Sync All Scores
-              </Button>
+              <div className="flex gap-2">
+                {syncedEntries.length > 0 && (
+                  <Button variant="outline" onClick={() => setShowSyncResults(true)}>
+                    <Eye className="h-4 w-4 mr-2" />View Sync Results
+                  </Button>
+                )}
+                <Button onClick={handleSync} disabled={syncing}>
+                  {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
+                  Sync All Scores
+                </Button>
+              </div>
             </div>
             {syncing && (
               <div className="space-y-1">
@@ -369,6 +411,7 @@ export default function CBTScoreSync() {
                     <TableHead>Class</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Exam</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Score</TableHead>
                     <TableHead>%</TableHead>
                   </TableRow>
@@ -381,6 +424,9 @@ export default function CBTScoreSync() {
                       <TableCell>{p.class_arm_name}</TableCell>
                       <TableCell>{p.subject_name}</TableCell>
                       <TableCell>{p.exam_title}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{EXAM_TYPE_LABELS[p.exam_type] || p.exam_type}</Badge>
+                      </TableCell>
                       <TableCell>{p.score}/{p.total_marks}</TableCell>
                       <TableCell>
                         <Badge variant={p.percentage >= 50 ? "default" : "destructive"}>
@@ -395,6 +441,52 @@ export default function CBTScoreSync() {
           </CardContent>
         </Card>
       )}
+
+      {/* Sync Results Dialog */}
+      <Dialog open={showSyncResults} onOpenChange={setShowSyncResults}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-primary" />
+              Synchronized Scores — {syncedEntries.filter(e => e.status === "success").length} successful, {syncedEntries.filter(e => e.status === "error").length} errors
+            </DialogTitle>
+          </DialogHeader>
+          <div className="border rounded-lg overflow-auto max-h-[60vh]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Adm. No.</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Score Field</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {syncedEntries.map((entry, i) => (
+                  <TableRow key={i} className={entry.status === "error" ? "bg-destructive/5" : ""}>
+                    <TableCell className="font-medium">{entry.student_name}</TableCell>
+                    <TableCell>{entry.admission_number}</TableCell>
+                    <TableCell>{entry.class_arm_name}</TableCell>
+                    <TableCell>{entry.subject_name}</TableCell>
+                    <TableCell><Badge variant="outline">{entry.score_field}</Badge></TableCell>
+                    <TableCell>{entry.score_value}</TableCell>
+                    <TableCell>
+                      {entry.status === "success" ? (
+                        <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" />Synced</Badge>
+                      ) : (
+                        <Badge variant="destructive" className="gap-1" title={entry.error_msg}><AlertTriangle className="h-3 w-3" />Error</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
