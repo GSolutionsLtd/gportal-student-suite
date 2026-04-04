@@ -361,6 +361,7 @@ export default function CBTManagement() {
                             duration_minutes: e.duration_minutes, total_marks: e.total_marks, pass_mark: e.pass_mark,
                             shuffle_questions: e.shuffle_questions, shuffle_options: e.shuffle_options,
                             show_result_immediately: e.show_result_immediately, max_attempts: e.max_attempts, status: e.status,
+                            exam_type: e.exam_type || "exam",
                           });
                           setExamDialog(true);
                         }}><Edit className="h-4 w-4" /></Button>
