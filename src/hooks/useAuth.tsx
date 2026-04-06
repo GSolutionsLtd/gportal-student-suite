@@ -135,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         is_form_teacher: boolean;
         signature_url?: string | null;
       };
+      schoolId?: string;
     }
   ) => {
     const redirectUrl = `${window.location.origin}/`;
