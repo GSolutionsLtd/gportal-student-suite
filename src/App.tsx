@@ -2,13 +2,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import React from "react";
 
 // Auth Provider
 import { AuthProvider } from "./hooks/useAuth";
+import { useAuth } from "./hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SchoolProtectedRoute } from "./components/SchoolProtectedRoute";
+import { useSchoolContext } from "./hooks/useSchoolContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -77,6 +79,8 @@ import VerifyResult from "./pages/VerifyResult";
 import ResultSecurity from "./pages/admin/ResultSecurity";
 import PinMonetisation from "./pages/admin/PinMonetisation";
 
+import { Loader2 } from "lucide-react";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -85,6 +89,27 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Legacy route redirect component
+function LegacyRedirect({ role }: { role: string }) {
+  const { schoolCode, loading } = useSchoolContext();
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (loading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!schoolCode) return <Navigate to="/auth" replace />;
+
+  const subpath = location.pathname.replace(new RegExp(`^/${role}`), "");
+  return <Navigate to={`/${schoolCode}/${role}${subpath}`} replace />;
+}
 
 function App() {
   return (
@@ -202,7 +227,7 @@ function App() {
                 <Route path="preferences" element={<ParentNotificationPreferences />} />
               </Route>
 
-              {/* Legacy routes - redirect to school-code routes */}
+              {/* Legacy routes redirect to school-code routes */}
               <Route path="/admin/*" element={<LegacyRedirect role="admin" />} />
               <Route path="/teacher/*" element={<LegacyRedirect role="teacher" />} />
               <Route path="/student/*" element={<LegacyRedirect role="student" />} />
@@ -216,30 +241,6 @@ function App() {
       </TooltipProvider>
     </QueryClientProvider>
   );
-}
-
-// Redirect legacy routes to school-code routes
-function LegacyRedirect({ role }: { role: string }) {
-  const { useSchoolContext } = require("@/hooks/useSchoolContext");
-  const { schoolCode, loading } = useSchoolContext();
-  const { useAuth } = require("@/hooks/useAuth");
-  const { user, isLoading } = useAuth();
-  const location = require("react-router-dom").useLocation();
-  const Navigate = require("react-router-dom").Navigate;
-  
-  if (loading || isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-  
-  if (!user) return <Navigate to="/auth" replace />;
-  if (!schoolCode) return <Navigate to="/auth" replace />;
-  
-  const subpath = location.pathname.replace(`/${role}`, "");
-  return <Navigate to={`/${schoolCode}/${role}${subpath}`} replace />;
 }
 
 export default App;
