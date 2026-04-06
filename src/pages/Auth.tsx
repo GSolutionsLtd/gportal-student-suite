@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   UserCog, 
   Users, 
@@ -18,9 +19,11 @@ import {
   Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UserRole, ROLE_LABELS, ROLE_ROUTES } from "@/types/auth";
+import { UserRole, ROLE_LABELS } from "@/types/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useSchoolContext } from "@/hooks/useSchoolContext";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const roleIcons: Record<UserRole, typeof UserCog> = {
@@ -55,12 +58,19 @@ const signupSchema = z.object({
   path: ["confirmPassword"],
 });
 
+interface SchoolOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { user, userRole, signIn, signUp, isLoading: authLoading } = useAuth();
+  const { schoolCode, loading: schoolLoading } = useSchoolContext();
   
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -69,25 +79,43 @@ export default function Auth() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
   
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     fullName: "",
     confirmPassword: "",
-    // Teacher onboarding fields
     staffId: "",
     teacherType: "subject" as "subject" | "class" | "form",
     teacherSignatureUrl: null as string | null,
   });
 
-  // Redirect if already authenticated
+  // Fetch available schools for signup dropdown
   useEffect(() => {
-    if (!authLoading && user && userRole) {
-      const from = (location.state as any)?.from?.pathname || ROLE_ROUTES[userRole];
-      navigate(from, { replace: true });
+    const fetchSchools = async () => {
+      const { data, error } = await supabase.rpc("list_signup_schools");
+      if (!error && data) {
+        setSchools(data as SchoolOption[]);
+      }
+    };
+    fetchSchools();
+  }, []);
+
+  // Redirect if already authenticated - use school-code routes
+  useEffect(() => {
+    if (!authLoading && !schoolLoading && user && userRole) {
+      if (userRole === "super_admin") {
+        navigate("/super-admin", { replace: true });
+        return;
+      }
+      if (schoolCode) {
+        const roleBase = userRole === "admin" ? "admin" : userRole;
+        navigate(`/${schoolCode}/${roleBase}`, { replace: true });
+      }
     }
-  }, [user, userRole, authLoading, navigate, location]);
+  }, [user, userRole, authLoading, schoolLoading, schoolCode, navigate]);
 
   const validateForm = () => {
     try {
@@ -126,6 +154,16 @@ export default function Auth() {
       return;
     }
 
+    // School selection required for non-admin signup
+    if (!isLogin && selectedRole && selectedRole !== "admin" && !selectedSchoolId) {
+      toast({
+        title: "School Required",
+        description: "Please select the school you belong to.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -149,26 +187,29 @@ export default function Auth() {
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
-        } else {
-          const teacherOptions =
-            selectedRole === "teacher"
-              ? {
-                  teacher: {
-                    staff_id: formData.staffId,
-                    is_class_teacher: formData.teacherType === "class",
-                    is_form_teacher: formData.teacherType === "form",
-                    signature_url: formData.teacherSignatureUrl,
-                  },
-                }
-              : undefined;
+      } else {
+        const teacherOptions =
+          selectedRole === "teacher"
+            ? {
+                teacher: {
+                  staff_id: formData.staffId,
+                  is_class_teacher: formData.teacherType === "class",
+                  is_form_teacher: formData.teacherType === "form",
+                  signature_url: formData.teacherSignatureUrl,
+                },
+              }
+            : undefined;
 
-          const { error } = await signUp(
-            formData.email,
-            formData.password,
-            formData.fullName,
-            selectedRole!,
-            teacherOptions
-          );
+        const { error } = await signUp(
+          formData.email,
+          formData.password,
+          formData.fullName,
+          selectedRole!,
+          {
+            ...teacherOptions,
+            schoolId: selectedSchoolId || undefined,
+          }
+        );
         
         if (error) {
           let message = error.message;
@@ -200,6 +241,9 @@ export default function Auth() {
   };
 
   const roles: UserRole[] = ["admin", "teacher", "student", "parent"];
+
+  // Roles that require school selection
+  const needsSchool = !isLogin && selectedRole && ["teacher", "student", "parent"].includes(selectedRole);
 
   if (authLoading) {
     return (
@@ -308,6 +352,25 @@ export default function Auth() {
               </div>
             )}
 
+            {/* School Selection - for teacher, student, parent signup */}
+            {needsSchool && (
+              <div className="mb-4">
+                <Label className="text-sm font-medium mb-2 block">Select your school *</Label>
+                <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a school..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schools.map((school) => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name} ({school.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
@@ -330,7 +393,7 @@ export default function Auth() {
                 </div>
               )}
 
-              {/* Teacher onboarding (only when signing up as teacher) */}
+              {/* Teacher onboarding */}
               {!isLogin && selectedRole === "teacher" && (
                 <div className="space-y-4">
                   <div>

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { useNavigate, useLocation, useParams, Outlet } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserRole, ROLE_LABELS } from "@/types/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolFeatures } from "@/hooks/useSchoolFeatures";
+import { useSchoolContext } from "@/hooks/useSchoolContext";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import {
   LayoutDashboard,
@@ -35,64 +36,64 @@ import {
 interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
-  href: string;
+  path: string; // relative path within role (e.g., "" for index, "results", "academic")
   feature?: "results" | "cbt" | "finance";
-  children?: { label: string; href: string }[];
+  children?: { label: string; path: string }[];
 }
 
 const roleNavItems: Record<UserRole, NavItem[]> = {
   super_admin: [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/super-admin" },
-    { label: "School Management", icon: School, href: "/super-admin/schools" },
-    { label: "School Features", icon: Settings, href: "/super-admin/features" },
-    { label: "User Management", icon: Users, href: "/super-admin/users" },
-    { label: "System Settings", icon: Settings, href: "/super-admin/settings" },
-    { label: "Audit Logs", icon: Shield, href: "/super-admin/audit" },
+    { label: "Dashboard", icon: LayoutDashboard, path: "" },
+    { label: "School Management", icon: School, path: "schools" },
+    { label: "School Features", icon: Settings, path: "features" },
+    { label: "User Management", icon: Users, path: "users" },
+    { label: "System Settings", icon: Settings, path: "settings" },
+    { label: "Audit Logs", icon: Shield, path: "audit" },
   ],
   admin: [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
-    { label: "Academic Setup", icon: Calendar, href: "/admin/academic" },
-    { label: "Students", icon: GraduationCap, href: "/admin/students" },
-    { label: "Teachers", icon: School, href: "/admin/teachers" },
-    { label: "Result Approval", icon: FileCheck, href: "/admin/results", feature: "results" },
-    { label: "Broadsheet & Cumulative", icon: ClipboardList, href: "/admin/broadsheet", feature: "results" },
-    { label: "Score Reset", icon: BarChart3, href: "/admin/score-reset", feature: "results" },
-    { label: "Bulk PDF Download", icon: ClipboardList, href: "/admin/bulk-download", feature: "results" },
-    { label: "PIN Management", icon: Key, href: "/admin/pins", feature: "results" },
-    { label: "Class Promotion", icon: Layers, href: "/admin/promotion" },
-    { label: "School Settings", icon: Settings, href: "/admin/settings" },
-    { label: "Academic Intelligence", icon: BarChart3, href: "/admin/intelligence", feature: "results" },
-    { label: "Compliance & Reporting", icon: FileCheck, href: "/admin/compliance", feature: "results" },
-    { label: "Result Security", icon: Shield, href: "/admin/security", feature: "results" },
-    { label: "PIN Monetisation", icon: Key, href: "/admin/monetisation", feature: "results" },
-    { label: "Communications", icon: MessageSquare, href: "/admin/communications" },
-    { label: "Message Monitoring", icon: MessageSquare, href: "/admin/messages" },
-    { label: "Parent Linking", icon: Users, href: "/admin/parent-linking" },
-    { label: "Student Linking", icon: GraduationCap, href: "/admin/student-linking" },
-    { label: "CBT Management", icon: Monitor, href: "/admin/cbt", feature: "cbt" },
-    { label: "CBT Score Sync", icon: Monitor, href: "/admin/cbt-sync", feature: "cbt" },
-    { label: "Fee Management", icon: Key, href: "/admin/fees", feature: "finance" },
+    { label: "Dashboard", icon: LayoutDashboard, path: "" },
+    { label: "Academic Setup", icon: Calendar, path: "academic" },
+    { label: "Students", icon: GraduationCap, path: "students" },
+    { label: "Teachers", icon: School, path: "teachers" },
+    { label: "Result Approval", icon: FileCheck, path: "results", feature: "results" },
+    { label: "Broadsheet & Cumulative", icon: ClipboardList, path: "broadsheet", feature: "results" },
+    { label: "Score Reset", icon: BarChart3, path: "score-reset", feature: "results" },
+    { label: "Bulk PDF Download", icon: ClipboardList, path: "bulk-download", feature: "results" },
+    { label: "PIN Management", icon: Key, path: "pins", feature: "results" },
+    { label: "Class Promotion", icon: Layers, path: "promotion" },
+    { label: "School Settings", icon: Settings, path: "settings" },
+    { label: "Academic Intelligence", icon: BarChart3, path: "intelligence", feature: "results" },
+    { label: "Compliance & Reporting", icon: FileCheck, path: "compliance", feature: "results" },
+    { label: "Result Security", icon: Shield, path: "security", feature: "results" },
+    { label: "PIN Monetisation", icon: Key, path: "monetisation", feature: "results" },
+    { label: "Communications", icon: MessageSquare, path: "communications" },
+    { label: "Message Monitoring", icon: MessageSquare, path: "messages" },
+    { label: "Parent Linking", icon: Users, path: "parent-linking" },
+    { label: "Student Linking", icon: GraduationCap, path: "student-linking" },
+    { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
+    { label: "CBT Score Sync", icon: Monitor, path: "cbt-sync", feature: "cbt" },
+    { label: "Fee Management", icon: Key, path: "fees", feature: "finance" },
   ],
   teacher: [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/teacher" },
-    { label: "My Classes", icon: Layers, href: "/teacher/classes" },
-    { label: "Result Entry", icon: ClipboardList, href: "/teacher/results", feature: "results" },
-    { label: "CBT Management", icon: Monitor, href: "/teacher/cbt", feature: "cbt" },
-    { label: "Parent Messages", icon: MessageSquare, href: "/teacher/messages" },
-    { label: "My Profile", icon: Users, href: "/teacher/profile" },
+    { label: "Dashboard", icon: LayoutDashboard, path: "" },
+    { label: "My Classes", icon: Layers, path: "classes" },
+    { label: "Result Entry", icon: ClipboardList, path: "results", feature: "results" },
+    { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
+    { label: "Parent Messages", icon: MessageSquare, path: "messages" },
+    { label: "My Profile", icon: Users, path: "profile" },
   ],
   student: [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/student" },
-    { label: "My Results", icon: ClipboardList, href: "/student/results", feature: "results" },
-    { label: "Experience Intelligence", icon: BarChart3, href: "/student/analytics", feature: "results" },
-    { label: "CBT Exams", icon: Monitor, href: "/student/cbt", feature: "cbt" },
-    { label: "School Fees", icon: Key, href: "/student/fees", feature: "finance" },
+    { label: "Dashboard", icon: LayoutDashboard, path: "" },
+    { label: "My Results", icon: ClipboardList, path: "results", feature: "results" },
+    { label: "Experience Intelligence", icon: BarChart3, path: "analytics", feature: "results" },
+    { label: "CBT Exams", icon: Monitor, path: "cbt", feature: "cbt" },
+    { label: "School Fees", icon: Key, path: "fees", feature: "finance" },
   ],
   parent: [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/parent" },
-    { label: "My Students", icon: Users, href: "/parent/students" },
-    { label: "Messages", icon: MessageSquare, href: "/parent/messages" },
-    { label: "Notifications", icon: Bell, href: "/parent/preferences" },
+    { label: "Dashboard", icon: LayoutDashboard, path: "" },
+    { label: "My Students", icon: Users, path: "students" },
+    { label: "Messages", icon: MessageSquare, path: "messages" },
+    { label: "Notifications", icon: Bell, path: "preferences" },
   ],
 };
 
@@ -103,11 +104,23 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ role }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { schoolCode: urlSchoolCode } = useParams<{ schoolCode: string }>();
   const { profile, signOut, isLoading } = useAuth();
   const { features } = useSchoolFeatures();
+  const { schoolCode, schoolName } = useSchoolContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Build base path for navigation
+  const basePath = role === "super_admin" 
+    ? "/super-admin" 
+    : `/${urlSchoolCode || schoolCode || ""}/${role}`;
+
+  // Build full href from relative path
+  const buildHref = (relativePath: string) => {
+    return relativePath ? `${basePath}/${relativePath}` : basePath;
+  };
 
   // Filter nav items based on school's enabled features
   const navItems = roleNavItems[role].filter((item) => {
@@ -123,14 +136,18 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
     );
   };
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (relativePath: string) => {
+    const href = buildHref(relativePath);
+    return location.pathname === href;
+  };
+
   const isParentActive = (item: NavItem) =>
-    item.children?.some((child) => location.pathname === child.href);
+    item.children?.some((child) => location.pathname === buildHref(child.path));
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     await signOut();
-    navigate("/");
+    navigate("/", { replace: true });
   };
 
   const getInitials = (name: string) => {
@@ -152,65 +169,76 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
+          {/* Logo & School Name */}
           <div className="p-4 border-b border-sidebar-border">
             <Logo variant="light" />
+            {schoolName && role !== "super_admin" && (
+              <p className="text-xs text-sidebar-foreground/60 mt-1 truncate">
+                {schoolName}
+              </p>
+            )}
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            {navItems.map((item) => (
-              <div key={item.label}>
-                <button
-                  onClick={() => {
-                    if (item.children) {
-                      toggleExpanded(item.label);
-                    } else {
-                      navigate(item.href);
-                      setSidebarOpen(false);
-                    }
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    isActive(item.href) || isParentActive(item)
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.children && (
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform",
-                        expandedItems.includes(item.label) && "rotate-180"
-                      )}
-                    />
-                  )}
-                </button>
-                {item.children && expandedItems.includes(item.label) && (
-                  <div className="ml-8 mt-1 space-y-1">
-                    {item.children.map((child) => (
-                      <button
-                        key={child.href}
-                        onClick={() => {
-                          navigate(child.href);
-                          setSidebarOpen(false);
-                        }}
+            {navItems.map((item) => {
+              const href = buildHref(item.path);
+              return (
+                <div key={item.label}>
+                  <button
+                    onClick={() => {
+                      if (item.children) {
+                        toggleExpanded(item.label);
+                      } else {
+                        navigate(href);
+                        setSidebarOpen(false);
+                      }
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      isActive(item.path) || isParentActive(item)
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.children && (
+                      <ChevronDown
                         className={cn(
-                          "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                          isActive(child.href)
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                          "h-4 w-4 transition-transform",
+                          expandedItems.includes(item.label) && "rotate-180"
                         )}
-                      >
-                        {child.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+                      />
+                    )}
+                  </button>
+                  {item.children && expandedItems.includes(item.label) && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {item.children.map((child) => {
+                        const childHref = buildHref(child.path);
+                        return (
+                          <button
+                            key={child.path}
+                            onClick={() => {
+                              navigate(childHref);
+                              setSidebarOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                              isActive(child.path)
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                            )}
+                          >
+                            {child.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
 
           {/* User Section */}

@@ -2,12 +2,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import React from "react";
 
 // Auth Provider
 import { AuthProvider } from "./hooks/useAuth";
+import { useAuth } from "./hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { SchoolProtectedRoute } from "./components/SchoolProtectedRoute";
+import { useSchoolContext } from "./hooks/useSchoolContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -62,6 +65,7 @@ import SchoolFeatures from "./pages/super-admin/SchoolFeatures";
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
 import StudentCBTExam from "./pages/student/CBTExam";
 import StudentFeePayment from "./pages/student/FeePayment";
+
 // Parent pages
 import ParentDashboard from "./pages/dashboards/ParentDashboard";
 import ParentStudentResults from "./pages/parent/StudentResults";
@@ -75,6 +79,8 @@ import VerifyResult from "./pages/VerifyResult";
 import ResultSecurity from "./pages/admin/ResultSecurity";
 import PinMonetisation from "./pages/admin/PinMonetisation";
 
+import { Loader2 } from "lucide-react";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -83,6 +89,27 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Legacy route redirect component
+function LegacyRedirect({ role }: { role: string }) {
+  const { schoolCode, loading } = useSchoolContext();
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (loading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!schoolCode) return <Navigate to="/auth" replace />;
+
+  const subpath = location.pathname.replace(new RegExp(`^/${role}`), "");
+  return <Navigate to={`/${schoolCode}/${role}${subpath}`} replace />;
+}
 
 function App() {
   return (
@@ -101,7 +128,7 @@ function App() {
               <Route path="/install" element={<InstallApp />} />
               <Route path="/verify-result" element={<VerifyResult />} />
 
-              {/* Super Admin Routes */}
+              {/* Super Admin Routes (no school code) */}
               <Route 
                 path="/super-admin" 
                 element={
@@ -118,13 +145,13 @@ function App() {
                 <Route path="features" element={<SchoolFeatures />} />
               </Route>
 
-              {/* Admin Routes */}
+              {/* School-scoped Admin Routes */}
               <Route 
-                path="/admin" 
+                path="/:schoolCode/admin" 
                 element={
-                  <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+                  <SchoolProtectedRoute allowedRoles={["admin", "super_admin"]}>
                     <DashboardLayout role="admin" />
-                  </ProtectedRoute>
+                  </SchoolProtectedRoute>
                 }
               >
                 <Route index element={<AdminDashboard />} />
@@ -151,13 +178,13 @@ function App() {
                 <Route path="cbt-sync" element={<CBTScoreSync />} />
               </Route>
 
-              {/* Teacher Routes */}
+              {/* School-scoped Teacher Routes */}
               <Route 
-                path="/teacher" 
+                path="/:schoolCode/teacher" 
                 element={
-                  <ProtectedRoute allowedRoles={["teacher"]}>
+                  <SchoolProtectedRoute allowedRoles={["teacher"]}>
                     <DashboardLayout role="teacher" />
-                  </ProtectedRoute>
+                  </SchoolProtectedRoute>
                 }
               >
                 <Route index element={<TeacherDashboard />} />
@@ -168,13 +195,13 @@ function App() {
                 <Route path="cbt" element={<TeacherCBTManagement />} />
               </Route>
 
-              {/* Student Routes */}
+              {/* School-scoped Student Routes */}
               <Route 
-                path="/student" 
+                path="/:schoolCode/student" 
                 element={
-                  <ProtectedRoute allowedRoles={["student"]}>
+                  <SchoolProtectedRoute allowedRoles={["student"]}>
                     <DashboardLayout role="student" />
-                  </ProtectedRoute>
+                  </SchoolProtectedRoute>
                 }
               >
                 <Route index element={<StudentDashboard />} />
@@ -184,13 +211,13 @@ function App() {
                 <Route path="fees" element={<StudentFeePayment />} />
               </Route>
 
-              {/* Parent Routes */}
+              {/* School-scoped Parent Routes */}
               <Route
-                path="/parent"
+                path="/:schoolCode/parent"
                 element={
-                  <ProtectedRoute allowedRoles={["parent"]}>
+                  <SchoolProtectedRoute allowedRoles={["parent"]}>
                     <DashboardLayout role="parent" />
-                  </ProtectedRoute>
+                  </SchoolProtectedRoute>
                 }
               >
                 <Route index element={<ParentDashboard />} />
@@ -199,6 +226,12 @@ function App() {
                 <Route path="messages" element={<ParentMessageTeacher />} />
                 <Route path="preferences" element={<ParentNotificationPreferences />} />
               </Route>
+
+              {/* Legacy routes redirect to school-code routes */}
+              <Route path="/admin/*" element={<LegacyRedirect role="admin" />} />
+              <Route path="/teacher/*" element={<LegacyRedirect role="teacher" />} />
+              <Route path="/student/*" element={<LegacyRedirect role="student" />} />
+              <Route path="/parent/*" element={<LegacyRedirect role="parent" />} />
 
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
