@@ -27,6 +27,7 @@ interface AuthContextType {
         is_form_teacher: boolean;
         signature_url?: string | null;
       };
+      schoolId?: string;
     }
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
