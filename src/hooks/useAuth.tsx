@@ -198,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Teacher onboarding (designation + signature)
       if (role === "teacher" && options?.teacher) {
-        const teacherPayload: Record<string, any> = {
+        const teacherPayload = {
           user_id: data.user.id,
           staff_id: options.teacher.staff_id.trim().toUpperCase(),
           date_joined: new Date().toISOString().slice(0, 10),
@@ -206,14 +206,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           is_class_teacher: options.teacher.is_class_teacher,
           is_form_teacher: options.teacher.is_form_teacher,
           signature_url: options.teacher.signature_url ?? null,
+          ...(schoolId ? { school_id: schoolId } : {}),
         };
-        if (schoolId) {
-          teacherPayload.school_id = schoolId;
-        }
 
         const { error: teacherUpsertError } = existingTeacher?.id
           ? await supabase.from("teachers").update(teacherPayload).eq("id", existingTeacher.id)
-          : await supabase.from("teachers").insert(teacherPayload);
+          : await supabase.from("teachers").insert(teacherPayload as any);
 
         if (teacherUpsertError) {
           console.error("Error creating/updating teacher record:", teacherUpsertError);
