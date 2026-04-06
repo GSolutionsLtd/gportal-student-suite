@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { UserRole, ROLE_ROUTES } from '@/types/auth';
+import { useSchoolContext } from '@/hooks/useSchoolContext';
+import { UserRole } from '@/types/auth';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -10,9 +11,10 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, userRole, isLoading } = useAuth();
+  const { schoolCode, loading: schoolLoading } = useSchoolContext();
   const location = useLocation();
 
-  if (isLoading) {
+  if (isLoading || schoolLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -35,8 +37,15 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   // Check if user has allowed role
   if (!allowedRoles.includes(userRole)) {
-    // Redirect to their appropriate dashboard
-    return <Navigate to={ROLE_ROUTES[userRole]} replace />;
+    // Redirect to their appropriate dashboard based on role + school
+    if (userRole === 'super_admin') {
+      return <Navigate to="/super-admin" replace />;
+    }
+    if (schoolCode) {
+      const roleBase = userRole === 'admin' ? 'admin' : userRole;
+      return <Navigate to={`/${schoolCode}/${roleBase}`} replace />;
+    }
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;
