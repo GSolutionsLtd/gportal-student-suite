@@ -18,9 +18,14 @@ export function useSchoolContext(): SchoolContext {
 
   useEffect(() => {
     if (!user || !userRole) {
+      setSchoolId(null);
+      setSchoolCode(null);
+      setSchoolName(null);
       setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     if (userRole === "super_admin") {
       setSchoolCode(null);

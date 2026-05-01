@@ -1940,6 +1940,10 @@ export type Database = {
       }
     }
     Functions: {
+      can_claim_school_admin: {
+        Args: { _school_id: string; _user_id: string }
+        Returns: boolean
+      }
       compute_class_positions: {
         Args: { p_class_arm_id: string; p_term_id: string }
         Returns: undefined

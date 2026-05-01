@@ -154,8 +154,8 @@ export default function Auth() {
       return;
     }
 
-    // School selection required for non-admin signup
-    if (!isLogin && selectedRole && selectedRole !== "admin" && !selectedSchoolId) {
+    // School selection required for every school-scoped signup role
+    if (!isLogin && selectedRole && !selectedSchoolId) {
       toast({
         title: "School Required",
         description: "Please select the school you belong to.",
@@ -242,8 +242,8 @@ export default function Auth() {
 
   const roles: UserRole[] = ["admin", "teacher", "student", "parent"];
 
-  // Roles that require school selection
-  const needsSchool = !isLogin && selectedRole && ["teacher", "student", "parent"].includes(selectedRole);
+  // All public signup roles are school-scoped in the multi-tenant platform
+  const needsSchool = !isLogin && !!selectedRole;
 
   if (authLoading) {
     return (
@@ -335,7 +335,10 @@ export default function Auth() {
                       <button
                         key={role}
                         type="button"
-                        onClick={() => setSelectedRole(role)}
+                        onClick={() => {
+                          setSelectedRole(role);
+                          setSelectedSchoolId("");
+                        }}
                         className={cn(
                           "flex items-center gap-3 p-3 rounded-lg border-2 transition-all duration-200",
                           selectedRole === role
@@ -352,7 +355,7 @@ export default function Auth() {
               </div>
             )}
 
-            {/* School Selection - for teacher, student, parent signup */}
+            {/* School Selection - for admin, teacher, student, parent signup */}
             {needsSchool && (
               <div className="mb-4">
                 <Label className="text-sm font-medium mb-2 block">Select your school *</Label>
