@@ -57,6 +57,13 @@ Deno.serve(async (req) => {
       throw new Error("This account already has a different role.");
     }
 
+    const { error: profileError } = await admin.from("profiles").upsert({
+      id: userId,
+      email,
+      full_name: fullName,
+    });
+    if (profileError) throw profileError;
+
     if (!existingRole) {
       const { error } = await admin.from("user_roles").insert({ user_id: userId, role });
       if (error) throw error;
@@ -85,11 +92,21 @@ Deno.serve(async (req) => {
     }
 
     if (role === "parent") {
-      const { error } = await admin.from("parent_school_memberships").upsert(
-        { parent_user_id: userId, school_id: schoolId, is_primary: true },
-        { onConflict: "parent_user_id,school_id" },
-      );
-      if (error) throw error;
+      const { data: existingMembership } = await admin
+        .from("parent_school_memberships")
+        .select("id")
+        .eq("parent_user_id", userId)
+        .eq("school_id", schoolId)
+        .maybeSingle();
+
+      if (!existingMembership) {
+        const { error } = await admin.from("parent_school_memberships").insert({
+          parent_user_id: userId,
+          school_id: schoolId,
+          is_primary: true,
+        });
+        if (error) throw error;
+      }
     }
 
     if (role === "student") {
@@ -105,7 +122,7 @@ Deno.serve(async (req) => {
         first_name: firstName || fullName,
         last_name: rest.join(" ") || firstName || fullName,
         school_id: schoolId,
-        admission_number: "",
+        admission_number: `PENDING-${userId.slice(0, 8).toUpperCase()}`,
       };
 
       const { error } = existingStudent
