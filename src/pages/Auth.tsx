@@ -62,6 +62,7 @@ interface SchoolOption {
   id: string;
   code: string;
   name: string;
+  admin_available?: boolean;
 }
 
 export default function Auth() {
@@ -167,14 +168,22 @@ export default function Auth() {
       return;
     }
 
-    // Admin-specific guard: ensure the chosen school still appears in the
-    // signup-eligible list (active/trial and not yet claimed by another admin).
+    // Admin-specific guard: chosen school must still be claimable.
     if (!isLogin && selectedRole === "admin") {
       const chosen = schools.find((s) => s.id === selectedSchoolId);
       if (!chosen) {
         toast({
           title: "Invalid School",
           description: "Selected school is not available for Admin signup.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (chosen.admin_available === false) {
+        toast({
+          title: "School already has an Admin",
+          description:
+            "This school already has a primary Admin. Ask the Super Admin to reassign it.",
           variant: "destructive",
         });
         return;
@@ -373,23 +382,52 @@ export default function Auth() {
             )}
 
             {/* School Selection - for admin, teacher, student, parent signup */}
-            {needsSchool && (
-              <div className="mb-4">
-                <Label className="text-sm font-medium mb-2 block">Select your school *</Label>
-                <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a school..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name} ({school.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {needsSchool && (() => {
+              const visibleSchools =
+                selectedRole === "admin"
+                  ? schools.filter((s) => s.admin_available !== false)
+                  : schools;
+              const adminLabel =
+                selectedRole === "admin"
+                  ? "Select the school you will administer *"
+                  : "Select your school *";
+              return (
+                <div className="mb-4">
+                  <Label className="text-sm font-medium mb-2 block">{adminLabel}</Label>
+                  <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          visibleSchools.length === 0
+                            ? selectedRole === "admin"
+                              ? "No schools available for Admin signup"
+                              : "No schools available"
+                            : "Choose a school..."
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {visibleSchools.map((school) => (
+                        <SelectItem key={school.id} value={school.id}>
+                          {school.name} ({school.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedRole === "admin" && visibleSchools.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Every active school already has a primary Admin. Ask the Super Admin
+                      to create a new school or reassign an existing one before you sign up.
+                    </p>
+                  )}
+                  {selectedRole === "admin" && visibleSchools.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Only schools without a primary Admin are listed.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">

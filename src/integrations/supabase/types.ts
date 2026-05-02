@@ -1988,6 +1988,7 @@ export type Database = {
       list_signup_schools: {
         Args: never
         Returns: {
+          admin_available: boolean
           code: string
           id: string
           name: string

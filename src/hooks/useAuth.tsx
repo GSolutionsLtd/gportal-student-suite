@@ -157,20 +157,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // After successful signup, complete role + school linking through trusted backend logic
     if (data.user) {
-      const { error: completionError } = await supabase.functions.invoke("complete-signup", {
-        body: {
-          userId: data.user.id,
-          email,
-          fullName,
-          role,
-          schoolId: options?.schoolId,
-          teacher: options?.teacher,
-        },
-      });
+      const { data: completionData, error: completionError } =
+        await supabase.functions.invoke("complete-signup", {
+          body: {
+            userId: data.user.id,
+            email,
+            fullName,
+            role,
+            schoolId: options?.schoolId,
+            teacher: options?.teacher,
+          },
+        });
 
-      if (completionError) {
-        console.error("Error completing signup:", completionError);
-        return { error: new Error(completionError.message || "Failed to complete account setup.") };
+      // Edge function may return 4xx with a JSON body { error: "..." }
+      // supabase-js exposes that body in `completionData` even when there is an error.
+      const backendError =
+        (completionData as { error?: string } | null)?.error ||
+        (completionError as unknown as { context?: { error?: string } })?.context?.error ||
+        completionError?.message;
+
+      if (backendError) {
+        console.error("Error completing signup:", backendError);
+        return { error: new Error(backendError) };
       }
     }
 
