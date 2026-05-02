@@ -146,8 +146,14 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
-    await signOut();
-    navigate("/", { replace: true });
+    try {
+      await signOut();
+    } finally {
+      // Hard replace to /auth so the browser back button cannot restore
+      // a cached protected page from a different school/role session.
+      window.history.replaceState(null, "", "/auth");
+      window.location.replace("/auth");
+    }
   };
 
   const getInitials = (name: string) => {
