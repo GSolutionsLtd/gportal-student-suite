@@ -168,14 +168,22 @@ export default function Auth() {
       return;
     }
 
-    // Admin-specific guard: ensure the chosen school still appears in the
-    // signup-eligible list (active/trial and not yet claimed by another admin).
+    // Admin-specific guard: chosen school must still be claimable.
     if (!isLogin && selectedRole === "admin") {
       const chosen = schools.find((s) => s.id === selectedSchoolId);
       if (!chosen) {
         toast({
           title: "Invalid School",
           description: "Selected school is not available for Admin signup.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (chosen.admin_available === false) {
+        toast({
+          title: "School already has an Admin",
+          description:
+            "This school already has a primary Admin. Ask the Super Admin to reassign it.",
           variant: "destructive",
         });
         return;
