@@ -91,23 +91,50 @@ Deno.serve(async (req) => {
     }
 
     if (role === "admin") {
-      const { data: existingAdmin } = await admin
+      // Block claim if a different user is already primary admin of this school
+      const { data: primaryAdmin } = await admin
         .from("school_admins")
         .select("id, user_id")
         .eq("school_id", schoolId)
         .eq("is_primary", true)
         .maybeSingle();
 
-      if (existingAdmin && existingAdmin.user_id !== userId) {
-        throw new Error("This school already has a primary Admin. Ask the Super Admin to reassign it.");
+      if (primaryAdmin && primaryAdmin.user_id !== userId) {
+        throw new Error(
+          "This school already has a primary Admin. Ask the Super Admin to reassign it."
+        );
       }
 
-      if (!existingAdmin) {
+      // Block this user from claiming a different school if they already
+      // administer one (defensive: enforced by unique index on user_id too)
+      const { data: existingForUser } = await admin
+        .from("school_admins")
+        .select("id, school_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existingForUser && existingForUser.school_id !== schoolId) {
+        throw new Error(
+          "This account is already linked to a different school as Admin."
+        );
+      }
+
+      // Idempotent create-or-confirm of the primary admin membership
+      if (!primaryAdmin && !existingForUser) {
         const { error } = await admin.from("school_admins").insert({
           user_id: userId,
           school_id: schoolId,
           is_primary: true,
         });
+        if (error) throw error;
+      } else if (existingForUser && !existingForUser) {
+        // (no-op placeholder retained for clarity)
+      } else if (existingForUser && existingForUser.school_id === schoolId) {
+        // Ensure is_primary is true for the matching record
+        const { error } = await admin
+          .from("school_admins")
+          .update({ is_primary: true })
+          .eq("id", existingForUser.id);
         if (error) throw error;
       }
     }
