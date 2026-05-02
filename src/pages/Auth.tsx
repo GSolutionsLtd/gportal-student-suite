@@ -158,10 +158,27 @@ export default function Auth() {
     if (!isLogin && selectedRole && !selectedSchoolId) {
       toast({
         title: "School Required",
-        description: "Please select the school you belong to.",
+        description:
+          selectedRole === "admin"
+            ? "Admins must select the school they will administer."
+            : "Please select the school you belong to.",
         variant: "destructive",
       });
       return;
+    }
+
+    // Admin-specific guard: ensure the chosen school still appears in the
+    // signup-eligible list (active/trial and not yet claimed by another admin).
+    if (!isLogin && selectedRole === "admin") {
+      const chosen = schools.find((s) => s.id === selectedSchoolId);
+      if (!chosen) {
+        toast({
+          title: "Invalid School",
+          description: "Selected school is not available for Admin signup.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsLoading(true);
