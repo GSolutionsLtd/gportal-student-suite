@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,22 +8,42 @@ const corsHeaders = {
 
 type SignupRole = "admin" | "teacher" | "student" | "parent";
 
+const BodySchema = z.object({
+  userId: z.string().uuid(),
+  email: z.string().email().max(255),
+  fullName: z.string().trim().min(2).max(150),
+  role: z.enum(["admin", "teacher", "student", "parent"]),
+  schoolId: z.string().uuid({ message: "A valid school must be selected." }),
+  teacher: z
+    .object({
+      staff_id: z.string().trim().min(1).max(50),
+      is_class_teacher: z.boolean().optional(),
+      is_form_teacher: z.boolean().optional(),
+      signature_url: z.string().url().nullable().optional(),
+    })
+    .optional(),
+});
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { userId, email, fullName, role, schoolId, teacher } = await req.json();
-
-    if (!userId || !email || !fullName || !role || !schoolId) {
-      throw new Error("Missing required signup details.");
+    const parsed = BodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      const flat = parsed.error.flatten();
+      const firstError =
+        Object.values(flat.fieldErrors).flat()[0] ||
+        flat.formErrors[0] ||
+        "Invalid signup details.";
+      return new Response(JSON.stringify({ error: firstError }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const allowedRoles: SignupRole[] = ["admin", "teacher", "student", "parent"];
-    if (!allowedRoles.includes(role)) {
-      throw new Error("This role cannot be created from public signup.");
-    }
+    const { userId, email, fullName, role, schoolId, teacher } = parsed.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
