@@ -86,8 +86,12 @@ Deno.serve(async (req) => {
     if (profileError) throw profileError;
 
     if (!existingRole) {
-      const { error } = await admin.from("user_roles").insert({ user_id: userId, role });
-      if (error) throw error;
+      const { error } = await admin
+        .from("user_roles")
+        .upsert({ user_id: userId, role }, { onConflict: "user_id" });
+      if (error) {
+        throw new Error(`Failed to assign role: ${error.message}`);
+      }
     }
 
     if (role === "admin") {
