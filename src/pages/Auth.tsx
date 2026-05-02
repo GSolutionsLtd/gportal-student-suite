@@ -382,23 +382,52 @@ export default function Auth() {
             )}
 
             {/* School Selection - for admin, teacher, student, parent signup */}
-            {needsSchool && (
-              <div className="mb-4">
-                <Label className="text-sm font-medium mb-2 block">Select your school *</Label>
-                <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a school..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name} ({school.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {needsSchool && (() => {
+              const visibleSchools =
+                selectedRole === "admin"
+                  ? schools.filter((s) => s.admin_available !== false)
+                  : schools;
+              const adminLabel =
+                selectedRole === "admin"
+                  ? "Select the school you will administer *"
+                  : "Select your school *";
+              return (
+                <div className="mb-4">
+                  <Label className="text-sm font-medium mb-2 block">{adminLabel}</Label>
+                  <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          visibleSchools.length === 0
+                            ? selectedRole === "admin"
+                              ? "No schools available for Admin signup"
+                              : "No schools available"
+                            : "Choose a school..."
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {visibleSchools.map((school) => (
+                        <SelectItem key={school.id} value={school.id}>
+                          {school.name} ({school.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedRole === "admin" && visibleSchools.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Every active school already has a primary Admin. Ask the Super Admin
+                      to create a new school or reassign an existing one before you sign up.
+                    </p>
+                  )}
+                  {selectedRole === "admin" && visibleSchools.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Only schools without a primary Admin are listed.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
