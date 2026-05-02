@@ -178,11 +178,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear local state first so any in-flight subscribers stop using stale data
     setUser(null);
     setSession(null);
     setUserRole(null);
     setProfile(null);
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+    } catch (err) {
+      console.error("Sign-out error:", err);
+    }
+    // Best-effort: wipe any cached supabase auth tokens from storage
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("sb-") || k.includes("supabase"))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
   };
 
   return (
