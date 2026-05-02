@@ -62,6 +62,7 @@ interface SchoolOption {
   id: string;
   code: string;
   name: string;
+  admin_available?: boolean;
 }
 
 export default function Auth() {
