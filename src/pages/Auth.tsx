@@ -83,6 +83,10 @@ export default function Auth() {
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
   
+  const [inviteCode, setInviteCode] = useState<string>("");
+  const [inviteValidating, setInviteValidating] = useState(false);
+  const [validatedInvite, setValidatedInvite] = useState<{ school_id: string; school_code: string; school_name: string; email: string | null } | null>(null);
+  
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -92,6 +96,38 @@ export default function Auth() {
     teacherType: "subject" as "subject" | "class" | "form",
     teacherSignatureUrl: null as string | null,
   });
+
+  // Pre-fill invite code from URL ?invite=XXXX so links can land directly here
+  useEffect(() => {
+    const code = searchParams.get("invite");
+    if (code) {
+      setIsLogin(false);
+      setSelectedRole("admin");
+      setInviteCode(code.toUpperCase());
+    }
+  }, [searchParams]);
+
+  // Validate the invite code against the backend whenever it changes (debounced via length)
+  useEffect(() => {
+    if (selectedRole !== "admin" || !inviteCode || inviteCode.length < 6) {
+      setValidatedInvite(null);
+      return;
+    }
+    const code = inviteCode.trim().toUpperCase();
+    setInviteValidating(true);
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("validate_admin_invite", { _code: code });
+      if (cancelled) return;
+      setInviteValidating(false);
+      if (!error && Array.isArray(data) && data.length > 0) {
+        setValidatedInvite(data[0] as typeof validatedInvite extends infer T ? T : never);
+      } else {
+        setValidatedInvite(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [inviteCode, selectedRole]);
 
   // Fetch available schools for signup dropdown
   useEffect(() => {
