@@ -47,6 +47,8 @@ import {
   MapPin,
   CreditCard,
   ExternalLink,
+  UserPlus,
+  Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -112,6 +114,14 @@ export default function SchoolManagement() {
   const [processing, setProcessing] = useState(false);
   const [availableAdmins, setAvailableAdmins] = useState<AdminUser[]>([]);
   const [selectedAdmin, setSelectedAdmin] = useState<string>("");
+
+  // Admin invite state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteSchool, setInviteSchool] = useState<SchoolData | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCreating, setInviteCreating] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ code: string; link: string; expires_at: string } | null>(null);
+  const [existingInvites, setExistingInvites] = useState<Array<{ id: string; code: string; email: string | null; expires_at: string; used_at: string | null }>>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -429,6 +439,74 @@ export default function SchoolManagement() {
     );
   }
 
+  const openInviteDialog = async (school: SchoolData) => {
+    setInviteSchool(school);
+    setInviteEmail("");
+    setInviteResult(null);
+    setInviteDialogOpen(true);
+    const { data } = await supabase
+      .from("admin_invites")
+      .select("id, code, email, expires_at, used_at")
+      .eq("school_id", school.id)
+      .order("created_at", { ascending: false });
+    setExistingInvites((data as typeof existingInvites) || []);
+  };
+
+  const generateInvite = async () => {
+    if (!inviteSchool || !user) return;
+    setInviteCreating(true);
+    try {
+      const { data: codeRow, error: codeErr } = await supabase.rpc("generate_admin_invite_code");
+      if (codeErr) throw codeErr;
+      const code = (codeRow as unknown as string)?.toUpperCase();
+      if (!code) throw new Error("Failed to generate code.");
+      const { data: inserted, error } = await supabase
+        .from("admin_invites")
+        .insert({
+          code,
+          school_id: inviteSchool.id,
+          email: inviteEmail.trim() ? inviteEmail.trim().toLowerCase() : null,
+          created_by: user.id,
+        })
+        .select("code, expires_at")
+        .single();
+      if (error) throw error;
+      const link = `${window.location.origin}/auth?invite=${inserted.code}`;
+      setInviteResult({ code: inserted.code, link, expires_at: inserted.expires_at as string });
+      const { data: refreshed } = await supabase
+        .from("admin_invites")
+        .select("id, code, email, expires_at, used_at")
+        .eq("school_id", inviteSchool.id)
+        .order("created_at", { ascending: false });
+      setExistingInvites((refreshed as typeof existingInvites) || []);
+      toast({ title: "Invite created", description: "Share the code or link with the new Admin." });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to create invite";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setInviteCreating(false);
+    }
+  };
+
+  const revokeInvite = async (id: string) => {
+    const { error } = await supabase.from("admin_invites").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    setExistingInvites((prev) => prev.filter((i) => i.id !== id));
+    toast({ title: "Invite revoked" });
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied to clipboard" });
+    } catch {
+      toast({ title: "Copy failed", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -620,6 +698,15 @@ export default function SchoolManagement() {
                         >
                           <CreditCard className="h-3 w-3" />
                           Pay
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openInviteDialog(school)}
+                          className="gap-1"
+                        >
+                          <UserPlus className="h-3 w-3" />
+                          Invite Admin
                         </Button>
                         <Button
                           variant="ghost"
@@ -891,6 +978,115 @@ export default function SchoolManagement() {
             <Button onClick={handleSubmit} disabled={processing}>
               {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editingSchool ? "Update School" : "Create School"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Invite Dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Invite Admin
+            </DialogTitle>
+            <DialogDescription>
+              Generate a one-time invite code for the new Admin of{" "}
+              <strong>{inviteSchool?.name}</strong>. The code expires in 14 days and
+              can only be used once.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Restrict to email (optional)</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="admin@school.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                If set, only this email can use the invite. Leave blank to allow any email.
+              </p>
+            </div>
+
+            <Button onClick={generateInvite} disabled={inviteCreating} className="w-full">
+              {inviteCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+              Generate Invite Code
+            </Button>
+
+            {inviteResult && (
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+                <div>
+                  <Label className="text-xs">Invite Code</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono text-base bg-background border rounded px-2 py-1">
+                      {inviteResult.code}
+                    </code>
+                    <Button size="icon" variant="outline" onClick={() => copyText(inviteResult.code)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Shareable Signup Link</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono text-xs bg-background border rounded px-2 py-1 truncate">
+                      {inviteResult.link}
+                    </code>
+                    <Button size="icon" variant="outline" onClick={() => copyText(inviteResult.link)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Expires {format(new Date(inviteResult.expires_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              </div>
+            )}
+
+            {existingInvites.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs">Existing invites for this school</Label>
+                <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                  {existingInvites.map((inv) => {
+                    const used = !!inv.used_at;
+                    const expired = !used && new Date(inv.expires_at).getTime() < Date.now();
+                    return (
+                      <div key={inv.id} className="flex items-center justify-between gap-2 p-2 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono">{inv.code}</div>
+                          <div className="text-muted-foreground truncate">
+                            {inv.email || "any email"} ·{" "}
+                            {used
+                              ? `used ${format(new Date(inv.used_at!), "MMM d")}`
+                              : expired
+                                ? "expired"
+                                : `expires ${format(new Date(inv.expires_at), "MMM d")}`}
+                          </div>
+                        </div>
+                        <Badge variant={used ? "secondary" : expired ? "outline" : "default"}>
+                          {used ? "used" : expired ? "expired" : "active"}
+                        </Badge>
+                        {!used && (
+                          <Button size="icon" variant="ghost" onClick={() => revokeInvite(inv.id)}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

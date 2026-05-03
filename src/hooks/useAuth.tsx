@@ -28,6 +28,7 @@ interface AuthContextType {
         signature_url?: string | null;
       };
       schoolId?: string;
+      inviteCode?: string;
     }
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -136,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signature_url?: string | null;
       };
       schoolId?: string;
+      inviteCode?: string;
     }
   ) => {
     const redirectUrl = `${window.location.origin}/`;
@@ -165,15 +167,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fullName,
             role,
             schoolId: options?.schoolId,
+            inviteCode: options?.inviteCode,
             teacher: options?.teacher,
           },
         });
 
-      // Edge function may return 4xx with a JSON body { error: "..." }
-      // supabase-js exposes that body in `completionData` even when there is an error.
+      // supabase-js exposes the response body in `completionData` even on
+      // 4xx/5xx so we can surface the precise backend error message.
+      const ctx = (completionError as unknown as { context?: Response | { error?: string } })?.context;
+      let contextError: string | undefined;
+      if (ctx && typeof (ctx as Response).json === "function") {
+        try {
+          const body = await (ctx as Response).clone().json();
+          contextError = (body as { error?: string })?.error;
+        } catch {
+          // ignore
+        }
+      } else if (ctx && typeof (ctx as { error?: string }).error === "string") {
+        contextError = (ctx as { error?: string }).error;
+      }
+
       const backendError =
         (completionData as { error?: string } | null)?.error ||
-        (completionError as unknown as { context?: { error?: string } })?.context?.error ||
+        contextError ||
         completionError?.message;
 
       if (backendError) {

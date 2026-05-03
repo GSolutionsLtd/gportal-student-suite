@@ -83,6 +83,10 @@ export default function Auth() {
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
   
+  const [inviteCode, setInviteCode] = useState<string>("");
+  const [inviteValidating, setInviteValidating] = useState(false);
+  const [validatedInvite, setValidatedInvite] = useState<{ school_id: string; school_code: string; school_name: string; email: string | null } | null>(null);
+  
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -92,6 +96,38 @@ export default function Auth() {
     teacherType: "subject" as "subject" | "class" | "form",
     teacherSignatureUrl: null as string | null,
   });
+
+  // Pre-fill invite code from URL ?invite=XXXX so links can land directly here
+  useEffect(() => {
+    const code = searchParams.get("invite");
+    if (code) {
+      setIsLogin(false);
+      setSelectedRole("admin");
+      setInviteCode(code.toUpperCase());
+    }
+  }, [searchParams]);
+
+  // Validate the invite code against the backend whenever it changes (debounced via length)
+  useEffect(() => {
+    if (selectedRole !== "admin" || !inviteCode || inviteCode.length < 6) {
+      setValidatedInvite(null);
+      return;
+    }
+    const code = inviteCode.trim().toUpperCase();
+    setInviteValidating(true);
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("validate_admin_invite", { _code: code });
+      if (cancelled) return;
+      setInviteValidating(false);
+      if (!error && Array.isArray(data) && data.length > 0) {
+        setValidatedInvite(data[0] as typeof validatedInvite extends infer T ? T : never);
+      } else {
+        setValidatedInvite(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [inviteCode, selectedRole]);
 
   // Fetch available schools for signup dropdown
   useEffect(() => {
@@ -155,39 +191,43 @@ export default function Auth() {
       return;
     }
 
-    // School selection required for every school-scoped signup role
-    if (!isLogin && selectedRole && !selectedSchoolId) {
+    // Admin signup uses an invite code; other signup roles must pick a school.
+    if (!isLogin && selectedRole === "admin") {
+      if (!inviteCode || inviteCode.length < 6) {
+        toast({
+          title: "Invite Code Required",
+          description: "Enter the invite code provided by the Super Admin.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!validatedInvite) {
+        toast({
+          title: "Invalid Invite",
+          description:
+            "This invite code is invalid, expired, already used, or for a school that already has an Admin.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        validatedInvite.email &&
+        validatedInvite.email.toLowerCase() !== formData.email.trim().toLowerCase()
+      ) {
+        toast({
+          title: "Email Mismatch",
+          description: `This invite was issued for ${validatedInvite.email}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (!isLogin && selectedRole && !selectedSchoolId) {
       toast({
         title: "School Required",
-        description:
-          selectedRole === "admin"
-            ? "Admins must select the school they will administer."
-            : "Please select the school you belong to.",
+        description: "Please select the school you belong to.",
         variant: "destructive",
       });
       return;
-    }
-
-    // Admin-specific guard: chosen school must still be claimable.
-    if (!isLogin && selectedRole === "admin") {
-      const chosen = schools.find((s) => s.id === selectedSchoolId);
-      if (!chosen) {
-        toast({
-          title: "Invalid School",
-          description: "Selected school is not available for Admin signup.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (chosen.admin_available === false) {
-        toast({
-          title: "School already has an Admin",
-          description:
-            "This school already has a primary Admin. Ask the Super Admin to reassign it.",
-          variant: "destructive",
-        });
-        return;
-      }
     }
 
     setIsLoading(true);
@@ -233,7 +273,8 @@ export default function Auth() {
           selectedRole!,
           {
             ...teacherOptions,
-            schoolId: selectedSchoolId || undefined,
+            schoolId: selectedRole === "admin" ? undefined : (selectedSchoolId || undefined),
+            inviteCode: selectedRole === "admin" ? inviteCode.trim().toUpperCase() : undefined,
           }
         );
         
@@ -381,53 +422,64 @@ export default function Auth() {
               </div>
             )}
 
-            {/* School Selection - for admin, teacher, student, parent signup */}
-            {needsSchool && (() => {
-              const visibleSchools =
-                selectedRole === "admin"
-                  ? schools.filter((s) => s.admin_available !== false)
-                  : schools;
-              const adminLabel =
-                selectedRole === "admin"
-                  ? "Select the school you will administer *"
-                  : "Select your school *";
-              return (
-                <div className="mb-4">
-                  <Label className="text-sm font-medium mb-2 block">{adminLabel}</Label>
-                  <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          visibleSchools.length === 0
-                            ? selectedRole === "admin"
-                              ? "No schools available for Admin signup"
-                              : "No schools available"
-                            : "Choose a school..."
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {visibleSchools.map((school) => (
-                        <SelectItem key={school.id} value={school.id}>
-                          {school.name} ({school.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedRole === "admin" && visibleSchools.length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Every active school already has a primary Admin. Ask the Super Admin
-                      to create a new school or reassign an existing one before you sign up.
-                    </p>
+            {/* Admin invite-code field (replaces school dropdown for admins) */}
+            {!isLogin && selectedRole === "admin" && (
+              <div className="mb-4">
+                <Label htmlFor="inviteCode" className="text-sm font-medium mb-2 block">
+                  Admin Invite Code *
+                </Label>
+                <Input
+                  id="inviteCode"
+                  placeholder="Paste the 12-character code from your Super Admin"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase().replace(/\s/g, ""))}
+                  maxLength={32}
+                  autoComplete="off"
+                />
+                <div className="text-xs mt-2">
+                  {inviteValidating && (
+                    <span className="text-muted-foreground">Checking invite…</span>
                   )}
-                  {selectedRole === "admin" && visibleSchools.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Only schools without a primary Admin are listed.
-                    </p>
+                  {!inviteValidating && validatedInvite && (
+                    <span className="text-success">
+                      ✓ Valid invite for <strong>{validatedInvite.school_name}</strong> ({validatedInvite.school_code})
+                      {validatedInvite.email ? ` — must sign up as ${validatedInvite.email}` : ""}
+                    </span>
+                  )}
+                  {!inviteValidating && !validatedInvite && inviteCode.length >= 6 && (
+                    <span className="text-destructive">
+                      Invalid, expired, already used, or for a school that already has an Admin.
+                    </span>
+                  )}
+                  {!inviteCode && (
+                    <span className="text-muted-foreground">
+                      Don't have a code? Ask the Super Admin to issue one for your school.
+                    </span>
                   )}
                 </div>
-              );
-            })()}
+              </div>
+            )}
+
+            {/* School dropdown for non-admin signup roles */}
+            {needsSchool && selectedRole !== "admin" && (
+              <div className="mb-4">
+                <Label className="text-sm font-medium mb-2 block">Select your school *</Label>
+                <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={schools.length === 0 ? "No schools available" : "Choose a school..."}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schools.map((school) => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name} ({school.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">

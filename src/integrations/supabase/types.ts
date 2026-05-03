@@ -58,6 +58,50 @@ export type Database = {
           },
         ]
       }
+      admin_invites: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          email: string | null
+          expires_at: string
+          id: string
+          school_id: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          school_id: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          school_id?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_invites_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
@@ -1952,6 +1996,7 @@ export type Database = {
         Args: { p_result_id: string }
         Returns: undefined
       }
+      generate_admin_invite_code: { Args: never; Returns: string }
       generate_admission_number: { Args: never; Returns: string }
       generate_pin_code: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
@@ -1992,6 +2037,15 @@ export type Database = {
           code: string
           id: string
           name: string
+        }[]
+      }
+      validate_admin_invite: {
+        Args: { _code: string }
+        Returns: {
+          email: string
+          school_code: string
+          school_id: string
+          school_name: string
         }[]
       }
     }
