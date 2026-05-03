@@ -191,39 +191,43 @@ export default function Auth() {
       return;
     }
 
-    // School selection required for every school-scoped signup role
-    if (!isLogin && selectedRole && !selectedSchoolId) {
+    // Admin signup uses an invite code; other signup roles must pick a school.
+    if (!isLogin && selectedRole === "admin") {
+      if (!inviteCode || inviteCode.length < 6) {
+        toast({
+          title: "Invite Code Required",
+          description: "Enter the invite code provided by the Super Admin.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!validatedInvite) {
+        toast({
+          title: "Invalid Invite",
+          description:
+            "This invite code is invalid, expired, already used, or for a school that already has an Admin.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        validatedInvite.email &&
+        validatedInvite.email.toLowerCase() !== formData.email.trim().toLowerCase()
+      ) {
+        toast({
+          title: "Email Mismatch",
+          description: `This invite was issued for ${validatedInvite.email}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (!isLogin && selectedRole && !selectedSchoolId) {
       toast({
         title: "School Required",
-        description:
-          selectedRole === "admin"
-            ? "Admins must select the school they will administer."
-            : "Please select the school you belong to.",
+        description: "Please select the school you belong to.",
         variant: "destructive",
       });
       return;
-    }
-
-    // Admin-specific guard: chosen school must still be claimable.
-    if (!isLogin && selectedRole === "admin") {
-      const chosen = schools.find((s) => s.id === selectedSchoolId);
-      if (!chosen) {
-        toast({
-          title: "Invalid School",
-          description: "Selected school is not available for Admin signup.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (chosen.admin_available === false) {
-        toast({
-          title: "School already has an Admin",
-          description:
-            "This school already has a primary Admin. Ask the Super Admin to reassign it.",
-          variant: "destructive",
-        });
-        return;
-      }
     }
 
     setIsLoading(true);
@@ -269,7 +273,8 @@ export default function Auth() {
           selectedRole!,
           {
             ...teacherOptions,
-            schoolId: selectedSchoolId || undefined,
+            schoolId: selectedRole === "admin" ? undefined : (selectedSchoolId || undefined),
+            inviteCode: selectedRole === "admin" ? inviteCode.trim().toUpperCase() : undefined,
           }
         );
         
