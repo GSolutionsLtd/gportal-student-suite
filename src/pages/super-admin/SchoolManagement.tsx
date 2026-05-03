@@ -439,7 +439,74 @@ export default function SchoolManagement() {
     );
   }
 
-  return (
+  const openInviteDialog = async (school: SchoolData) => {
+    setInviteSchool(school);
+    setInviteEmail("");
+    setInviteResult(null);
+    setInviteDialogOpen(true);
+    const { data } = await supabase
+      .from("admin_invites")
+      .select("id, code, email, expires_at, used_at")
+      .eq("school_id", school.id)
+      .order("created_at", { ascending: false });
+    setExistingInvites((data as typeof existingInvites) || []);
+  };
+
+  const generateInvite = async () => {
+    if (!inviteSchool || !user) return;
+    setInviteCreating(true);
+    try {
+      const { data: codeRow, error: codeErr } = await supabase.rpc("generate_admin_invite_code");
+      if (codeErr) throw codeErr;
+      const code = (codeRow as unknown as string)?.toUpperCase();
+      if (!code) throw new Error("Failed to generate code.");
+      const { data: inserted, error } = await supabase
+        .from("admin_invites")
+        .insert({
+          code,
+          school_id: inviteSchool.id,
+          email: inviteEmail.trim() ? inviteEmail.trim().toLowerCase() : null,
+          created_by: user.id,
+        })
+        .select("code, expires_at")
+        .single();
+      if (error) throw error;
+      const link = `${window.location.origin}/auth?invite=${inserted.code}`;
+      setInviteResult({ code: inserted.code, link, expires_at: inserted.expires_at as string });
+      const { data: refreshed } = await supabase
+        .from("admin_invites")
+        .select("id, code, email, expires_at, used_at")
+        .eq("school_id", inviteSchool.id)
+        .order("created_at", { ascending: false });
+      setExistingInvites((refreshed as typeof existingInvites) || []);
+      toast({ title: "Invite created", description: "Share the code or link with the new Admin." });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to create invite";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setInviteCreating(false);
+    }
+  };
+
+  const revokeInvite = async (id: string) => {
+    const { error } = await supabase.from("admin_invites").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    setExistingInvites((prev) => prev.filter((i) => i.id !== id));
+    toast({ title: "Invite revoked" });
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied to clipboard" });
+    } catch {
+      toast({ title: "Copy failed", variant: "destructive" });
+    }
+  };
+
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
