@@ -47,6 +47,8 @@ import {
   MapPin,
   CreditCard,
   ExternalLink,
+  UserPlus,
+  Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 
