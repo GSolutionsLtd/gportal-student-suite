@@ -422,53 +422,64 @@ export default function Auth() {
               </div>
             )}
 
-            {/* School Selection - for admin, teacher, student, parent signup */}
-            {needsSchool && (() => {
-              const visibleSchools =
-                selectedRole === "admin"
-                  ? schools.filter((s) => s.admin_available !== false)
-                  : schools;
-              const adminLabel =
-                selectedRole === "admin"
-                  ? "Select the school you will administer *"
-                  : "Select your school *";
-              return (
-                <div className="mb-4">
-                  <Label className="text-sm font-medium mb-2 block">{adminLabel}</Label>
-                  <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          visibleSchools.length === 0
-                            ? selectedRole === "admin"
-                              ? "No schools available for Admin signup"
-                              : "No schools available"
-                            : "Choose a school..."
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {visibleSchools.map((school) => (
-                        <SelectItem key={school.id} value={school.id}>
-                          {school.name} ({school.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedRole === "admin" && visibleSchools.length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Every active school already has a primary Admin. Ask the Super Admin
-                      to create a new school or reassign an existing one before you sign up.
-                    </p>
+            {/* Admin invite-code field (replaces school dropdown for admins) */}
+            {!isLogin && selectedRole === "admin" && (
+              <div className="mb-4">
+                <Label htmlFor="inviteCode" className="text-sm font-medium mb-2 block">
+                  Admin Invite Code *
+                </Label>
+                <Input
+                  id="inviteCode"
+                  placeholder="Paste the 12-character code from your Super Admin"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase().replace(/\s/g, ""))}
+                  maxLength={32}
+                  autoComplete="off"
+                />
+                <div className="text-xs mt-2">
+                  {inviteValidating && (
+                    <span className="text-muted-foreground">Checking invite…</span>
                   )}
-                  {selectedRole === "admin" && visibleSchools.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Only schools without a primary Admin are listed.
-                    </p>
+                  {!inviteValidating && validatedInvite && (
+                    <span className="text-success">
+                      ✓ Valid invite for <strong>{validatedInvite.school_name}</strong> ({validatedInvite.school_code})
+                      {validatedInvite.email ? ` — must sign up as ${validatedInvite.email}` : ""}
+                    </span>
+                  )}
+                  {!inviteValidating && !validatedInvite && inviteCode.length >= 6 && (
+                    <span className="text-destructive">
+                      Invalid, expired, already used, or for a school that already has an Admin.
+                    </span>
+                  )}
+                  {!inviteCode && (
+                    <span className="text-muted-foreground">
+                      Don't have a code? Ask the Super Admin to issue one for your school.
+                    </span>
                   )}
                 </div>
-              );
-            })()}
+              </div>
+            )}
+
+            {/* School dropdown for non-admin signup roles */}
+            {needsSchool && selectedRole !== "admin" && (
+              <div className="mb-4">
+                <Label className="text-sm font-medium mb-2 block">Select your school *</Label>
+                <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={schools.length === 0 ? "No schools available" : "Choose a school..."}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schools.map((school) => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name} ({school.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
