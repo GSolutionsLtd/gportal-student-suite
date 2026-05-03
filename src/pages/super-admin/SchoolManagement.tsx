@@ -115,6 +115,14 @@ export default function SchoolManagement() {
   const [availableAdmins, setAvailableAdmins] = useState<AdminUser[]>([]);
   const [selectedAdmin, setSelectedAdmin] = useState<string>("");
 
+  // Admin invite state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteSchool, setInviteSchool] = useState<SchoolData | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCreating, setInviteCreating] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ code: string; link: string; expires_at: string } | null>(null);
+  const [existingInvites, setExistingInvites] = useState<Array<{ id: string; code: string; email: string | null; expires_at: string; used_at: string | null }>>([]);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
