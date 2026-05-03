@@ -8,21 +8,32 @@ const corsHeaders = {
 
 type SignupRole = "admin" | "teacher" | "student" | "parent";
 
-const BodySchema = z.object({
-  userId: z.string().uuid(),
-  email: z.string().email().max(255),
-  fullName: z.string().trim().min(2).max(150),
-  role: z.enum(["admin", "teacher", "student", "parent"]),
-  schoolId: z.string().uuid({ message: "A valid school must be selected." }),
-  teacher: z
-    .object({
-      staff_id: z.string().trim().min(1).max(50),
-      is_class_teacher: z.boolean().optional(),
-      is_form_teacher: z.boolean().optional(),
-      signature_url: z.string().url().nullable().optional(),
-    })
-    .optional(),
-});
+const BodySchema = z
+  .object({
+    userId: z.string().uuid(),
+    email: z.string().email().max(255),
+    fullName: z.string().trim().min(2).max(150),
+    role: z.enum(["admin", "teacher", "student", "parent"]),
+    schoolId: z.string().uuid().optional(),
+    inviteCode: z.string().trim().min(6).max(32).optional(),
+    teacher: z
+      .object({
+        staff_id: z.string().trim().min(1).max(50),
+        is_class_teacher: z.boolean().optional(),
+        is_form_teacher: z.boolean().optional(),
+        signature_url: z.string().url().nullable().optional(),
+      })
+      .optional(),
+  })
+  .refine(
+    (d) =>
+      (d.role === "admin" && !!d.inviteCode) ||
+      (d.role !== "admin" && !!d.schoolId),
+    {
+      message:
+        "Admins must provide an invite code; other roles must select a school.",
+    }
+  );
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
