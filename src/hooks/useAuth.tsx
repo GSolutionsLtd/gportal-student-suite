@@ -28,6 +28,7 @@ interface AuthContextType {
         signature_url?: string | null;
       };
       schoolId?: string;
+      inviteCode?: string;
     }
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
