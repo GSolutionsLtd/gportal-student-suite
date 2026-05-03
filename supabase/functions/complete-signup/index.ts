@@ -54,7 +54,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { userId, email, fullName, role, schoolId, teacher } = parsed.data;
+    const { userId, email, fullName, role, teacher } = parsed.data;
+    let { schoolId } = parsed.data;
+    const inviteCode = parsed.data.inviteCode?.trim().toUpperCase();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -67,6 +69,30 @@ Deno.serve(async (req) => {
     if (userData.user.email?.toLowerCase() !== String(email).toLowerCase()) {
       throw new Error("Signup verification failed.");
     }
+
+    // For admin role, resolve schoolId from a valid, unused invite code.
+    let inviteRow: { id: string; school_id: string; email: string | null } | null = null;
+    if (role === "admin") {
+      if (!inviteCode) throw new Error("An invite code is required for Admin signup.");
+      const { data: inv, error: invErr } = await admin
+        .from("admin_invites")
+        .select("id, school_id, email, used_at, expires_at")
+        .eq("code", inviteCode)
+        .maybeSingle();
+      if (invErr) throw invErr;
+      if (!inv) throw new Error("Invite code is invalid.");
+      if (inv.used_at) throw new Error("This invite has already been used.");
+      if (new Date(inv.expires_at).getTime() < Date.now()) {
+        throw new Error("This invite has expired.");
+      }
+      if (inv.email && inv.email.toLowerCase() !== email.toLowerCase()) {
+        throw new Error("This invite was issued for a different email address.");
+      }
+      schoolId = inv.school_id;
+      inviteRow = { id: inv.id, school_id: inv.school_id, email: inv.email };
+    }
+
+    if (!schoolId) throw new Error("A school must be selected.");
 
     const { data: school, error: schoolError } = await admin
       .from("schools")
@@ -106,7 +132,6 @@ Deno.serve(async (req) => {
     }
 
     if (role === "admin") {
-      // Block claim if a different user is already primary admin of this school
       const { data: primaryAdmin } = await admin
         .from("school_admins")
         .select("id, user_id")
@@ -120,8 +145,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Block this user from claiming a different school if they already
-      // administer one (defensive: enforced by unique index on user_id too)
       const { data: existingForUser } = await admin
         .from("school_admins")
         .select("id, school_id")
@@ -134,7 +157,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Idempotent create-or-confirm of the primary admin membership
       if (!primaryAdmin && !existingForUser) {
         const { error } = await admin.from("school_admins").insert({
           user_id: userId,
@@ -142,15 +164,20 @@ Deno.serve(async (req) => {
           is_primary: true,
         });
         if (error) throw error;
-      } else if (existingForUser && !existingForUser) {
-        // (no-op placeholder retained for clarity)
       } else if (existingForUser && existingForUser.school_id === schoolId) {
-        // Ensure is_primary is true for the matching record
         const { error } = await admin
           .from("school_admins")
           .update({ is_primary: true })
           .eq("id", existingForUser.id);
         if (error) throw error;
+      }
+
+      if (inviteRow) {
+        await admin
+          .from("admin_invites")
+          .update({ used_at: new Date().toISOString(), used_by: userId })
+          .eq("id", inviteRow.id)
+          .is("used_at", null);
       }
     }
 
