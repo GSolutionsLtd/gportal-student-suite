@@ -700,6 +700,15 @@ export default function SchoolManagement() {
                           Pay
                         </Button>
                         <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openInviteDialog(school)}
+                          className="gap-1"
+                        >
+                          <UserPlus className="h-3 w-3" />
+                          Invite Admin
+                        </Button>
+                        <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => openEditDialog(school)}
