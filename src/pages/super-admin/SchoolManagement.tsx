@@ -982,6 +982,115 @@ export default function SchoolManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Admin Invite Dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Invite Admin
+            </DialogTitle>
+            <DialogDescription>
+              Generate a one-time invite code for the new Admin of{" "}
+              <strong>{inviteSchool?.name}</strong>. The code expires in 14 days and
+              can only be used once.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Restrict to email (optional)</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="admin@school.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                If set, only this email can use the invite. Leave blank to allow any email.
+              </p>
+            </div>
+
+            <Button onClick={generateInvite} disabled={inviteCreating} className="w-full">
+              {inviteCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+              Generate Invite Code
+            </Button>
+
+            {inviteResult && (
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+                <div>
+                  <Label className="text-xs">Invite Code</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono text-base bg-background border rounded px-2 py-1">
+                      {inviteResult.code}
+                    </code>
+                    <Button size="icon" variant="outline" onClick={() => copyText(inviteResult.code)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Shareable Signup Link</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono text-xs bg-background border rounded px-2 py-1 truncate">
+                      {inviteResult.link}
+                    </code>
+                    <Button size="icon" variant="outline" onClick={() => copyText(inviteResult.link)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Expires {format(new Date(inviteResult.expires_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              </div>
+            )}
+
+            {existingInvites.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs">Existing invites for this school</Label>
+                <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                  {existingInvites.map((inv) => {
+                    const used = !!inv.used_at;
+                    const expired = !used && new Date(inv.expires_at).getTime() < Date.now();
+                    return (
+                      <div key={inv.id} className="flex items-center justify-between gap-2 p-2 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono">{inv.code}</div>
+                          <div className="text-muted-foreground truncate">
+                            {inv.email || "any email"} ·{" "}
+                            {used
+                              ? `used ${format(new Date(inv.used_at!), "MMM d")}`
+                              : expired
+                                ? "expired"
+                                : `expires ${format(new Date(inv.expires_at), "MMM d")}`}
+                          </div>
+                        </div>
+                        <Badge variant={used ? "secondary" : expired ? "outline" : "default"}>
+                          {used ? "used" : expired ? "expired" : "active"}
+                        </Badge>
+                        {!used && (
+                          <Button size="icon" variant="ghost" onClick={() => revokeInvite(inv.id)}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
