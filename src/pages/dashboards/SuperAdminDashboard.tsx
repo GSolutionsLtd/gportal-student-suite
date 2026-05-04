@@ -5,6 +5,10 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Users, 
   School, 
@@ -17,6 +21,8 @@ import {
   UserCheck,
   BookOpen,
   Calendar,
+  UserPlus,
+  Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -56,6 +62,13 @@ interface SchoolDistribution {
   value: number;
 }
 
+interface InviteSchoolOption {
+  id: string;
+  name: string;
+  code: string;
+  subscription_status: string | null;
+}
+
 const STATUS_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
 export default function SuperAdminDashboard() {
@@ -73,6 +86,12 @@ export default function SuperAdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [schoolDistribution, setSchoolDistribution] = useState<SchoolDistribution[]>([]);
   const [userRoleData, setUserRoleData] = useState<{ role: string; count: number }[]>([]);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [eligibleInviteSchools, setEligibleInviteSchools] = useState<InviteSchoolOption[]>([]);
+  const [selectedInviteSchoolId, setSelectedInviteSchoolId] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCreating, setInviteCreating] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ code: string; link: string; expires_at: string } | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -151,6 +170,57 @@ export default function SuperAdminDashboard() {
 
   const formatTableName = (name: string) => {
     return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  const openInviteDialog = async () => {
+    setInviteDialogOpen(true);
+    setInviteResult(null);
+    setInviteEmail("");
+    setSelectedInviteSchoolId("");
+
+    const [{ data: schools }, { data: admins }] = await Promise.all([
+      supabase
+        .from("schools")
+        .select("id, name, code, subscription_status")
+        .in("subscription_status", ["trial", "active"])
+        .order("name", { ascending: true }),
+      supabase.from("school_admins").select("school_id").eq("is_primary", true),
+    ]);
+
+    const assignedSchoolIds = new Set((admins || []).map((admin) => admin.school_id));
+    const eligible = ((schools || []) as InviteSchoolOption[]).filter(
+      (school) => !assignedSchoolIds.has(school.id)
+    );
+    setEligibleInviteSchools(eligible);
+    if (eligible[0]) setSelectedInviteSchoolId(eligible[0].id);
+  };
+
+  const generateInvite = async () => {
+    if (!selectedInviteSchoolId) return;
+    setInviteCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+        body: {
+          action: "create",
+          schoolId: selectedInviteSchoolId,
+          email: inviteEmail.trim(),
+        },
+      });
+      const backendError = (data as { error?: string } | null)?.error || error?.message;
+      if (backendError) throw new Error(backendError);
+      if (!data?.invite?.code) throw new Error("Failed to generate invite code.");
+      setInviteResult({
+        code: data.invite.code,
+        link: `${window.location.origin}/auth?invite=${data.invite.code}`,
+        expires_at: data.invite.expires_at,
+      });
+    } finally {
+      setInviteCreating(false);
+    }
+  };
+
+  const copyInvite = async (text: string) => {
+    await navigator.clipboard.writeText(text);
   };
 
   if (loading) {
@@ -301,6 +371,14 @@ export default function SuperAdminDashboard() {
               <Button
                 variant="outline"
                 className="h-auto py-4 flex-col gap-2"
+                onClick={openInviteDialog}
+              >
+                <UserPlus className="h-5 w-5" />
+                <span>Invite School Admin</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex-col gap-2"
                 onClick={() => navigate("/super-admin/audit")}
               >
                 <Shield className="h-5 w-5" />
@@ -395,6 +473,67 @@ export default function SuperAdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Invite School Admin
+            </DialogTitle>
+            <DialogDescription>
+              Generate a one-time signup invite for an eligible school without a primary Admin.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>School</Label>
+              <Select value={selectedInviteSchoolId} onValueChange={setSelectedInviteSchoolId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a school" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleInviteSchools.map((school) => (
+                    <SelectItem key={school.id} value={school.id}>
+                      {school.name} ({school.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dashboard-invite-email">Restrict to email (optional)</Label>
+              <Input
+                id="dashboard-invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="admin@school.com"
+              />
+            </div>
+            <Button onClick={generateInvite} disabled={!selectedInviteSchoolId || inviteCreating} className="w-full">
+              {inviteCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Generate Invite
+            </Button>
+            {inviteResult && (
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-background border rounded px-2 py-1 font-mono">{inviteResult.code}</code>
+                  <Button variant="outline" size="icon" onClick={() => copyInvite(inviteResult.code)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-background border rounded px-2 py-1 text-xs truncate">{inviteResult.link}</code>
+                  <Button variant="outline" size="icon" onClick={() => copyInvite(inviteResult.link)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

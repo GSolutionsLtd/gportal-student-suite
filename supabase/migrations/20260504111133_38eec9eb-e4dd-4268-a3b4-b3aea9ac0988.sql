@@ -1,0 +1,27 @@
+REVOKE ALL ON FUNCTION public.auto_generate_verification_code() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.can_claim_school_admin(UUID, UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.create_student_pin() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_user_role(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_user_school_code(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_user_school_id(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.handle_new_student() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.has_role(UUID, public.app_role) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.has_school_access(UUID, UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_admin_or_super(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_school_admin(UUID, UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.update_updated_at_column() FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.auto_generate_verification_code() TO service_role;
+GRANT EXECUTE ON FUNCTION public.can_claim_school_admin(UUID, UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.create_student_pin() TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_user_role(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_user_school_code(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_user_school_id(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.handle_new_student() TO service_role;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
+GRANT EXECUTE ON FUNCTION public.has_role(UUID, public.app_role) TO service_role;
+GRANT EXECUTE ON FUNCTION public.has_school_access(UUID, UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_super(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_school_admin(UUID, UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO service_role;

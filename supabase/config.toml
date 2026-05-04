@@ -32,3 +32,5 @@ verify_jwt = false
 
 [functions.complete-signup]
 verify_jwt = false
+[functions.school-admin-invites]
+verify_jwt = false

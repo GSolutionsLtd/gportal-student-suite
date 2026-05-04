@@ -117,11 +117,13 @@ export default function Auth() {
     setInviteValidating(true);
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.rpc("validate_admin_invite", { _code: code });
+      const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+        body: { action: "validate", inviteCode: code },
+      });
       if (cancelled) return;
       setInviteValidating(false);
-      if (!error && Array.isArray(data) && data.length > 0) {
-        setValidatedInvite(data[0] as typeof validatedInvite extends infer T ? T : never);
+      if (!error && data?.invite) {
+        setValidatedInvite(data.invite as typeof validatedInvite extends infer T ? T : never);
       } else {
         setValidatedInvite(null);
       }
@@ -132,9 +134,11 @@ export default function Auth() {
   // Fetch available schools for signup dropdown
   useEffect(() => {
     const fetchSchools = async () => {
-      const { data, error } = await supabase.rpc("list_signup_schools");
-      if (!error && data) {
-        setSchools(data as SchoolOption[]);
+      const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+        body: { action: "list-schools" },
+      });
+      if (!error && data?.schools) {
+        setSchools(data.schools as SchoolOption[]);
       }
     };
     fetchSchools();
