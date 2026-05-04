@@ -37,10 +37,39 @@ export function useSchoolContext(): SchoolContext {
 
     const fetchSchool = async () => {
       try {
-        // Use the DB function to resolve school_id
-        const { data: sidData } = await supabase.rpc("get_user_school_id", {
-          _user_id: user.id,
-        });
+        let sidData: string | null = null;
+
+        if (userRole === "admin") {
+          const { data } = await supabase
+            .from("school_admins")
+            .select("school_id")
+            .eq("user_id", user.id)
+            .eq("is_primary", true)
+            .maybeSingle();
+          sidData = data?.school_id ?? null;
+        } else if (userRole === "teacher") {
+          const { data } = await supabase
+            .from("teachers")
+            .select("school_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          sidData = data?.school_id ?? null;
+        } else if (userRole === "student") {
+          const { data } = await supabase
+            .from("students")
+            .select("school_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          sidData = data?.school_id ?? null;
+        } else if (userRole === "parent") {
+          const { data } = await supabase
+            .from("parent_school_memberships")
+            .select("school_id")
+            .eq("parent_user_id", user.id)
+            .eq("is_primary", true)
+            .maybeSingle();
+          sidData = data?.school_id ?? null;
+        }
 
         if (sidData) {
           setSchoolId(sidData);
