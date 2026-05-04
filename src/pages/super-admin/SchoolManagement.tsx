@@ -456,23 +456,18 @@ export default function SchoolManagement() {
     if (!inviteSchool || !user) return;
     setInviteCreating(true);
     try {
-      const { data: codeRow, error: codeErr } = await supabase.rpc("generate_admin_invite_code");
-      if (codeErr) throw codeErr;
-      const code = (codeRow as unknown as string)?.toUpperCase();
-      if (!code) throw new Error("Failed to generate code.");
-      const { data: inserted, error } = await supabase
-        .from("admin_invites")
-        .insert({
-          code,
-          school_id: inviteSchool.id,
-          email: inviteEmail.trim() ? inviteEmail.trim().toLowerCase() : null,
-          created_by: user.id,
-        })
-        .select("code, expires_at")
-        .single();
-      if (error) throw error;
-      const link = `${window.location.origin}/auth?invite=${inserted.code}`;
-      setInviteResult({ code: inserted.code, link, expires_at: inserted.expires_at as string });
+      const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+        body: {
+          action: "create",
+          schoolId: inviteSchool.id,
+          email: inviteEmail.trim(),
+        },
+      });
+      const backendError = (data as { error?: string } | null)?.error || error?.message;
+      if (backendError) throw new Error(backendError);
+      if (!data?.invite?.code) throw new Error("Failed to generate invite code.");
+      const link = `${window.location.origin}/auth?invite=${data.invite.code}`;
+      setInviteResult({ code: data.invite.code, link, expires_at: data.invite.expires_at as string });
       const { data: refreshed } = await supabase
         .from("admin_invites")
         .select("id, code, email, expires_at, used_at")
