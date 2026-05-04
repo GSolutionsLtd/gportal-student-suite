@@ -5,6 +5,10 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Users, 
   School, 
@@ -17,6 +21,8 @@ import {
   UserCheck,
   BookOpen,
   Calendar,
+  UserPlus,
+  Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -56,6 +62,13 @@ interface SchoolDistribution {
   value: number;
 }
 
+interface InviteSchoolOption {
+  id: string;
+  name: string;
+  code: string;
+  subscription_status: string | null;
+}
+
 const STATUS_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
 export default function SuperAdminDashboard() {
@@ -73,6 +86,12 @@ export default function SuperAdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [schoolDistribution, setSchoolDistribution] = useState<SchoolDistribution[]>([]);
   const [userRoleData, setUserRoleData] = useState<{ role: string; count: number }[]>([]);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [eligibleInviteSchools, setEligibleInviteSchools] = useState<InviteSchoolOption[]>([]);
+  const [selectedInviteSchoolId, setSelectedInviteSchoolId] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCreating, setInviteCreating] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ code: string; link: string; expires_at: string } | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -151,6 +170,57 @@ export default function SuperAdminDashboard() {
 
   const formatTableName = (name: string) => {
     return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  const openInviteDialog = async () => {
+    setInviteDialogOpen(true);
+    setInviteResult(null);
+    setInviteEmail("");
+    setSelectedInviteSchoolId("");
+
+    const [{ data: schools }, { data: admins }] = await Promise.all([
+      supabase
+        .from("schools")
+        .select("id, name, code, subscription_status")
+        .in("subscription_status", ["trial", "active"])
+        .order("name", { ascending: true }),
+      supabase.from("school_admins").select("school_id").eq("is_primary", true),
+    ]);
+
+    const assignedSchoolIds = new Set((admins || []).map((admin) => admin.school_id));
+    const eligible = ((schools || []) as InviteSchoolOption[]).filter(
+      (school) => !assignedSchoolIds.has(school.id)
+    );
+    setEligibleInviteSchools(eligible);
+    if (eligible[0]) setSelectedInviteSchoolId(eligible[0].id);
+  };
+
+  const generateInvite = async () => {
+    if (!selectedInviteSchoolId) return;
+    setInviteCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+        body: {
+          action: "create",
+          schoolId: selectedInviteSchoolId,
+          email: inviteEmail.trim(),
+        },
+      });
+      const backendError = (data as { error?: string } | null)?.error || error?.message;
+      if (backendError) throw new Error(backendError);
+      if (!data?.invite?.code) throw new Error("Failed to generate invite code.");
+      setInviteResult({
+        code: data.invite.code,
+        link: `${window.location.origin}/auth?invite=${data.invite.code}`,
+        expires_at: data.invite.expires_at,
+      });
+    } finally {
+      setInviteCreating(false);
+    }
+  };
+
+  const copyInvite = async (text: string) => {
+    await navigator.clipboard.writeText(text);
   };
 
   if (loading) {
