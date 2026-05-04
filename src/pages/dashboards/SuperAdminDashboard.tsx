@@ -371,6 +371,14 @@ export default function SuperAdminDashboard() {
               <Button
                 variant="outline"
                 className="h-auto py-4 flex-col gap-2"
+                onClick={openInviteDialog}
+              >
+                <UserPlus className="h-5 w-5" />
+                <span>Invite School Admin</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex-col gap-2"
                 onClick={() => navigate("/super-admin/audit")}
               >
                 <Shield className="h-5 w-5" />
@@ -465,6 +473,67 @@ export default function SuperAdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Invite School Admin
+            </DialogTitle>
+            <DialogDescription>
+              Generate a one-time signup invite for an eligible school without a primary Admin.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>School</Label>
+              <Select value={selectedInviteSchoolId} onValueChange={setSelectedInviteSchoolId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a school" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleInviteSchools.map((school) => (
+                    <SelectItem key={school.id} value={school.id}>
+                      {school.name} ({school.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dashboard-invite-email">Restrict to email (optional)</Label>
+              <Input
+                id="dashboard-invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="admin@school.com"
+              />
+            </div>
+            <Button onClick={generateInvite} disabled={!selectedInviteSchoolId || inviteCreating} className="w-full">
+              {inviteCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Generate Invite
+            </Button>
+            {inviteResult && (
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-background border rounded px-2 py-1 font-mono">{inviteResult.code}</code>
+                  <Button variant="outline" size="icon" onClick={() => copyInvite(inviteResult.code)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-background border rounded px-2 py-1 text-xs truncate">{inviteResult.link}</code>
+                  <Button variant="outline" size="icon" onClick={() => copyInvite(inviteResult.link)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
