@@ -82,6 +82,7 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
+  const [adminSignupMode, setAdminSignupMode] = useState<"invite" | "school">("invite");
   
   const [inviteCode, setInviteCode] = useState<string>("");
   const [inviteValidating, setInviteValidating] = useState(false);
@@ -195,35 +196,55 @@ export default function Auth() {
       return;
     }
 
-    // Admin signup uses an invite code; other signup roles must pick a school.
+    // Admin signup can use a validated invite code or an eligible unclaimed school.
     if (!isLogin && selectedRole === "admin") {
-      if (!inviteCode || inviteCode.length < 6) {
-        toast({
-          title: "Invite Code Required",
-          description: "Enter the invite code provided by the Super Admin.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!validatedInvite) {
-        toast({
-          title: "Invalid Invite",
-          description:
-            "This invite code is invalid, expired, already used, or for a school that already has an Admin.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (
-        validatedInvite.email &&
-        validatedInvite.email.toLowerCase() !== formData.email.trim().toLowerCase()
-      ) {
-        toast({
-          title: "Email Mismatch",
-          description: `This invite was issued for ${validatedInvite.email}.`,
-          variant: "destructive",
-        });
-        return;
+      if (adminSignupMode === "school") {
+        const selectedSchool = schools.find((school) => school.id === selectedSchoolId);
+        if (!selectedSchoolId) {
+          toast({
+            title: "School Required",
+            description: "Please select the school this Admin account will manage.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!selectedSchool?.admin_available) {
+          toast({
+            title: "School Not Eligible",
+            description: "This school is not eligible for primary Admin signup.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        if (!inviteCode || inviteCode.length < 6) {
+          toast({
+            title: "Invite Code Required",
+            description: "Enter the invite code provided by the Super Admin.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!validatedInvite) {
+          toast({
+            title: "Invalid Invite",
+            description:
+              "This invite code is invalid, expired, already used, or for a school that already has an Admin.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          validatedInvite.email &&
+          validatedInvite.email.toLowerCase() !== formData.email.trim().toLowerCase()
+        ) {
+          toast({
+            title: "Email Mismatch",
+            description: `This invite was issued for ${validatedInvite.email}.`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
     } else if (!isLogin && selectedRole && !selectedSchoolId) {
       toast({
@@ -277,8 +298,8 @@ export default function Auth() {
           selectedRole!,
           {
             ...teacherOptions,
-            schoolId: selectedRole === "admin" ? undefined : (selectedSchoolId || undefined),
-            inviteCode: selectedRole === "admin" ? inviteCode.trim().toUpperCase() : undefined,
+            schoolId: selectedRole === "admin" ? (adminSignupMode === "school" ? selectedSchoolId : undefined) : (selectedSchoolId || undefined),
+            inviteCode: selectedRole === "admin" && adminSignupMode === "invite" ? inviteCode.trim().toUpperCase() : undefined,
           }
         );
         
@@ -315,6 +336,7 @@ export default function Auth() {
 
   // All public signup roles are school-scoped in the multi-tenant platform
   const needsSchool = !isLogin && !!selectedRole;
+  const eligibleAdminSchools = schools.filter((school) => school.admin_available);
 
   if (authLoading) {
     return (
@@ -426,41 +448,33 @@ export default function Auth() {
               </div>
             )}
 
-            {/* Admin invite-code field (replaces school dropdown for admins) */}
+            {/* Admin signup: choose invite code or eligible school claim */}
             {!isLogin && selectedRole === "admin" && (
-              <div className="mb-4">
-                <Label htmlFor="inviteCode" className="text-sm font-medium mb-2 block">
-                  Admin Invite Code *
-                </Label>
-                <Input
-                  id="inviteCode"
-                  placeholder="Paste the 12-character code from your Super Admin"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value.toUpperCase().replace(/\s/g, ""))}
-                  maxLength={32}
-                  autoComplete="off"
-                />
-                <div className="text-xs mt-2">
-                  {inviteValidating && (
-                    <span className="text-muted-foreground">Checking invite…</span>
-                  )}
-                  {!inviteValidating && validatedInvite && (
-                    <span className="text-success">
-                      ✓ Valid invite for <strong>{validatedInvite.school_name}</strong> ({validatedInvite.school_code})
-                      {validatedInvite.email ? ` — must sign up as ${validatedInvite.email}` : ""}
-                    </span>
-                  )}
-                  {!inviteValidating && !validatedInvite && inviteCode.length >= 6 && (
-                    <span className="text-destructive">
-                      Invalid, expired, already used, or for a school that already has an Admin.
-                    </span>
-                  )}
-                  {!inviteCode && (
-                    <span className="text-muted-foreground">
-                      Don't have a code? Ask the Super Admin to issue one for your school.
-                    </span>
-                  )}
+              <div className="mb-4 space-y-3">
+                <div className="grid grid-cols-2 gap-2 rounded-lg border bg-card p-1">
+                  <button type="button" onClick={() => setAdminSignupMode("invite")} className={cn("rounded-md px-3 py-2 text-sm font-medium", adminSignupMode === "invite" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary")}>Invite code</button>
+                  <button type="button" onClick={() => setAdminSignupMode("school")} className={cn("rounded-md px-3 py-2 text-sm font-medium", adminSignupMode === "school" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary")}>Select school</button>
                 </div>
+                {adminSignupMode === "invite" ? (
+                  <div>
+                    <Label htmlFor="inviteCode" className="text-sm font-medium mb-2 block">Admin Invite Code *</Label>
+                    <Input id="inviteCode" placeholder="Paste the 12-character code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase().replace(/\s/g, ""))} maxLength={32} autoComplete="off" />
+                    <div className="text-xs mt-2">
+                      {inviteValidating && <span className="text-muted-foreground">Checking invite…</span>}
+                      {!inviteValidating && validatedInvite && <span className="text-success">✓ Valid invite for <strong>{validatedInvite.school_name}</strong> ({validatedInvite.school_code}){validatedInvite.email ? ` — must sign up as ${validatedInvite.email}` : ""}</span>}
+                      {!inviteValidating && !validatedInvite && inviteCode.length >= 6 && <span className="text-destructive">Invalid, expired, already used, or ineligible.</span>}
+                      {!inviteCode && <span className="text-muted-foreground">Ask the Super Admin to issue one for your school.</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-sm font-medium mb-2 block">Select eligible school *</Label>
+                    <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                      <SelectTrigger><SelectValue placeholder={eligibleAdminSchools.length === 0 ? "No eligible schools available" : "Choose a school..."} /></SelectTrigger>
+                      <SelectContent>{eligibleAdminSchools.map((school) => <SelectItem key={school.id} value={school.id}>{school.name} ({school.code})</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
 

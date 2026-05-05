@@ -27,11 +27,11 @@ const BodySchema = z
   })
   .refine(
     (d) =>
-      (d.role === "admin" && !!d.inviteCode) ||
+      (d.role === "admin" && (!!d.inviteCode || !!d.schoolId)) ||
       (d.role !== "admin" && !!d.schoolId),
     {
       message:
-        "Admins must provide an invite code; other roles must select a school.",
+        "Admins must provide an invite code or select an eligible school; other roles must select a school.",
     }
   );
 
@@ -70,26 +70,29 @@ Deno.serve(async (req) => {
       throw new Error("Signup verification failed.");
     }
 
-    // For admin role, resolve schoolId from a valid, unused invite code.
+    // For admin role, resolve schoolId from a valid, unused invite code when provided.
     let inviteRow: { id: string; school_id: string; email: string | null } | null = null;
     if (role === "admin") {
-      if (!inviteCode) throw new Error("An invite code is required for Admin signup.");
-      const { data: inv, error: invErr } = await admin
-        .from("admin_invites")
-        .select("id, school_id, email, used_at, expires_at")
-        .eq("code", inviteCode)
-        .maybeSingle();
-      if (invErr) throw invErr;
-      if (!inv) throw new Error("Invite code is invalid.");
-      if (inv.used_at) throw new Error("This invite has already been used.");
-      if (new Date(inv.expires_at).getTime() < Date.now()) {
-        throw new Error("This invite has expired.");
+      if (inviteCode) {
+        const { data: inv, error: invErr } = await admin
+          .from("admin_invites")
+          .select("id, school_id, email, used_at, expires_at")
+          .eq("code", inviteCode)
+          .maybeSingle();
+        if (invErr) throw invErr;
+        if (!inv) throw new Error("Invite code is invalid.");
+        if (inv.used_at) throw new Error("This invite has already been used.");
+        if (new Date(inv.expires_at).getTime() < Date.now()) {
+          throw new Error("This invite has expired.");
+        }
+        if (inv.email && inv.email.toLowerCase() !== email.toLowerCase()) {
+          throw new Error("This invite was issued for a different email address.");
+        }
+        schoolId = inv.school_id;
+        inviteRow = { id: inv.id, school_id: inv.school_id, email: inv.email };
+      } else if (!schoolId) {
+        throw new Error("Select an eligible school or enter a valid Admin invite code.");
       }
-      if (inv.email && inv.email.toLowerCase() !== email.toLowerCase()) {
-        throw new Error("This invite was issued for a different email address.");
-      }
-      schoolId = inv.school_id;
-      inviteRow = { id: inv.id, school_id: inv.school_id, email: inv.email };
     }
 
     if (!schoolId) throw new Error("A school must be selected.");
