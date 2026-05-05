@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const BodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list-schools") }),
+  z.object({ action: z.literal("list-invites"), schoolId: z.string().uuid() }),
   z.object({ action: z.literal("validate"), inviteCode: z.string().trim().min(6).max(32) }),
   z.object({
     action: z.literal("create"),
@@ -47,9 +48,24 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
     if (parsed.data.action === "list-schools") {
-      const { data, error } = await admin.rpc("list_signup_schools");
-      if (error) throw error;
-      return json({ schools: data || [] });
+      const [{ data: schools, error: schoolsError }, { data: primaryAdmins, error: adminsError }] = await Promise.all([
+        admin
+          .from("schools")
+          .select("id, code, name, subscription_status")
+          .in("subscription_status", ["trial", "active"])
+          .order("name", { ascending: true }),
+        admin.from("school_admins").select("school_id").eq("is_primary", true),
+      ]);
+      if (schoolsError) throw schoolsError;
+      if (adminsError) throw adminsError;
+
+      const assigned = new Set((primaryAdmins || []).map((row) => row.school_id));
+      return json({
+        schools: (schools || []).map((school) => ({
+          ...school,
+          admin_available: !assigned.has(school.id),
+        })),
+      });
     }
 
     if (parsed.data.action === "validate") {
@@ -74,6 +90,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (roleError) throw roleError;
     if (roleRow?.role !== "super_admin") return json({ error: "Only Super Admins can create school Admin invites." }, 403);
+
+    if (parsed.data.action === "list-invites") {
+      const { data, error } = await admin
+        .from("admin_invites")
+        .select("id, code, email, expires_at, used_at, created_at")
+        .eq("school_id", parsed.data.schoolId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return json({ invites: data || [] });
+    }
 
     const { data: school, error: schoolError } = await admin
       .from("schools")
