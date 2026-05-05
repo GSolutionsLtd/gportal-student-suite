@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Users, 
@@ -73,6 +74,7 @@ const STATUS_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
@@ -92,6 +94,7 @@ export default function SuperAdminDashboard() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteCreating, setInviteCreating] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ code: string; link: string; expires_at: string } | null>(null);
+  const [inviteError, setInviteError] = useState("");
 
   useEffect(() => {
     fetchDashboardData();
@@ -175,6 +178,7 @@ export default function SuperAdminDashboard() {
   const openInviteDialog = async () => {
     setInviteDialogOpen(true);
     setInviteResult(null);
+    setInviteError("");
     setInviteEmail("");
     setSelectedInviteSchoolId("");
 
@@ -214,6 +218,11 @@ export default function SuperAdminDashboard() {
         link: `${window.location.origin}/auth?invite=${data.invite.code}`,
         expires_at: data.invite.expires_at,
       });
+      toast({ title: "Invite created", description: "Share the code or link with the new Admin." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate invite code.";
+      setInviteError(message);
+      toast({ title: "Invite failed", description: message, variant: "destructive" });
     } finally {
       setInviteCreating(false);
     }
@@ -235,8 +244,16 @@ export default function SuperAdminDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Super Admin Dashboard</h1>
-        <p className="text-muted-foreground">System overview and management</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Super Admin Dashboard</h1>
+            <p className="text-muted-foreground">System overview and management</p>
+          </div>
+          <Button onClick={openInviteDialog} className="gap-2 sm:w-auto w-full">
+            <UserPlus className="h-4 w-4" />
+            Invite School Admin
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -529,8 +546,10 @@ export default function SuperAdminDashboard() {
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">Status: unused · Expires {format(new Date(inviteResult.expires_at), "MMM d, yyyy 'at' h:mm a")}</p>
               </div>
             )}
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
           </div>
         </DialogContent>
       </Dialog>
