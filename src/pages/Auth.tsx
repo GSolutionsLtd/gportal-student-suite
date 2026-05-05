@@ -82,6 +82,7 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
+  const [adminSignupMode, setAdminSignupMode] = useState<"invite" | "school">("invite");
   
   const [inviteCode, setInviteCode] = useState<string>("");
   const [inviteValidating, setInviteValidating] = useState(false);
@@ -195,9 +196,27 @@ export default function Auth() {
       return;
     }
 
-    // Admin signup uses an invite code; other signup roles must pick a school.
+    // Admin signup can use a validated invite code or an eligible unclaimed school.
     if (!isLogin && selectedRole === "admin") {
-      if (!inviteCode || inviteCode.length < 6) {
+      if (adminSignupMode === "school") {
+        const selectedSchool = schools.find((school) => school.id === selectedSchoolId);
+        if (!selectedSchoolId) {
+          toast({
+            title: "School Required",
+            description: "Please select the school this Admin account will manage.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!selectedSchool?.admin_available) {
+          toast({
+            title: "School Not Eligible",
+            description: "This school is not eligible for primary Admin signup.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else if (!inviteCode || inviteCode.length < 6) {
         toast({
           title: "Invite Code Required",
           description: "Enter the invite code provided by the Super Admin.",
@@ -205,7 +224,7 @@ export default function Auth() {
         });
         return;
       }
-      if (!validatedInvite) {
+      } else if (!validatedInvite) {
         toast({
           title: "Invalid Invite",
           description:
@@ -214,7 +233,7 @@ export default function Auth() {
         });
         return;
       }
-      if (
+      } else if (
         validatedInvite.email &&
         validatedInvite.email.toLowerCase() !== formData.email.trim().toLowerCase()
       ) {
@@ -277,8 +296,8 @@ export default function Auth() {
           selectedRole!,
           {
             ...teacherOptions,
-            schoolId: selectedRole === "admin" ? undefined : (selectedSchoolId || undefined),
-            inviteCode: selectedRole === "admin" ? inviteCode.trim().toUpperCase() : undefined,
+            schoolId: selectedRole === "admin" ? (adminSignupMode === "school" ? selectedSchoolId : undefined) : (selectedSchoolId || undefined),
+            inviteCode: selectedRole === "admin" && adminSignupMode === "invite" ? inviteCode.trim().toUpperCase() : undefined,
           }
         );
         
@@ -315,6 +334,7 @@ export default function Auth() {
 
   // All public signup roles are school-scoped in the multi-tenant platform
   const needsSchool = !isLogin && !!selectedRole;
+  const eligibleAdminSchools = schools.filter((school) => school.admin_available);
 
   if (authLoading) {
     return (
