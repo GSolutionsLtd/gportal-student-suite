@@ -216,33 +216,35 @@ export default function Auth() {
           });
           return;
         }
-      } else if (!inviteCode || inviteCode.length < 6) {
-        toast({
-          title: "Invite Code Required",
-          description: "Enter the invite code provided by the Super Admin.",
-          variant: "destructive",
-        });
-        return;
-      }
-      } else if (!validatedInvite) {
-        toast({
-          title: "Invalid Invite",
-          description:
-            "This invite code is invalid, expired, already used, or for a school that already has an Admin.",
-          variant: "destructive",
-        });
-        return;
-      }
-      } else if (
-        validatedInvite.email &&
-        validatedInvite.email.toLowerCase() !== formData.email.trim().toLowerCase()
-      ) {
-        toast({
-          title: "Email Mismatch",
-          description: `This invite was issued for ${validatedInvite.email}.`,
-          variant: "destructive",
-        });
-        return;
+      } else {
+        if (!inviteCode || inviteCode.length < 6) {
+          toast({
+            title: "Invite Code Required",
+            description: "Enter the invite code provided by the Super Admin.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!validatedInvite) {
+          toast({
+            title: "Invalid Invite",
+            description:
+              "This invite code is invalid, expired, already used, or for a school that already has an Admin.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          validatedInvite.email &&
+          validatedInvite.email.toLowerCase() !== formData.email.trim().toLowerCase()
+        ) {
+          toast({
+            title: "Email Mismatch",
+            description: `This invite was issued for ${validatedInvite.email}.`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
     } else if (!isLogin && selectedRole && !selectedSchoolId) {
       toast({
