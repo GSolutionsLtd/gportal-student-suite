@@ -86,6 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fetchUserRole(session.user.id),
               fetchProfile(session.user.id)
             ]);
+            if (profileData?.is_active === false) {
+              await supabase.auth.signOut().catch(() => undefined);
+              setUserRole(null);
+              setProfile(null);
+              setIsLoading(false);
+              return;
+            }
             setUserRole(role);
             setProfile(profileData);
             setIsLoading(false);
@@ -108,6 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fetchUserRole(session.user.id),
           fetchProfile(session.user.id)
         ]);
+        if (profileData?.is_active === false) {
+          await supabase.auth.signOut().catch(() => undefined);
+          setUserRole(null);
+          setProfile(null);
+          setIsLoading(false);
+          return;
+        }
         setUserRole(role);
         setProfile(profileData);
       }
