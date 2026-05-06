@@ -12,6 +12,7 @@ interface AuthContextType {
     email: string;
     full_name: string;
     avatar_url: string | null;
+    is_active: boolean;
   } | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, avatar_url')
+      .select('id, email, full_name, avatar_url, is_active')
       .eq('id', userId)
       .maybeSingle();
 
@@ -85,6 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fetchUserRole(session.user.id),
               fetchProfile(session.user.id)
             ]);
+            if (profileData?.is_active === false) {
+              await supabase.auth.signOut().catch(() => undefined);
+              setUserRole(null);
+              setProfile(null);
+              setIsLoading(false);
+              return;
+            }
             setUserRole(role);
             setProfile(profileData);
             setIsLoading(false);
@@ -107,6 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fetchUserRole(session.user.id),
           fetchProfile(session.user.id)
         ]);
+        if (profileData?.is_active === false) {
+          await supabase.auth.signOut().catch(() => undefined);
+          setUserRole(null);
+          setProfile(null);
+          setIsLoading(false);
+          return;
+        }
         setUserRole(role);
         setProfile(profileData);
       }
@@ -121,6 +136,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
+    if (!error) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const profileData = await fetchProfile(user.id);
+        if (profileData && profileData.is_active === false) {
+          await supabase.auth.signOut().catch(() => undefined);
+          return { error: new Error("This account has been suspended. Contact the Super Admin.") };
+        }
+      }
+    }
     return { error };
   };
 
@@ -161,6 +186,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user) {
       const { data: completionData, error: completionError } =
         await supabase.functions.invoke("complete-signup", {
+          headers: data.session?.access_token
+            ? { Authorization: `Bearer ${data.session.access_token}` }
+            : undefined,
           body: {
             userId: data.user.id,
             email,
@@ -194,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (backendError) {
         console.error("Error completing signup:", backendError);
+        await supabase.auth.signOut().catch(() => undefined);
         return { error: new Error(backendError) };
       }
     }

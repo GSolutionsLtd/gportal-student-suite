@@ -35,10 +35,18 @@ const BodySchema = z
     }
   );
 
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  let admin: ReturnType<typeof createClient> | null = null;
+  let cleanupUserId: string | null = null;
 
   try {
     const parsed = BodySchema.safeParse(await req.json());
@@ -48,10 +56,7 @@ Deno.serve(async (req) => {
         Object.values(flat.fieldErrors).flat()[0] ||
         flat.formErrors[0] ||
         "Invalid signup details.";
-      return new Response(JSON.stringify({ error: firstError }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: firstError }, 400);
     }
 
     const { userId, email, fullName, role, teacher } = parsed.data;
@@ -59,10 +64,25 @@ Deno.serve(async (req) => {
     const inviteCode = parsed.data.inviteCode?.trim().toUpperCase();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
+    admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      throw new Error("Signup session is missing. Please sign up again.");
+    }
+
+    const authClient = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: sessionUser, error: sessionError } = await authClient.auth.getUser();
+    if (sessionError || !sessionUser.user || sessionUser.user.id !== userId) {
+      throw new Error("Signup session could not be verified. Please sign up again.");
+    }
 
     const { data: userData, error: userError } = await admin.auth.admin.getUserById(userId);
     if (userError || !userData.user) throw new Error("Unable to verify the new account.");
@@ -70,7 +90,22 @@ Deno.serve(async (req) => {
       throw new Error("Signup verification failed.");
     }
 
-    // For admin role, resolve schoolId from a valid, unused invite code when provided.
+    const createdAt = userData.user.created_at ? new Date(userData.user.created_at).getTime() : 0;
+    const isRecentSignup = Date.now() - createdAt < 30 * 60 * 1000;
+    cleanupUserId = isRecentSignup ? userId : null;
+
+    const { data: existingRole, error: existingRoleError } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existingRoleError) throw existingRoleError;
+
+    if (existingRole && existingRole.role !== role) {
+      throw new Error("This account already has a different role.");
+    }
+    if (existingRole) cleanupUserId = null;
+
     let inviteRow: { id: string; school_id: string; email: string | null } | null = null;
     if (role === "admin") {
       if (inviteCode) {
@@ -82,9 +117,7 @@ Deno.serve(async (req) => {
         if (invErr) throw invErr;
         if (!inv) throw new Error("Invite code is invalid.");
         if (inv.used_at) throw new Error("This invite has already been used.");
-        if (new Date(inv.expires_at).getTime() < Date.now()) {
-          throw new Error("This invite has expired.");
-        }
+        if (new Date(inv.expires_at).getTime() < Date.now()) throw new Error("This invite has expired.");
         if (inv.email && inv.email.toLowerCase() !== email.toLowerCase()) {
           throw new Error("This invite was issued for a different email address.");
         }
@@ -102,62 +135,41 @@ Deno.serve(async (req) => {
       .select("id, subscription_status")
       .eq("id", schoolId)
       .maybeSingle();
-
     if (schoolError || !school) throw new Error("Selected school was not found.");
     if (!["trial", "active"].includes(school.subscription_status)) {
       throw new Error("Selected school is not available for signup.");
-    }
-
-    const { data: existingRole } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (existingRole && existingRole.role !== role) {
-      throw new Error("This account already has a different role.");
     }
 
     const { error: profileError } = await admin.from("profiles").upsert({
       id: userId,
       email,
       full_name: fullName,
+      is_active: true,
     });
     if (profileError) throw profileError;
 
-    if (!existingRole) {
-      const { error } = await admin
-        .from("user_roles")
-        .upsert({ user_id: userId, role }, { onConflict: "user_id" });
-      if (error) {
-        throw new Error(`Failed to assign role: ${error.message}`);
-      }
-    }
-
     if (role === "admin") {
-      const { data: primaryAdmin } = await admin
+      const { data: primaryAdmin, error: primaryError } = await admin
         .from("school_admins")
         .select("id, user_id")
         .eq("school_id", schoolId)
         .eq("is_primary", true)
         .maybeSingle();
+      if (primaryError) throw primaryError;
 
       if (primaryAdmin && primaryAdmin.user_id !== userId) {
-        throw new Error(
-          "This school already has a primary Admin. Ask the Super Admin to reassign it."
-        );
+        throw new Error("This school already has a primary Admin. Ask the Super Admin to reassign it.");
       }
 
-      const { data: existingForUser } = await admin
+      const { data: existingForUser, error: existingAdminError } = await admin
         .from("school_admins")
         .select("id, school_id")
         .eq("user_id", userId)
         .maybeSingle();
+      if (existingAdminError) throw existingAdminError;
 
       if (existingForUser && existingForUser.school_id !== schoolId) {
-        throw new Error(
-          "This account is already linked to a different school as Admin."
-        );
+        throw new Error("This account is already linked to a different school as Admin.");
       }
 
       if (!primaryAdmin && !existingForUser) {
@@ -166,31 +178,24 @@ Deno.serve(async (req) => {
           school_id: schoolId,
           is_primary: true,
         });
-        if (error) throw error;
+        if (error) throw new Error(`Failed to link Admin to school: ${error.message}`);
       } else if (existingForUser && existingForUser.school_id === schoolId) {
         const { error } = await admin
           .from("school_admins")
           .update({ is_primary: true })
           .eq("id", existingForUser.id);
-        if (error) throw error;
-      }
-
-      if (inviteRow) {
-        await admin
-          .from("admin_invites")
-          .update({ used_at: new Date().toISOString(), used_by: userId })
-          .eq("id", inviteRow.id)
-          .is("used_at", null);
+        if (error) throw new Error(`Failed to update Admin school link: ${error.message}`);
       }
     }
 
     if (role === "parent") {
-      const { data: existingMembership } = await admin
+      const { data: existingMembership, error: membershipLookupError } = await admin
         .from("parent_school_memberships")
         .select("id")
         .eq("parent_user_id", userId)
         .eq("school_id", schoolId)
         .maybeSingle();
+      if (membershipLookupError) throw membershipLookupError;
 
       if (!existingMembership) {
         const { error } = await admin.from("parent_school_memberships").insert({
@@ -204,11 +209,12 @@ Deno.serve(async (req) => {
 
     if (role === "student") {
       const [firstName, ...rest] = String(fullName).trim().split(/\s+/);
-      const { data: existingStudent } = await admin
+      const { data: existingStudent, error: studentLookupError } = await admin
         .from("students")
         .select("id")
         .eq("user_id", userId)
         .maybeSingle();
+      if (studentLookupError) throw studentLookupError;
 
       const payload = {
         user_id: userId,
@@ -227,11 +233,12 @@ Deno.serve(async (req) => {
     if (role === "teacher") {
       if (!teacher?.staff_id) throw new Error("Staff ID is required for teacher signup.");
 
-      const { data: existingTeacher } = await admin
+      const { data: existingTeacher, error: teacherLookupError } = await admin
         .from("teachers")
         .select("id")
         .eq("user_id", userId)
         .maybeSingle();
+      if (teacherLookupError) throw teacherLookupError;
 
       const payload = {
         user_id: userId,
@@ -250,13 +257,40 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (!existingRole) {
+      const { error } = await admin.from("user_roles").insert({ user_id: userId, role });
+      if (error) throw new Error(`Failed to assign role: ${error.message}`);
+    }
+
+    if (role === "admin" && inviteRow) {
+      const { error } = await admin
+        .from("admin_invites")
+        .update({ used_at: new Date().toISOString(), used_by: userId })
+        .eq("id", inviteRow.id)
+        .is("used_at", null);
+      if (error) throw new Error(`Failed to mark invite as used: ${error.message}`);
+    }
+
+    cleanupUserId = null;
+    return json({ ok: true });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Signup completion failed" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (admin && cleanupUserId) {
+      try {
+        await admin.from("user_roles").delete().eq("user_id", cleanupUserId);
+        await admin.from("school_admins").delete().eq("user_id", cleanupUserId);
+        await admin.from("parent_school_memberships").delete().eq("parent_user_id", cleanupUserId);
+        await admin.from("teachers").delete().eq("user_id", cleanupUserId);
+        await admin.from("students").update({ user_id: null }).eq("user_id", cleanupUserId);
+        await admin.from("profiles").delete().eq("id", cleanupUserId);
+        await admin.auth.admin.deleteUser(cleanupUserId);
+      } catch (cleanupError) {
+        console.error("Signup cleanup failed", cleanupError);
+      }
+    }
+
+    return json(
+      { error: error instanceof Error ? error.message : "Signup completion failed" },
+      400
+    );
   }
 });
