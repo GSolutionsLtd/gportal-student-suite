@@ -34,6 +34,7 @@ const ROLE_ICONS: Record<string, typeof User> = {
   admin: Shield,
   teacher: School,
   student: GraduationCap,
+  parent: Users,
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -41,6 +42,7 @@ const ROLE_COLORS: Record<string, string> = {
   admin: "bg-purple-100 text-purple-800",
   teacher: "bg-blue-100 text-blue-800",
   student: "bg-green-100 text-green-800",
+  parent: "bg-secondary text-secondary-foreground",
 };
 
 export default function UserManagement() {
@@ -236,6 +238,7 @@ export default function UserManagement() {
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="teacher">Teacher</SelectItem>
                 <SelectItem value="student">Student</SelectItem>
+                <SelectItem value="parent">Parent</SelectItem>
               </SelectContent>
             </Select>
           </div>
