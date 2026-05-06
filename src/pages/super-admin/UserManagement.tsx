@@ -49,6 +49,14 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteSchools, setInviteSchools] = useState<InviteSchoolOption[]>([]);
+  const [selectedInviteSchoolId, setSelectedInviteSchoolId] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCreating, setInviteCreating] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ code: string; link: string; expires_at: string } | null>(null);
+  const [inviteError, setInviteError] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -102,6 +110,76 @@ export default function UserManagement() {
         {role.replace("_", " ").toUpperCase()}
       </Badge>
     );
+  };
+
+  const openInviteDialog = async () => {
+    setInviteDialogOpen(true);
+    setInviteResult(null);
+    setInviteError("");
+    setInviteEmail("");
+    setSelectedInviteSchoolId("");
+
+    const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+      body: { action: "list-schools" },
+    });
+    if (error || data?.error) {
+      setInviteError(data?.error || error?.message || "Failed to load eligible schools.");
+      return;
+    }
+    const eligible = ((data?.schools || []) as InviteSchoolOption[]).filter((school) => school.admin_available);
+    setInviteSchools(eligible);
+    if (eligible[0]) setSelectedInviteSchoolId(eligible[0].id);
+  };
+
+  const generateInvite = async () => {
+    if (!selectedInviteSchoolId) return;
+    setInviteCreating(true);
+    setInviteError("");
+    try {
+      const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+        body: { action: "create", schoolId: selectedInviteSchoolId, email: inviteEmail.trim() },
+      });
+      const backendError = data?.error || error?.message;
+      if (backendError) throw new Error(backendError);
+      if (!data?.invite?.code) throw new Error("Failed to generate invite code.");
+      setInviteResult({
+        code: data.invite.code,
+        link: `${window.location.origin}/auth?invite=${data.invite.code}`,
+        expires_at: data.invite.expires_at,
+      });
+      toast({ title: "Invite created", description: "Share the code or link with the new Admin." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invite generation failed.";
+      setInviteError(message);
+      toast({ title: "Invite failed", description: message, variant: "destructive" });
+    } finally {
+      setInviteCreating(false);
+    }
+  };
+
+  const copyInvite = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    toast({ title: "Copied to clipboard" });
+  };
+
+  const manageUser = async (user: UserWithRole, action: "suspend" | "activate" | "delete") => {
+    if (action === "delete" && !confirm(`Delete ${user.full_name || user.email}? This removes the account and cannot be undone.`)) return;
+    if (action === "suspend" && !confirm(`Suspend ${user.full_name || user.email}? They will not be able to sign in.`)) return;
+
+    setActionLoadingId(`${action}:${user.id}`);
+    try {
+      const { data, error } = await supabase.functions.invoke("super-admin-users", {
+        body: { action, userId: user.id },
+      });
+      const backendError = data?.error || error?.message;
+      if (backendError) throw new Error(backendError);
+      toast({ title: "User updated", description: action === "delete" ? "User deleted successfully." : `User ${action === "activate" ? "activated" : "suspended"}.` });
+      await fetchUsers();
+    } catch (error) {
+      toast({ title: "Action failed", description: error instanceof Error ? error.message : "Could not update user.", variant: "destructive" });
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   if (loading) {
