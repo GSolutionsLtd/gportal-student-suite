@@ -192,11 +192,17 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">User Management</h1>
-        <p className="text-muted-foreground">
-          View and manage all users in the system
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">User Management</h1>
+          <p className="text-muted-foreground">
+            View and manage all users in the system
+          </p>
+        </div>
+        <Button onClick={openInviteDialog} className="gap-2 sm:w-auto w-full">
+          <UserPlus className="h-4 w-4" />
+          Invite School Admin
+        </Button>
       </div>
 
       <Card>
@@ -243,12 +249,13 @@ export default function UserManagement() {
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -266,6 +273,24 @@ export default function UserManagement() {
                       <TableCell className="text-muted-foreground">
                         {new Date(user.created_at).toLocaleDateString()}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {user.is_active ? (
+                            <Button variant="outline" size="sm" onClick={() => manageUser(user, "suspend")} disabled={!!actionLoadingId || user.role === "super_admin"} className="gap-1">
+                              {actionLoadingId === `suspend:${user.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Ban className="h-3 w-3" />}
+                              Suspend
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" onClick={() => manageUser(user, "activate")} disabled={!!actionLoadingId || user.role === "super_admin"} className="gap-1">
+                              {actionLoadingId === `activate:${user.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                              Activate
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => manageUser(user, "delete")} disabled={!!actionLoadingId || user.role === "super_admin"}>
+                            {actionLoadingId === `delete:${user.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-destructive" />}
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -278,6 +303,57 @@ export default function UserManagement() {
           </p>
         </CardContent>
       </Card>
+
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Invite School Admin
+            </DialogTitle>
+            <DialogDescription>
+              Generate a one-time signup invite for an eligible school without a primary Admin.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>School</Label>
+              <Select value={selectedInviteSchoolId} onValueChange={setSelectedInviteSchoolId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={inviteSchools.length === 0 ? "No eligible schools available" : "Select a school"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {inviteSchools.map((school) => (
+                    <SelectItem key={school.id} value={school.id}>{school.name} ({school.code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="user-management-invite-email">Restrict to email (optional)</Label>
+              <Input id="user-management-invite-email" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="admin@school.com" />
+            </div>
+            <Button onClick={generateInvite} disabled={!selectedInviteSchoolId || inviteCreating} className="w-full">
+              {inviteCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Generate Invite
+            </Button>
+            {inviteResult && (
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-background border rounded px-2 py-1 font-mono">{inviteResult.code}</code>
+                  <Button variant="outline" size="icon" onClick={() => copyInvite(inviteResult.code)}><Copy className="h-4 w-4" /></Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-background border rounded px-2 py-1 text-xs truncate">{inviteResult.link}</code>
+                  <Button variant="outline" size="icon" onClick={() => copyInvite(inviteResult.link)}><Copy className="h-4 w-4" /></Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Status: unused · Expires {format(new Date(inviteResult.expires_at), "MMM d, yyyy 'at' h:mm a")}</p>
+              </div>
+            )}
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
