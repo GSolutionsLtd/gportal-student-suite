@@ -172,6 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user) {
       const { data: completionData, error: completionError } =
         await supabase.functions.invoke("complete-signup", {
+          headers: data.session?.access_token
+            ? { Authorization: `Bearer ${data.session.access_token}` }
+            : undefined,
           body: {
             userId: data.user.id,
             email,
