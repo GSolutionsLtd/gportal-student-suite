@@ -34,3 +34,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.school-admin-invites]
 verify_jwt = false
+[functions.super-admin-users]
+verify_jwt = false
