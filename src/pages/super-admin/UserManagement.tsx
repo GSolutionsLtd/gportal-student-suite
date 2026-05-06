@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Search, Loader2, Shield, User, GraduationCap, School } from "lucide-react";
+import { Users, Search, Loader2, Shield, User, GraduationCap, School, UserPlus, Copy, Ban, Trash2, RotateCcw } from "lucide-react";
+import { format } from "date-fns";
 
 interface UserWithRole {
   id: string;
@@ -16,6 +19,14 @@ interface UserWithRole {
   is_active: boolean;
   created_at: string;
   role: string | null;
+}
+
+interface InviteSchoolOption {
+  id: string;
+  name: string;
+  code: string;
+  subscription_status: string | null;
+  admin_available: boolean;
 }
 
 const ROLE_ICONS: Record<string, typeof User> = {
