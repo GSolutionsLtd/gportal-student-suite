@@ -182,18 +182,16 @@ export default function SuperAdminDashboard() {
     setInviteEmail("");
     setSelectedInviteSchoolId("");
 
-    const [{ data: schools }, { data: admins }] = await Promise.all([
-      supabase
-        .from("schools")
-        .select("id, name, code, subscription_status")
-        .in("subscription_status", ["trial", "active"])
-        .order("name", { ascending: true }),
-      supabase.from("school_admins").select("school_id").eq("is_primary", true),
-    ]);
-
-    const assignedSchoolIds = new Set((admins || []).map((admin) => admin.school_id));
-    const eligible = ((schools || []) as InviteSchoolOption[]).filter(
-      (school) => !assignedSchoolIds.has(school.id)
+    const { data, error } = await supabase.functions.invoke("school-admin-invites", {
+      body: { action: "list-schools" },
+    });
+    if (error || data?.error) {
+      setInviteError(data?.error || error?.message || "Failed to load eligible schools.");
+      setEligibleInviteSchools([]);
+      return;
+    }
+    const eligible = ((data?.schools || []) as Array<InviteSchoolOption & { admin_available?: boolean }>).filter(
+      (school) => school.admin_available
     );
     setEligibleInviteSchools(eligible);
     if (eligible[0]) setSelectedInviteSchoolId(eligible[0].id);
