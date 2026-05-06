@@ -194,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (backendError) {
         console.error("Error completing signup:", backendError);
+        await supabase.auth.signOut().catch(() => undefined);
         return { error: new Error(backendError) };
       }
     }
