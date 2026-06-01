@@ -91,6 +91,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Experience Intelligence", icon: BarChart3, path: "analytics", feature: "results" },
     { label: "CBT Exams", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "School Fees", icon: Key, path: "fees", feature: "finance" },
+    { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
   ],
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
