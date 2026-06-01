@@ -151,7 +151,7 @@ export default function SchoolFeatures() {
   );
 
   const countEnabled = (f: SchoolFeatureData["enabled_features"]) =>
-    [f.results, f.cbt, f.finance].filter(Boolean).length;
+    [f.results, f.cbt, f.finance, f.assignments, f.lesson_notes, f.careeraid].filter(Boolean).length;
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
