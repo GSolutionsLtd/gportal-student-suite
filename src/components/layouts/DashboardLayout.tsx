@@ -81,6 +81,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "My Classes", icon: Layers, path: "classes" },
     { label: "Result Entry", icon: ClipboardList, path: "results", feature: "results" },
     { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
+    { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "Parent Messages", icon: MessageSquare, path: "messages" },
     { label: "My Profile", icon: Users, path: "profile" },
   ],
