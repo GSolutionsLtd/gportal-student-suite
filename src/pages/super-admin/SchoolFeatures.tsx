@@ -202,9 +202,9 @@ export default function SchoolFeatures() {
                 <TableHead>School</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Results</TableHead>
-                <TableHead>CBT</TableHead>
-                <TableHead>Finance</TableHead>
+                {FEATURE_INFO.map((fi) => (
+                  <TableHead key={fi.key} className="text-center">{fi.label.split(" ")[0]}</TableHead>
+                ))}
                 <TableHead>Modules</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -219,28 +219,16 @@ export default function SchoolFeatures() {
                       {school.subscription_status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    {school.enabled_features.results ? (
-                      <Badge variant="default" className="text-xs">On</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">Off</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {school.enabled_features.cbt ? (
-                      <Badge variant="default" className="text-xs">On</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">Off</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {school.enabled_features.finance ? (
-                      <Badge variant="default" className="text-xs">On</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">Off</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>{countEnabled(school.enabled_features)}/3</TableCell>
+                  {FEATURE_INFO.map((fi) => (
+                    <TableCell key={fi.key} className="text-center">
+                      {school.enabled_features[fi.key] ? (
+                        <Badge variant="default" className="text-xs">On</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">Off</Badge>
+                      )}
+                    </TableCell>
+                  ))}
+                  <TableCell>{countEnabled(school.enabled_features)}/{FEATURE_INFO.length}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => openEdit(school)}>
                       <Settings className="h-4 w-4 mr-1" />Configure
@@ -250,7 +238,7 @@ export default function SchoolFeatures() {
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No schools found</TableCell>
+                  <TableCell colSpan={FEATURE_INFO.length + 5} className="text-center py-8 text-muted-foreground">No schools found</TableCell>
                 </TableRow>
               )}
             </TableBody>
