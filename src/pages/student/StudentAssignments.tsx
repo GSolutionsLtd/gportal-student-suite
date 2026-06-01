@@ -87,7 +87,7 @@ export default function StudentAssignments() {
 
       const { data: subs } = await supabase
         .from("assignment_submissions")
-        .select("id, assignment_id, response_text, attachment_url, submitted_at, score, feedback, score_released")
+        .select("id, assignment_id, response_text, attachment_url, submitted_at, score, feedback, score_released, graded_at")
         .eq("student_id", student.id);
 
       const subMap = new Map((subs || []).map((s: any) => [s.assignment_id, s]));
