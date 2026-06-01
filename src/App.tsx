@@ -53,6 +53,9 @@ import CBTManagement from "./pages/admin/CBTManagement";
 import FeeManagement from "./pages/admin/FeeManagement";
 import MessageMonitoring from "./pages/admin/MessageMonitoring";
 import CBTScoreSync from "./pages/admin/CBTScoreSync";
+import AdminAssignments from "./pages/admin/AdminAssignments";
+import TeacherAssignments from "./pages/teacher/TeacherAssignments";
+import StudentAssignments from "./pages/student/StudentAssignments";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
