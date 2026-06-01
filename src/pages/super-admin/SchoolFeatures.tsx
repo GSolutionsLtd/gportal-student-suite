@@ -76,7 +76,7 @@ export default function SchoolFeatures() {
   const [schools, setSchools] = useState<SchoolFeatureData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editSchool, setEditSchool] = useState<SchoolFeatureData | null>(null);
-  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true });
+  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true, assignments: false, lesson_notes: false, careeraid: false });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
