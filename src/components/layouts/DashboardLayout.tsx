@@ -74,6 +74,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "CBT Score Sync", icon: Monitor, path: "cbt-sync", feature: "cbt" },
     { label: "Fee Management", icon: Key, path: "fees", feature: "finance" },
+    { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
