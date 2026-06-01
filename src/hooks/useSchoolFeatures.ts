@@ -6,9 +6,19 @@ interface SchoolFeatures {
   results: boolean;
   cbt: boolean;
   finance: boolean;
+  assignments: boolean;
+  lesson_notes: boolean;
+  careeraid: boolean;
 }
 
-const DEFAULT_FEATURES: SchoolFeatures = { results: true, cbt: true, finance: true };
+const DEFAULT_FEATURES: SchoolFeatures = {
+  results: true,
+  cbt: true,
+  finance: true,
+  assignments: false,
+  lesson_notes: false,
+  careeraid: false,
+};
 
 export function useSchoolFeatures() {
   const { user, userRole } = useAuth();
