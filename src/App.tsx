@@ -214,6 +214,7 @@ function App() {
                 <Route path="analytics" element={<PerformanceAnalytics />} />
                 <Route path="cbt" element={<StudentCBTExam />} />
                 <Route path="fees" element={<StudentFeePayment />} />
+                <Route path="assignments" element={<StudentAssignments />} />
               </Route>
 
               {/* School-scoped Parent Routes */}
