@@ -179,6 +179,7 @@ function App() {
                 <Route path="fees" element={<FeeManagement />} />
                 <Route path="messages" element={<MessageMonitoring />} />
                 <Route path="cbt-sync" element={<CBTScoreSync />} />
+                <Route path="assignments" element={<AdminAssignments />} />
               </Route>
 
               {/* School-scoped Teacher Routes */}
