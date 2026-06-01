@@ -102,6 +102,123 @@ export type Database = {
           },
         ]
       }
+      assignment_submissions: {
+        Row: {
+          assignment_id: string
+          attachment_url: string | null
+          created_at: string
+          feedback: string | null
+          graded_at: string | null
+          graded_by: string | null
+          id: string
+          response_text: string | null
+          school_id: string
+          score: number | null
+          score_released: boolean
+          student_id: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          assignment_id: string
+          attachment_url?: string | null
+          created_at?: string
+          feedback?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          response_text?: string | null
+          school_id: string
+          score?: number | null
+          score_released?: boolean
+          student_id: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          attachment_url?: string | null
+          created_at?: string
+          feedback?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          response_text?: string | null
+          school_id?: string
+          score?: number | null
+          score_released?: boolean
+          student_id?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      assignments: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          attachment_url: string | null
+          class_arm_id: string
+          created_at: string
+          created_by: string
+          due_at: string | null
+          id: string
+          instructions: string | null
+          max_score: number
+          school_id: string
+          scores_approved: boolean
+          session_id: string | null
+          status: string
+          subject_id: string
+          teacher_id: string
+          term_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_url?: string | null
+          class_arm_id: string
+          created_at?: string
+          created_by: string
+          due_at?: string | null
+          id?: string
+          instructions?: string | null
+          max_score?: number
+          school_id: string
+          scores_approved?: boolean
+          session_id?: string | null
+          status?: string
+          subject_id: string
+          teacher_id: string
+          term_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_url?: string | null
+          class_arm_id?: string
+          created_at?: string
+          created_by?: string
+          due_at?: string | null
+          id?: string
+          instructions?: string | null
+          max_score?: number
+          school_id?: string
+          scores_approved?: boolean
+          session_id?: string | null
+          status?: string
+          subject_id?: string
+          teacher_id?: string
+          term_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
@@ -2008,6 +2125,7 @@ export type Database = {
           remark: string
         }[]
       }
+      get_teacher_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

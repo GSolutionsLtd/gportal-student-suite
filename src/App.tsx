@@ -53,6 +53,9 @@ import CBTManagement from "./pages/admin/CBTManagement";
 import FeeManagement from "./pages/admin/FeeManagement";
 import MessageMonitoring from "./pages/admin/MessageMonitoring";
 import CBTScoreSync from "./pages/admin/CBTScoreSync";
+import AdminAssignments from "./pages/admin/AdminAssignments";
+import TeacherAssignments from "./pages/teacher/TeacherAssignments";
+import StudentAssignments from "./pages/student/StudentAssignments";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -176,6 +179,7 @@ function App() {
                 <Route path="fees" element={<FeeManagement />} />
                 <Route path="messages" element={<MessageMonitoring />} />
                 <Route path="cbt-sync" element={<CBTScoreSync />} />
+                <Route path="assignments" element={<AdminAssignments />} />
               </Route>
 
               {/* School-scoped Teacher Routes */}
@@ -193,6 +197,7 @@ function App() {
                 <Route path="profile" element={<TeacherProfile />} />
                 <Route path="messages" element={<TeacherParentMessages />} />
                 <Route path="cbt" element={<TeacherCBTManagement />} />
+                <Route path="assignments" element={<TeacherAssignments />} />
               </Route>
 
               {/* School-scoped Student Routes */}
@@ -209,6 +214,7 @@ function App() {
                 <Route path="analytics" element={<PerformanceAnalytics />} />
                 <Route path="cbt" element={<StudentCBTExam />} />
                 <Route path="fees" element={<StudentFeePayment />} />
+                <Route path="assignments" element={<StudentAssignments />} />
               </Route>
 
               {/* School-scoped Parent Routes */}

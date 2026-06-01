@@ -31,13 +31,14 @@ import {
   MessageSquare,
   Bell,
   Monitor,
+  FileText,
 } from "lucide-react";
 
 interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
-  path: string; // relative path within role (e.g., "" for index, "results", "academic")
-  feature?: "results" | "cbt" | "finance";
+  path: string;
+  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid";
   children?: { label: string; path: string }[];
 }
 
@@ -73,12 +74,14 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "CBT Score Sync", icon: Monitor, path: "cbt-sync", feature: "cbt" },
     { label: "Fee Management", icon: Key, path: "fees", feature: "finance" },
+    { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
     { label: "My Classes", icon: Layers, path: "classes" },
     { label: "Result Entry", icon: ClipboardList, path: "results", feature: "results" },
     { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
+    { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "Parent Messages", icon: MessageSquare, path: "messages" },
     { label: "My Profile", icon: Users, path: "profile" },
   ],
@@ -88,6 +91,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Experience Intelligence", icon: BarChart3, path: "analytics", feature: "results" },
     { label: "CBT Exams", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "School Fees", icon: Key, path: "fees", feature: "finance" },
+    { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
   ],
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
