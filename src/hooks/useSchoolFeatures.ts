@@ -6,9 +6,19 @@ interface SchoolFeatures {
   results: boolean;
   cbt: boolean;
   finance: boolean;
+  assignments: boolean;
+  lesson_notes: boolean;
+  careeraid: boolean;
 }
 
-const DEFAULT_FEATURES: SchoolFeatures = { results: true, cbt: true, finance: true };
+const DEFAULT_FEATURES: SchoolFeatures = {
+  results: true,
+  cbt: true,
+  finance: true,
+  assignments: false,
+  lesson_notes: false,
+  careeraid: false,
+};
 
 export function useSchoolFeatures() {
   const { user, userRole } = useAuth();
@@ -87,6 +97,9 @@ export function useSchoolFeatures() {
               results: ef.results !== false,
               cbt: ef.cbt !== false,
               finance: ef.finance !== false,
+              assignments: ef.assignments === true,
+              lesson_notes: ef.lesson_notes === true,
+              careeraid: ef.careeraid === true,
             });
           }
         }
