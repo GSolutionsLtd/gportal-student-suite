@@ -94,10 +94,20 @@ export default function SchoolFeatures() {
       if (error) throw error;
 
       setSchools(
-        (data || []).map((s: any) => ({
-          ...s,
-          enabled_features: s.enabled_features || { results: true, cbt: true, finance: true },
-        }))
+        (data || []).map((s: any) => {
+          const ef = s.enabled_features || {};
+          return {
+            ...s,
+            enabled_features: {
+              results: ef.results !== false,
+              cbt: ef.cbt !== false,
+              finance: ef.finance !== false,
+              assignments: ef.assignments === true,
+              lesson_notes: ef.lesson_notes === true,
+              careeraid: ef.careeraid === true,
+            },
+          };
+        })
       );
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
