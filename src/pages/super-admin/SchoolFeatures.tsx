@@ -166,13 +166,18 @@ export default function SchoolFeatures() {
         </p>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {FEATURE_INFO.map((fi) => {
           const activeCount = schools.filter((s) => s.enabled_features[fi.key]).length;
           return (
             <Card key={fi.key}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{fi.label}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{fi.label}</CardTitle>
+                  {fi.tier === "premium" && (
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">PREMIUM</Badge>
+                  )}
+                </div>
                 <fi.icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
