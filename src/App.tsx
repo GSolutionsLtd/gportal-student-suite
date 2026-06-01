@@ -197,6 +197,7 @@ function App() {
                 <Route path="profile" element={<TeacherProfile />} />
                 <Route path="messages" element={<TeacherParentMessages />} />
                 <Route path="cbt" element={<TeacherCBTManagement />} />
+                <Route path="assignments" element={<TeacherAssignments />} />
               </Route>
 
               {/* School-scoped Student Routes */}
