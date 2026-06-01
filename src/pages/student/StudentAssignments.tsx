@@ -37,6 +37,7 @@ interface AssignmentRow {
     score: number | null;
     feedback: string | null;
     score_released: boolean;
+    graded_at: string | null;
   } | null;
 }
 
