@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save } from "lucide-react";
+import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save, FileText, BookOpen, Compass } from "lucide-react";
 
 interface SchoolFeatureData {
   id: string;
@@ -19,6 +19,9 @@ interface SchoolFeatureData {
     results: boolean;
     cbt: boolean;
     finance: boolean;
+    assignments: boolean;
+    lesson_notes: boolean;
+    careeraid: boolean;
   };
 }
 
@@ -28,18 +31,42 @@ const FEATURE_INFO = [
     label: "Student Result Management",
     description: "Result processing, PIN management, result checking portal",
     icon: ClipboardList,
+    tier: "core" as const,
   },
   {
     key: "cbt" as const,
     label: "CBT Examination Management",
     description: "Computer-based testing, question banks, auto-grading",
     icon: Monitor,
+    tier: "core" as const,
   },
   {
     key: "finance" as const,
     label: "Finance Management",
     description: "Fee structures, online payment processing, receipts",
     icon: CreditCard,
+    tier: "core" as const,
+  },
+  {
+    key: "assignments" as const,
+    label: "Assignment Management",
+    description: "Teacher assignment creation, student submissions, grading workflow",
+    icon: FileText,
+    tier: "premium" as const,
+  },
+  {
+    key: "lesson_notes" as const,
+    label: "AI Lesson Note Planner",
+    description: "Curriculum upload, AI-generated lesson notes, engagement tracking",
+    icon: BookOpen,
+    tier: "premium" as const,
+  },
+  {
+    key: "careeraid" as const,
+    label: "CareerAid Clinic",
+    description: "Holland Code assessment, AI career recommendations, counseling",
+    icon: Compass,
+    tier: "premium" as const,
   },
 ];
 
