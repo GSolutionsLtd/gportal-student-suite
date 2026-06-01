@@ -31,13 +31,14 @@ import {
   MessageSquare,
   Bell,
   Monitor,
+  FileText,
 } from "lucide-react";
 
 interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
-  path: string; // relative path within role (e.g., "" for index, "results", "academic")
-  feature?: "results" | "cbt" | "finance";
+  path: string;
+  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid";
   children?: { label: string; path: string }[];
 }
 
