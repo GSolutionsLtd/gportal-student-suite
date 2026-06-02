@@ -102,6 +102,129 @@ export type Database = {
           },
         ]
       }
+      assignment_rubric_criteria: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          description: string | null
+          id: string
+          max_score: number
+          school_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_score?: number
+          school_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_score?: number
+          school_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      assignment_rubric_scores: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          criterion_id: string
+          feedback: string | null
+          graded_at: string | null
+          graded_by: string | null
+          id: string
+          school_id: string
+          score: number
+          student_id: string
+          submission_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          criterion_id: string
+          feedback?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          school_id: string
+          score?: number
+          student_id: string
+          submission_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          criterion_id?: string
+          feedback?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          school_id?: string
+          score?: number
+          student_id?: string
+          submission_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      assignment_submission_revisions: {
+        Row: {
+          assignment_id: string
+          attachment_url: string | null
+          created_at: string
+          id: string
+          response_text: string | null
+          revision_number: number
+          school_id: string
+          student_id: string
+          submission_id: string
+          submitted_at: string | null
+        }
+        Insert: {
+          assignment_id: string
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          response_text?: string | null
+          revision_number: number
+          school_id: string
+          student_id: string
+          submission_id: string
+          submitted_at?: string | null
+        }
+        Update: {
+          assignment_id?: string
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          response_text?: string | null
+          revision_number?: number
+          school_id?: string
+          student_id?: string
+          submission_id?: string
+          submitted_at?: string | null
+        }
+        Relationships: []
+      }
       assignment_submissions: {
         Row: {
           assignment_id: string
@@ -112,6 +235,8 @@ export type Database = {
           graded_by: string | null
           id: string
           response_text: string | null
+          resubmission_count: number
+          revision_number: number
           school_id: string
           score: number | null
           score_released: boolean
@@ -128,6 +253,8 @@ export type Database = {
           graded_by?: string | null
           id?: string
           response_text?: string | null
+          resubmission_count?: number
+          revision_number?: number
           school_id: string
           score?: number | null
           score_released?: boolean
@@ -144,6 +271,8 @@ export type Database = {
           graded_by?: string | null
           id?: string
           response_text?: string | null
+          resubmission_count?: number
+          revision_number?: number
           school_id?: string
           score?: number | null
           score_released?: boolean
@@ -155,6 +284,7 @@ export type Database = {
       }
       assignments: {
         Row: {
+          allow_resubmissions: boolean
           approved_at: string | null
           approved_by: string | null
           attachment_url: string | null
@@ -162,9 +292,11 @@ export type Database = {
           created_at: string
           created_by: string
           due_at: string | null
+          due_notification_sent_at: string | null
           id: string
           instructions: string | null
           max_score: number
+          published_notified_at: string | null
           school_id: string
           scores_approved: boolean
           session_id: string | null
@@ -176,6 +308,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_resubmissions?: boolean
           approved_at?: string | null
           approved_by?: string | null
           attachment_url?: string | null
@@ -183,9 +316,11 @@ export type Database = {
           created_at?: string
           created_by: string
           due_at?: string | null
+          due_notification_sent_at?: string | null
           id?: string
           instructions?: string | null
           max_score?: number
+          published_notified_at?: string | null
           school_id: string
           scores_approved?: boolean
           session_id?: string | null
@@ -197,6 +332,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_resubmissions?: boolean
           approved_at?: string | null
           approved_by?: string | null
           attachment_url?: string | null
@@ -204,9 +340,11 @@ export type Database = {
           created_at?: string
           created_by?: string
           due_at?: string | null
+          due_notification_sent_at?: string | null
           id?: string
           instructions?: string | null
           max_score?: number
+          published_notified_at?: string | null
           school_id?: string
           scores_approved?: boolean
           session_id?: string | null
@@ -2157,6 +2295,7 @@ export type Database = {
           name: string
         }[]
       }
+      notify_due_assignments: { Args: never; Returns: number }
       validate_admin_invite: {
         Args: { _code: string }
         Returns: {
