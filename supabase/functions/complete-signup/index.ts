@@ -70,20 +70,6 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const authHeader = req.headers.get("Authorization") ?? "";
-    if (!authHeader.startsWith("Bearer ")) {
-      throw new Error("Signup session is missing. Please sign up again.");
-    }
-
-    const authClient = createClient(supabaseUrl, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: sessionUser, error: sessionError } = await authClient.auth.getUser();
-    if (sessionError || !sessionUser.user || sessionUser.user.id !== userId) {
-      throw new Error("Signup session could not be verified. Please sign up again.");
-    }
-
     const { data: userData, error: userError } = await admin.auth.admin.getUserById(userId);
     if (userError || !userData.user) throw new Error("Unable to verify the new account.");
     if (userData.user.email?.toLowerCase() !== String(email).toLowerCase()) {
@@ -93,6 +79,20 @@ Deno.serve(async (req) => {
     const createdAt = userData.user.created_at ? new Date(userData.user.created_at).getTime() : 0;
     const isRecentSignup = Date.now() - createdAt < 30 * 60 * 1000;
     cleanupUserId = isRecentSignup ? userId : null;
+
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (authHeader.startsWith("Bearer ")) {
+      const authClient = createClient(supabaseUrl, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: sessionUser, error: sessionError } = await authClient.auth.getUser();
+      if (sessionError || !sessionUser.user || sessionUser.user.id !== userId) {
+        throw new Error("Signup session could not be verified. Please sign up again.");
+      }
+    } else if (!isRecentSignup) {
+      throw new Error("Signup session is missing. Please sign up again.");
+    }
 
     const { data: existingRole, error: existingRoleError } = await admin
       .from("user_roles")

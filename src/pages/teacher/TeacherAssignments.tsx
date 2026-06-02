@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -32,6 +33,7 @@ interface Assignment {
   due_at: string | null;
   status: "draft" | "published" | "closed";
   scores_approved: boolean;
+  allow_resubmissions?: boolean;
   class_arm_id: string;
   subject_id: string;
   session_id: string | null;
@@ -57,11 +59,22 @@ interface Submission {
   feedback: string | null;
   score_released: boolean;
   graded_at: string | null;
+  revision_number?: number;
+  resubmission_count?: number;
   student?: {
     first_name: string;
     last_name: string;
     admission_number: string;
   };
+}
+
+interface RubricCriterion {
+  id?: string;
+  title: string;
+  description: string;
+  weight: number;
+  max_score: number;
+  sort_order: number;
 }
 
 const blankForm = {
@@ -74,7 +87,16 @@ const blankForm = {
   subject_id: "",
   session_id: "" as string | null,
   term_id: "" as string | null,
+  allow_resubmissions: true,
 };
+
+const blankCriterion = (sort_order = 0): RubricCriterion => ({
+  title: "",
+  description: "",
+  weight: 0,
+  max_score: 0,
+  sort_order,
+});
 
 export default function TeacherAssignments() {
   const { user } = useAuth();
@@ -90,10 +112,14 @@ export default function TeacherAssignments() {
   const [editing, setEditing] = useState<Assignment | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(blankForm);
+  const [rubricDraft, setRubricDraft] = useState<RubricCriterion[]>([]);
 
   const [gradingFor, setGradingFor] = useState<Assignment | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [rubricCriteria, setRubricCriteria] = useState<RubricCriterion[]>([]);
+  const [rubricScores, setRubricScores] = useState<Record<string, Record<string, { score: number; feedback: string }>>>({});
+  const [revisionHistory, setRevisionHistory] = useState<Record<string, Array<{ revision_number: number; submitted_at: string | null; response_text: string | null; attachment_url: string | null }>>>({});
 
   useEffect(() => {
     if (!user || !schoolId) return;
@@ -163,10 +189,11 @@ export default function TeacherAssignments() {
   const openNew = () => {
     setEditing(null);
     setForm({ ...blankForm });
+    setRubricDraft([blankCriterion(0)]);
     setShowForm(true);
   };
 
-  const openEdit = (a: Assignment) => {
+  const openEdit = async (a: Assignment) => {
     setEditing(a);
     setForm({
       title: a.title,
@@ -178,7 +205,14 @@ export default function TeacherAssignments() {
       subject_id: a.subject_id,
       session_id: a.session_id,
       term_id: a.term_id,
+      allow_resubmissions: a.allow_resubmissions ?? true,
     });
+    const { data } = await (supabase as any)
+      .from("assignment_rubric_criteria")
+      .select("id, title, description, weight, max_score, sort_order")
+      .eq("assignment_id", a.id)
+      .order("sort_order", { ascending: true });
+    setRubricDraft((data && data.length ? data : [blankCriterion(0)]) as RubricCriterion[]);
     setShowForm(true);
   };
 
@@ -224,16 +258,38 @@ export default function TeacherAssignments() {
         attachment_url: form.attachment_url.trim() || null,
         max_score: form.max_score,
         due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+        allow_resubmissions: form.allow_resubmissions,
         status: publish ? "published" : editing?.status ?? "draft",
         created_by: user!.id,
       };
 
+      let assignmentId = editing?.id;
       if (editing) {
         const { error } = await supabase.from("assignments").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("assignments").insert(payload);
+        const { data, error } = await supabase.from("assignments").insert(payload).select("id").single();
         if (error) throw error;
+        assignmentId = data?.id;
+      }
+
+      if (assignmentId) {
+        await (supabase as any).from("assignment_rubric_criteria").delete().eq("assignment_id", assignmentId);
+        const rows = rubricDraft
+          .filter((r) => r.title.trim() && Number(r.max_score) > 0)
+          .map((r, index) => ({
+            assignment_id: assignmentId,
+            school_id: schoolId,
+            title: r.title.trim(),
+            description: r.description.trim() || null,
+            weight: Number(r.weight) || 0,
+            max_score: Number(r.max_score) || 0,
+            sort_order: index,
+          }));
+        if (rows.length) {
+          const { error } = await (supabase as any).from("assignment_rubric_criteria").insert(rows);
+          if (error) throw error;
+        }
       }
 
       toast({ title: "Saved", description: `Assignment ${publish ? "published" : "saved"}.` });
