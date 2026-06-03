@@ -571,9 +571,14 @@ export default function TeacherAssignments() {
           <h1 className="text-2xl font-bold">Assignment Management</h1>
           <p className="text-muted-foreground">Create assignments, monitor submissions and publish scores.</p>
         </div>
-        <Button onClick={openNew}>
-          <Plus className="h-4 w-4 mr-2" /> New Assignment
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={notifyDue}>
+            <Bell className="h-4 w-4 mr-2" /> Send Due Reminders
+          </Button>
+          <Button onClick={openNew}>
+            <Plus className="h-4 w-4 mr-2" /> New Assignment
+          </Button>
+        </div>
       </div>
 
       <Card>
