@@ -722,6 +722,104 @@ export default function TeacherAssignments() {
                 onChange={(e) => setForm((f) => ({ ...f, attachment_url: e.target.value }))}
               />
             </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <div className="text-sm font-medium">Allow resubmissions before due date</div>
+                <div className="text-xs text-muted-foreground">
+                  Students can replace their answer until the deadline.
+                </div>
+              </div>
+              <Switch
+                checked={form.allow_resubmissions}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, allow_resubmissions: v }))}
+              />
+            </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Rubric Criteria (optional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Break down scoring into weighted criteria. Leave empty to use a single total score.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setRubricDraft((r) => [...r, blankCriterion(r.length)])
+                  }
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add
+                </Button>
+              </div>
+
+              {rubricDraft.map((c, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-start">
+                  <Input
+                    className="col-span-4"
+                    placeholder="Criterion title"
+                    value={c.title}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) => (i === idx ? { ...row, title: e.target.value } : row))
+                      )
+                    }
+                  />
+                  <Input
+                    className="col-span-4"
+                    placeholder="Description"
+                    value={c.description}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) => (i === idx ? { ...row, description: e.target.value } : row))
+                      )
+                    }
+                  />
+                  <Input
+                    className="col-span-2"
+                    type="number"
+                    min={0}
+                    placeholder="Weight %"
+                    value={c.weight || ""}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) =>
+                          i === idx ? { ...row, weight: Number(e.target.value) || 0 } : row
+                        )
+                      )
+                    }
+                  />
+                  <Input
+                    className="col-span-1"
+                    type="number"
+                    min={0}
+                    placeholder="Max"
+                    value={c.max_score || ""}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) =>
+                          i === idx ? { ...row, max_score: Number(e.target.value) || 0 } : row
+                        )
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="col-span-1"
+                    onClick={() =>
+                      setRubricDraft((r) => r.filter((_, i) => i !== idx))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
