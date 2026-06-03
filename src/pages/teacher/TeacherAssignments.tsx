@@ -473,10 +473,51 @@ export default function TeacherAssignments() {
         return;
       }
 
-      const { error } = await supabase
+      const { data: saved, error } = await supabase
         .from("assignment_submissions")
-        .upsert(toUpsert, { onConflict: "assignment_id,student_id" });
+        .upsert(toUpsert, { onConflict: "assignment_id,student_id" })
+        .select("id, student_id");
       if (error) throw error;
+
+      // Persist rubric scores (if any criteria + entries)
+      if (rubricCriteria.length && Object.keys(rubricScores).length) {
+        const idByStudent = new Map((saved || []).map((r: any) => [r.student_id, r.id]));
+        const rubricRows: any[] = [];
+        Object.entries(rubricScores).forEach(([submissionKey, perCriterion]) => {
+          // submissionKey may already be a submission id, or a placeholder student_id for new submissions
+          const sub = submissions.find(
+            (s) => s.id === submissionKey || s.student_id === submissionKey
+          );
+          if (!sub) return;
+          const submissionId = sub.id || idByStudent.get(sub.student_id);
+          if (!submissionId) return;
+          Object.entries(perCriterion).forEach(([criterionId, val]) => {
+            rubricRows.push({
+              submission_id: submissionId,
+              criterion_id: criterionId,
+              assignment_id: gradingFor.id,
+              school_id: schoolId!,
+              student_id: sub.student_id,
+              score: Number(val.score) || 0,
+              feedback: val.feedback || null,
+              graded_by: user.id,
+              graded_at: new Date().toISOString(),
+            });
+          });
+        });
+        if (rubricRows.length) {
+          // Replace-on-conflict by (submission_id, criterion_id) — use delete+insert for safety
+          const submissionIds = Array.from(new Set(rubricRows.map((r) => r.submission_id)));
+          await (supabase as any)
+            .from("assignment_rubric_scores")
+            .delete()
+            .in("submission_id", submissionIds);
+          const { error: rsErr } = await (supabase as any)
+            .from("assignment_rubric_scores")
+            .insert(rubricRows);
+          if (rsErr) throw rsErr;
+        }
+      }
 
       toast({
         title: release ? "Scores published" : "Draft scores saved",
