@@ -861,48 +861,159 @@ export default function TeacherAssignments() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.map((s) => (
-                  <TableRow key={s.student_id}>
-                    <TableCell>
-                      <div className="font-medium">
-                        {s.student?.last_name} {s.student?.first_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{s.student?.admission_number}</div>
-                    </TableCell>
-                    <TableCell>
-                      {s.submitted_at ? (
-                        <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">No submission</Badge>
+                {submissions.map((s) => {
+                  const subKey = s.id || s.student_id;
+                  const revs = s.id ? revisionHistory[s.id] || [] : [];
+                  return (
+                    <>
+                      <TableRow key={s.student_id}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {s.student?.last_name} {s.student?.first_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{s.student?.admission_number}</div>
+                          {(s.resubmission_count ?? 0) > 0 && (
+                            <Badge variant="outline" className="mt-1 text-xs">
+                              {s.resubmission_count} resubmission{(s.resubmission_count ?? 0) > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {s.submitted_at ? (
+                            <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">No submission</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={Number(gradingFor?.max_score) || 100}
+                            value={s.score ?? ""}
+                            onChange={(e) =>
+                              updateSubmissionScore(s.student_id, {
+                                score: e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={s.feedback ?? ""}
+                            maxLength={500}
+                            onChange={(e) =>
+                              updateSubmissionScore(s.student_id, { feedback: e.target.value })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {s.score_released ? <Badge>Yes</Badge> : <Badge variant="outline">No</Badge>}
+                        </TableCell>
+                      </TableRow>
+                      {(rubricCriteria.length > 0 || revs.length > 0) && (
+                        <TableRow key={`${s.student_id}-extras`}>
+                          <TableCell colSpan={5} className="bg-muted/30">
+                            <Accordion type="multiple" className="w-full">
+                              {rubricCriteria.length > 0 && (
+                                <AccordionItem value="rubric">
+                                  <AccordionTrigger className="text-xs">
+                                    Rubric breakdown
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    <div className="grid gap-2">
+                                      {rubricCriteria.map((c) => {
+                                        const val = rubricScores[subKey]?.[c.id!] || { score: 0, feedback: "" };
+                                        return (
+                                          <div
+                                            key={c.id}
+                                            className="grid grid-cols-12 gap-2 items-center"
+                                          >
+                                            <div className="col-span-4 text-xs">
+                                              <div className="font-medium">{c.title}</div>
+                                              {c.description && (
+                                                <div className="text-muted-foreground">{c.description}</div>
+                                              )}
+                                            </div>
+                                            <Input
+                                              className="col-span-2"
+                                              type="number"
+                                              min={0}
+                                              max={Number(c.max_score) || undefined}
+                                              placeholder={`/ ${c.max_score}`}
+                                              value={val.score || ""}
+                                              onChange={(e) =>
+                                                setRubricCell(subKey, c.id!, {
+                                                  score: Number(e.target.value) || 0,
+                                                })
+                                              }
+                                            />
+                                            <Input
+                                              className="col-span-6"
+                                              placeholder="Criterion feedback (optional)"
+                                              value={val.feedback}
+                                              onChange={(e) =>
+                                                setRubricCell(subKey, c.id!, { feedback: e.target.value })
+                                              }
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              )}
+                              {revs.length > 0 && (
+                                <AccordionItem value="history">
+                                  <AccordionTrigger className="text-xs">
+                                    <span className="inline-flex items-center gap-2">
+                                      <History className="h-3 w-3" />
+                                      Revision history ({revs.length})
+                                    </span>
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    <ol className="space-y-2 text-xs">
+                                      {revs.map((r) => (
+                                        <li
+                                          key={r.revision_number}
+                                          className="rounded border border-border/60 p-2"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-medium">
+                                              Revision #{r.revision_number}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                              {r.submitted_at
+                                                ? format(new Date(r.submitted_at), "PP p")
+                                                : "—"}
+                                            </span>
+                                          </div>
+                                          {r.response_text && (
+                                            <p className="mt-1 whitespace-pre-wrap">{r.response_text}</p>
+                                          )}
+                                          {r.attachment_url && (
+                                            <a
+                                              href={r.attachment_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-primary hover:underline"
+                                            >
+                                              View attachment
+                                            </a>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              )}
+                            </Accordion>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={Number(gradingFor?.max_score) || 100}
-                        value={s.score ?? ""}
-                        onChange={(e) =>
-                          updateSubmissionScore(s.student_id, {
-                            score: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={s.feedback ?? ""}
-                        maxLength={500}
-                        onChange={(e) =>
-                          updateSubmissionScore(s.student_id, { feedback: e.target.value })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {s.score_released ? <Badge>Yes</Badge> : <Badge variant="outline">No</Badge>}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                    </>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
