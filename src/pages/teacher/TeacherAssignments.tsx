@@ -21,7 +21,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, FileText, Pencil, Send, Save, Trash2, Users } from "lucide-react";
+import { Loader2, Plus, FileText, Pencil, Send, Save, Trash2, Users, Bell, History } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { format } from "date-fns";
 
 interface Assignment {
