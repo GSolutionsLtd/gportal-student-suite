@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolFeatures } from "@/hooks/useSchoolFeatures";
@@ -21,7 +21,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, FileText, Pencil, Send, Save, Trash2, Users } from "lucide-react";
+import { Loader2, Plus, FileText, Pencil, Send, Save, Trash2, Users, Bell, History } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { format } from "date-fns";
 
 interface Assignment {
@@ -328,29 +334,33 @@ export default function TeacherAssignments() {
     setGradingFor(a);
     setSubmissionsLoading(true);
     setSubmissions([]);
+    setRubricCriteria([]);
+    setRubricScores({});
+    setRevisionHistory({});
     try {
-      // Pull submissions for this assignment with student info
       const { data: subs } = await supabase
         .from("assignment_submissions")
         .select("*")
         .eq("assignment_id", a.id)
         .order("submitted_at", { ascending: false, nullsFirst: false });
 
-      // Fetch students for current class arm (to show ungraded too)
       const { data: students } = await supabase
         .from("students")
         .select("id, first_name, last_name, admission_number")
         .eq("current_class_arm_id", a.class_arm_id)
         .eq("is_active", true);
 
-      const studentMap = new Map((students || []).map((s: any) => [s.id, s]));
-      const subMap = new Map((subs || []).map((s: any) => [s.student_id, s]));
+      const { data: criteria } = await (supabase as any)
+        .from("assignment_rubric_criteria")
+        .select("id, title, description, weight, max_score, sort_order")
+        .eq("assignment_id", a.id)
+        .order("sort_order", { ascending: true });
+      setRubricCriteria((criteria as RubricCriterion[]) || []);
 
+      const subMap = new Map((subs || []).map((s: any) => [s.student_id, s]));
       const merged: Submission[] = (students || []).map((s: any) => {
         const existing = subMap.get(s.id);
-        if (existing) {
-          return { ...existing, student: s };
-        }
+        if (existing) return { ...existing, student: s };
         return {
           id: "",
           student_id: s.id,
@@ -365,10 +375,68 @@ export default function TeacherAssignments() {
         };
       });
       setSubmissions(merged);
+
+      // Load existing rubric scores keyed by submission_id->criterion_id
+      const submissionIds = (subs || []).map((s: any) => s.id).filter(Boolean);
+      if (submissionIds.length && (criteria || []).length) {
+        const { data: rs } = await (supabase as any)
+          .from("assignment_rubric_scores")
+          .select("submission_id, criterion_id, score, feedback")
+          .in("submission_id", submissionIds);
+        const map: Record<string, Record<string, { score: number; feedback: string }>> = {};
+        (rs || []).forEach((row: any) => {
+          map[row.submission_id] = map[row.submission_id] || {};
+          map[row.submission_id][row.criterion_id] = {
+            score: Number(row.score) || 0,
+            feedback: row.feedback || "",
+          };
+        });
+        setRubricScores(map);
+      }
+
+      // Load revision history
+      if (submissionIds.length) {
+        const { data: revs } = await (supabase as any)
+          .from("assignment_submission_revisions")
+          .select("submission_id, revision_number, submitted_at, response_text, attachment_url")
+          .in("submission_id", submissionIds)
+          .order("revision_number", { ascending: false });
+        const rh: Record<string, any[]> = {};
+        (revs || []).forEach((r: any) => {
+          rh[r.submission_id] = rh[r.submission_id] || [];
+          rh[r.submission_id].push(r);
+        });
+        setRevisionHistory(rh);
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setSubmissionsLoading(false);
+    }
+  };
+
+  const setRubricCell = (
+    submissionId: string,
+    criterionId: string,
+    patch: Partial<{ score: number; feedback: string }>
+  ) => {
+    setRubricScores((prev) => {
+      const sub = { ...(prev[submissionId] || {}) };
+      sub[criterionId] = {
+        score: patch.score !== undefined ? patch.score : sub[criterionId]?.score ?? 0,
+        feedback: patch.feedback !== undefined ? patch.feedback : sub[criterionId]?.feedback ?? "",
+      };
+      return { ...prev, [submissionId]: sub };
+    });
+  };
+
+  const notifyDue = async () => {
+    try {
+      const { error } = await (supabase as any).rpc("notify_due_assignments");
+      if (error) throw error;
+      toast({ title: "Reminders sent", description: "Due reminders dispatched to enrolled students." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
@@ -405,10 +473,51 @@ export default function TeacherAssignments() {
         return;
       }
 
-      const { error } = await supabase
+      const { data: saved, error } = await supabase
         .from("assignment_submissions")
-        .upsert(toUpsert, { onConflict: "assignment_id,student_id" });
+        .upsert(toUpsert, { onConflict: "assignment_id,student_id" })
+        .select("id, student_id");
       if (error) throw error;
+
+      // Persist rubric scores (if any criteria + entries)
+      if (rubricCriteria.length && Object.keys(rubricScores).length) {
+        const idByStudent = new Map((saved || []).map((r: any) => [r.student_id, r.id]));
+        const rubricRows: any[] = [];
+        Object.entries(rubricScores).forEach(([submissionKey, perCriterion]) => {
+          // submissionKey may already be a submission id, or a placeholder student_id for new submissions
+          const sub = submissions.find(
+            (s) => s.id === submissionKey || s.student_id === submissionKey
+          );
+          if (!sub) return;
+          const submissionId = sub.id || idByStudent.get(sub.student_id);
+          if (!submissionId) return;
+          Object.entries(perCriterion).forEach(([criterionId, val]) => {
+            rubricRows.push({
+              submission_id: submissionId,
+              criterion_id: criterionId,
+              assignment_id: gradingFor.id,
+              school_id: schoolId!,
+              student_id: sub.student_id,
+              score: Number(val.score) || 0,
+              feedback: val.feedback || null,
+              graded_by: user.id,
+              graded_at: new Date().toISOString(),
+            });
+          });
+        });
+        if (rubricRows.length) {
+          // Replace-on-conflict by (submission_id, criterion_id) — use delete+insert for safety
+          const submissionIds = Array.from(new Set(rubricRows.map((r) => r.submission_id)));
+          await (supabase as any)
+            .from("assignment_rubric_scores")
+            .delete()
+            .in("submission_id", submissionIds);
+          const { error: rsErr } = await (supabase as any)
+            .from("assignment_rubric_scores")
+            .insert(rubricRows);
+          if (rsErr) throw rsErr;
+        }
+      }
 
       toast({
         title: release ? "Scores published" : "Draft scores saved",
@@ -462,9 +571,14 @@ export default function TeacherAssignments() {
           <h1 className="text-2xl font-bold">Assignment Management</h1>
           <p className="text-muted-foreground">Create assignments, monitor submissions and publish scores.</p>
         </div>
-        <Button onClick={openNew}>
-          <Plus className="h-4 w-4 mr-2" /> New Assignment
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={notifyDue}>
+            <Bell className="h-4 w-4 mr-2" /> Send Due Reminders
+          </Button>
+          <Button onClick={openNew}>
+            <Plus className="h-4 w-4 mr-2" /> New Assignment
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -608,6 +722,104 @@ export default function TeacherAssignments() {
                 onChange={(e) => setForm((f) => ({ ...f, attachment_url: e.target.value }))}
               />
             </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <div className="text-sm font-medium">Allow resubmissions before due date</div>
+                <div className="text-xs text-muted-foreground">
+                  Students can replace their answer until the deadline.
+                </div>
+              </div>
+              <Switch
+                checked={form.allow_resubmissions}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, allow_resubmissions: v }))}
+              />
+            </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Rubric Criteria (optional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Break down scoring into weighted criteria. Leave empty to use a single total score.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setRubricDraft((r) => [...r, blankCriterion(r.length)])
+                  }
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add
+                </Button>
+              </div>
+
+              {rubricDraft.map((c, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-start">
+                  <Input
+                    className="col-span-4"
+                    placeholder="Criterion title"
+                    value={c.title}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) => (i === idx ? { ...row, title: e.target.value } : row))
+                      )
+                    }
+                  />
+                  <Input
+                    className="col-span-4"
+                    placeholder="Description"
+                    value={c.description}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) => (i === idx ? { ...row, description: e.target.value } : row))
+                      )
+                    }
+                  />
+                  <Input
+                    className="col-span-2"
+                    type="number"
+                    min={0}
+                    placeholder="Weight %"
+                    value={c.weight || ""}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) =>
+                          i === idx ? { ...row, weight: Number(e.target.value) || 0 } : row
+                        )
+                      )
+                    }
+                  />
+                  <Input
+                    className="col-span-1"
+                    type="number"
+                    min={0}
+                    placeholder="Max"
+                    value={c.max_score || ""}
+                    onChange={(e) =>
+                      setRubricDraft((r) =>
+                        r.map((row, i) =>
+                          i === idx ? { ...row, max_score: Number(e.target.value) || 0 } : row
+                        )
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="col-span-1"
+                    onClick={() =>
+                      setRubricDraft((r) => r.filter((_, i) => i !== idx))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -649,48 +861,159 @@ export default function TeacherAssignments() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {submissions.map((s) => (
-                  <TableRow key={s.student_id}>
-                    <TableCell>
-                      <div className="font-medium">
-                        {s.student?.last_name} {s.student?.first_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">{s.student?.admission_number}</div>
-                    </TableCell>
-                    <TableCell>
-                      {s.submitted_at ? (
-                        <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">No submission</Badge>
+                {submissions.map((s) => {
+                  const subKey = s.id || s.student_id;
+                  const revs = s.id ? revisionHistory[s.id] || [] : [];
+                  return (
+                    <Fragment key={s.student_id}>
+                      <TableRow>
+                        <TableCell>
+                          <div className="font-medium">
+                            {s.student?.last_name} {s.student?.first_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{s.student?.admission_number}</div>
+                          {(s.resubmission_count ?? 0) > 0 && (
+                            <Badge variant="outline" className="mt-1 text-xs">
+                              {s.resubmission_count} resubmission{(s.resubmission_count ?? 0) > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {s.submitted_at ? (
+                            <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">No submission</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={Number(gradingFor?.max_score) || 100}
+                            value={s.score ?? ""}
+                            onChange={(e) =>
+                              updateSubmissionScore(s.student_id, {
+                                score: e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={s.feedback ?? ""}
+                            maxLength={500}
+                            onChange={(e) =>
+                              updateSubmissionScore(s.student_id, { feedback: e.target.value })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {s.score_released ? <Badge>Yes</Badge> : <Badge variant="outline">No</Badge>}
+                        </TableCell>
+                      </TableRow>
+                      {(rubricCriteria.length > 0 || revs.length > 0) && (
+                        <TableRow key={`${s.student_id}-extras`}>
+                          <TableCell colSpan={5} className="bg-muted/30">
+                            <Accordion type="multiple" className="w-full">
+                              {rubricCriteria.length > 0 && (
+                                <AccordionItem value="rubric">
+                                  <AccordionTrigger className="text-xs">
+                                    Rubric breakdown
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    <div className="grid gap-2">
+                                      {rubricCriteria.map((c) => {
+                                        const val = rubricScores[subKey]?.[c.id!] || { score: 0, feedback: "" };
+                                        return (
+                                          <div
+                                            key={c.id}
+                                            className="grid grid-cols-12 gap-2 items-center"
+                                          >
+                                            <div className="col-span-4 text-xs">
+                                              <div className="font-medium">{c.title}</div>
+                                              {c.description && (
+                                                <div className="text-muted-foreground">{c.description}</div>
+                                              )}
+                                            </div>
+                                            <Input
+                                              className="col-span-2"
+                                              type="number"
+                                              min={0}
+                                              max={Number(c.max_score) || undefined}
+                                              placeholder={`/ ${c.max_score}`}
+                                              value={val.score || ""}
+                                              onChange={(e) =>
+                                                setRubricCell(subKey, c.id!, {
+                                                  score: Number(e.target.value) || 0,
+                                                })
+                                              }
+                                            />
+                                            <Input
+                                              className="col-span-6"
+                                              placeholder="Criterion feedback (optional)"
+                                              value={val.feedback}
+                                              onChange={(e) =>
+                                                setRubricCell(subKey, c.id!, { feedback: e.target.value })
+                                              }
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              )}
+                              {revs.length > 0 && (
+                                <AccordionItem value="history">
+                                  <AccordionTrigger className="text-xs">
+                                    <span className="inline-flex items-center gap-2">
+                                      <History className="h-3 w-3" />
+                                      Revision history ({revs.length})
+                                    </span>
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    <ol className="space-y-2 text-xs">
+                                      {revs.map((r) => (
+                                        <li
+                                          key={r.revision_number}
+                                          className="rounded border border-border/60 p-2"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-medium">
+                                              Revision #{r.revision_number}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                              {r.submitted_at
+                                                ? format(new Date(r.submitted_at), "PP p")
+                                                : "—"}
+                                            </span>
+                                          </div>
+                                          {r.response_text && (
+                                            <p className="mt-1 whitespace-pre-wrap">{r.response_text}</p>
+                                          )}
+                                          {r.attachment_url && (
+                                            <a
+                                              href={r.attachment_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-primary hover:underline"
+                                            >
+                                              View attachment
+                                            </a>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              )}
+                            </Accordion>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={Number(gradingFor?.max_score) || 100}
-                        value={s.score ?? ""}
-                        onChange={(e) =>
-                          updateSubmissionScore(s.student_id, {
-                            score: e.target.value === "" ? null : Number(e.target.value),
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={s.feedback ?? ""}
-                        maxLength={500}
-                        onChange={(e) =>
-                          updateSubmissionScore(s.student_id, { feedback: e.target.value })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {s.score_released ? <Badge>Yes</Badge> : <Badge variant="outline">No</Badge>}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

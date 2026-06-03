@@ -162,7 +162,7 @@ export default function AdminAssignments() {
     return true;
   });
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     const doc = new jsPDF();
     doc.setFontSize(14);
     doc.text("Assignment Report", 14, 16);
@@ -186,6 +186,48 @@ export default function AdminAssignments() {
       styles: { fontSize: 8 },
       headStyles: { fillColor: [55, 65, 200] },
     });
+
+    // Append rubric breakdown per assignment (only when criteria exist)
+    const assignmentIds = filtered.map((r) => r.id);
+    if (assignmentIds.length) {
+      const { data: criteria } = await (supabase as any)
+        .from("assignment_rubric_criteria")
+        .select("id, assignment_id, title, weight, max_score, sort_order")
+        .in("assignment_id", assignmentIds)
+        .order("sort_order", { ascending: true });
+      const byAssignment = new Map<string, any[]>();
+      (criteria || []).forEach((c: any) => {
+        const arr = byAssignment.get(c.assignment_id) || [];
+        arr.push(c);
+        byAssignment.set(c.assignment_id, arr);
+      });
+
+      for (const r of filtered) {
+        const cs = byAssignment.get(r.id);
+        if (!cs || cs.length === 0) continue;
+        doc.addPage();
+        doc.setFontSize(12);
+        doc.text(`Rubric — ${r.title}`, 14, 16);
+        doc.setFontSize(9);
+        doc.text(
+          `${r.class_arms?.name || ""} • ${r.subjects?.name || ""} • Teacher: ${r.teachers?.profiles?.full_name || "—"}`,
+          14,
+          22
+        );
+        autoTable(doc, {
+          startY: 28,
+          head: [["#", "Criterion", "Weight %", "Max Score"]],
+          body: cs.map((c: any, i: number) => [
+            String(i + 1),
+            c.title,
+            String(c.weight ?? 0),
+            String(c.max_score ?? 0),
+          ]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [55, 65, 200] },
+        });
+      }
+    }
 
     doc.save(`assignments-report-${format(new Date(), "yyyyMMdd-HHmm")}.pdf`);
   };
