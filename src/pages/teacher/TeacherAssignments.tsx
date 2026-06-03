@@ -334,29 +334,33 @@ export default function TeacherAssignments() {
     setGradingFor(a);
     setSubmissionsLoading(true);
     setSubmissions([]);
+    setRubricCriteria([]);
+    setRubricScores({});
+    setRevisionHistory({});
     try {
-      // Pull submissions for this assignment with student info
       const { data: subs } = await supabase
         .from("assignment_submissions")
         .select("*")
         .eq("assignment_id", a.id)
         .order("submitted_at", { ascending: false, nullsFirst: false });
 
-      // Fetch students for current class arm (to show ungraded too)
       const { data: students } = await supabase
         .from("students")
         .select("id, first_name, last_name, admission_number")
         .eq("current_class_arm_id", a.class_arm_id)
         .eq("is_active", true);
 
-      const studentMap = new Map((students || []).map((s: any) => [s.id, s]));
-      const subMap = new Map((subs || []).map((s: any) => [s.student_id, s]));
+      const { data: criteria } = await (supabase as any)
+        .from("assignment_rubric_criteria")
+        .select("id, title, description, weight, max_score, sort_order")
+        .eq("assignment_id", a.id)
+        .order("sort_order", { ascending: true });
+      setRubricCriteria((criteria as RubricCriterion[]) || []);
 
+      const subMap = new Map((subs || []).map((s: any) => [s.student_id, s]));
       const merged: Submission[] = (students || []).map((s: any) => {
         const existing = subMap.get(s.id);
-        if (existing) {
-          return { ...existing, student: s };
-        }
+        if (existing) return { ...existing, student: s };
         return {
           id: "",
           student_id: s.id,
@@ -371,10 +375,68 @@ export default function TeacherAssignments() {
         };
       });
       setSubmissions(merged);
+
+      // Load existing rubric scores keyed by submission_id->criterion_id
+      const submissionIds = (subs || []).map((s: any) => s.id).filter(Boolean);
+      if (submissionIds.length && (criteria || []).length) {
+        const { data: rs } = await (supabase as any)
+          .from("assignment_rubric_scores")
+          .select("submission_id, criterion_id, score, feedback")
+          .in("submission_id", submissionIds);
+        const map: Record<string, Record<string, { score: number; feedback: string }>> = {};
+        (rs || []).forEach((row: any) => {
+          map[row.submission_id] = map[row.submission_id] || {};
+          map[row.submission_id][row.criterion_id] = {
+            score: Number(row.score) || 0,
+            feedback: row.feedback || "",
+          };
+        });
+        setRubricScores(map);
+      }
+
+      // Load revision history
+      if (submissionIds.length) {
+        const { data: revs } = await (supabase as any)
+          .from("assignment_submission_revisions")
+          .select("submission_id, revision_number, submitted_at, response_text, attachment_url")
+          .in("submission_id", submissionIds)
+          .order("revision_number", { ascending: false });
+        const rh: Record<string, any[]> = {};
+        (revs || []).forEach((r: any) => {
+          rh[r.submission_id] = rh[r.submission_id] || [];
+          rh[r.submission_id].push(r);
+        });
+        setRevisionHistory(rh);
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setSubmissionsLoading(false);
+    }
+  };
+
+  const setRubricCell = (
+    submissionId: string,
+    criterionId: string,
+    patch: Partial<{ score: number; feedback: string }>
+  ) => {
+    setRubricScores((prev) => {
+      const sub = { ...(prev[submissionId] || {}) };
+      sub[criterionId] = {
+        score: patch.score !== undefined ? patch.score : sub[criterionId]?.score ?? 0,
+        feedback: patch.feedback !== undefined ? patch.feedback : sub[criterionId]?.feedback ?? "",
+      };
+      return { ...prev, [submissionId]: sub };
+    });
+  };
+
+  const notifyDue = async () => {
+    try {
+      const { error } = await (supabase as any).rpc("notify_due_assignments");
+      if (error) throw error;
+      toast({ title: "Reminders sent", description: "Due reminders dispatched to enrolled students." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
