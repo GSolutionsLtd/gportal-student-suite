@@ -865,8 +865,8 @@ export default function TeacherAssignments() {
                   const subKey = s.id || s.student_id;
                   const revs = s.id ? revisionHistory[s.id] || [] : [];
                   return (
-                    <>
-                      <TableRow key={s.student_id}>
+                    <Fragment key={s.student_id}>
+                      <TableRow>
                         <TableCell>
                           <div className="font-medium">
                             {s.student?.last_name} {s.student?.first_name}
