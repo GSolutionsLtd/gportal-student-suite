@@ -1011,7 +1011,7 @@ export default function TeacherAssignments() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
