@@ -32,6 +32,7 @@ import {
   Bell,
   Monitor,
   FileText,
+  Briefcase,
 } from "lucide-react";
 
 interface NavItem {
@@ -75,6 +76,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CBT Score Sync", icon: Monitor, path: "cbt-sync", feature: "cbt" },
     { label: "Fee Management", icon: Key, path: "fees", feature: "finance" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
+    { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
@@ -82,6 +84,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Result Entry", icon: ClipboardList, path: "results", feature: "results" },
     { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
+    { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
     { label: "Parent Messages", icon: MessageSquare, path: "messages" },
     { label: "My Profile", icon: Users, path: "profile" },
   ],
@@ -92,6 +95,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CBT Exams", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "School Fees", icon: Key, path: "fees", feature: "finance" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
+    { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
   ],
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },

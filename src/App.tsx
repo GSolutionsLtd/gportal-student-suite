@@ -56,6 +56,9 @@ import CBTScoreSync from "./pages/admin/CBTScoreSync";
 import AdminAssignments from "./pages/admin/AdminAssignments";
 import TeacherAssignments from "./pages/teacher/TeacherAssignments";
 import StudentAssignments from "./pages/student/StudentAssignments";
+import AdminCareerAid from "./pages/admin/AdminCareerAid";
+import TeacherCareerAid from "./pages/teacher/TeacherCareerAid";
+import StudentCareerAid from "./pages/student/StudentCareerAid";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
@@ -180,6 +183,7 @@ function App() {
                 <Route path="messages" element={<MessageMonitoring />} />
                 <Route path="cbt-sync" element={<CBTScoreSync />} />
                 <Route path="assignments" element={<AdminAssignments />} />
+                <Route path="careeraid" element={<AdminCareerAid />} />
               </Route>
 
               {/* School-scoped Teacher Routes */}
@@ -198,6 +202,7 @@ function App() {
                 <Route path="messages" element={<TeacherParentMessages />} />
                 <Route path="cbt" element={<TeacherCBTManagement />} />
                 <Route path="assignments" element={<TeacherAssignments />} />
+                <Route path="careeraid" element={<TeacherCareerAid />} />
               </Route>
 
               {/* School-scoped Student Routes */}
@@ -215,6 +220,7 @@ function App() {
                 <Route path="cbt" element={<StudentCBTExam />} />
                 <Route path="fees" element={<StudentFeePayment />} />
                 <Route path="assignments" element={<StudentAssignments />} />
+                <Route path="careeraid" element={<StudentCareerAid />} />
               </Route>
 
               {/* School-scoped Parent Routes */}

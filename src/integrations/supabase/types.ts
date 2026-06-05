@@ -396,6 +396,53 @@ export type Database = {
         }
         Relationships: []
       }
+      career_resources: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_published: boolean
+          posted_by: string | null
+          school_id: string
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          posted_by?: string | null
+          school_id: string
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          posted_by?: string | null
+          school_id?: string
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_resources_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cbt_answers: {
         Row: {
           answered_at: string | null
@@ -1872,6 +1919,90 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: true
             referencedRelation: "academic_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_career_profiles: {
+        Row: {
+          created_at: string
+          goals: string | null
+          id: string
+          interests: string[]
+          school_id: string
+          strengths: string[]
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          goals?: string | null
+          id?: string
+          interests?: string[]
+          school_id: string
+          strengths?: string[]
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          goals?: string | null
+          id?: string
+          interests?: string[]
+          school_id?: string
+          strengths?: string[]
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_career_profiles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_career_profiles_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_career_saves: {
+        Row: {
+          created_at: string
+          id: string
+          resource_id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          resource_id: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          resource_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_career_saves_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "career_resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_career_saves_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
