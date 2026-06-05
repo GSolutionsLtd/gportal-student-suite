@@ -80,15 +80,24 @@ Deno.serve(async (req) => {
     const isRecentSignup = Date.now() - createdAt < 30 * 60 * 1000;
     cleanupUserId = isRecentSignup ? userId : null;
 
+    // When email confirmation is required, signUp returns no session, so the
+    // client invocation sends only the anon key. We still verified the new user
+    // via admin.getUserById above. Only enforce session-bearer match for
+    // non-recent signups (e.g. retry flows on an existing user).
     const authHeader = req.headers.get("Authorization") ?? "";
-    if (authHeader.startsWith("Bearer ")) {
+    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    const hasUserBearer = bearer && bearer !== anonKey;
+
+    if (hasUserBearer) {
       const authClient = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
-        global: { headers: { Authorization: authHeader } },
+        global: { headers: { Authorization: `Bearer ${bearer}` } },
       });
       const { data: sessionUser, error: sessionError } = await authClient.auth.getUser();
       if (sessionError || !sessionUser.user || sessionUser.user.id !== userId) {
-        throw new Error("Signup session could not be verified. Please sign up again.");
+        if (!isRecentSignup) {
+          throw new Error("Signup session could not be verified. Please sign up again.");
+        }
       }
     } else if (!isRecentSignup) {
       throw new Error("Signup session is missing. Please sign up again.");
