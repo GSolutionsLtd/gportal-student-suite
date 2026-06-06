@@ -41,7 +41,7 @@ export default function TeacherCareerAid() {
 
       const { data: students } = await supabase
         .from("students")
-        .select("id, full_name, admission_number, current_class_arm_id, class_arms:current_class_arm_id(name)")
+        .select("id, first_name, last_name, admission_number, current_class_arm_id, class_arms:current_class_arm_id(name)")
         .in("current_class_arm_id", armIds)
         .eq("is_active", true);
 
@@ -64,7 +64,9 @@ export default function TeacherCareerAid() {
         const r = latestRec.get(s.id);
         const top = r?.paths?.sort((x: any, y: any) => x.rank - y.rank)?.[0]?.career_title || null;
         return {
-          student_id: s.id, student_name: s.full_name, admission_number: s.admission_number,
+          student_id: s.id,
+          student_name: `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim(),
+          admission_number: s.admission_number,
           class_arm: s.class_arms?.name || null,
           dominant_type: a?.dominant_type || null, holland_code: a?.holland_code || null,
           recommendation_id: r?.id || null, recommendation_at: r?.created_at || null, top_career: top,

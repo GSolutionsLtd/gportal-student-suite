@@ -62,10 +62,13 @@ export default function StudentCareerAid() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data: s } = await supabase.from("students").select("id, school_id, full_name").eq("user_id", user.id).maybeSingle();
-      if (!s) { setLoading(false); return; }
-      setStudentId(s.id); setSchoolId(s.school_id); setStudentName((s as any).full_name || "");
-      await Promise.all([loadLibrary(s.id, s.school_id), loadRecommendations(s.id), loadSessions(s.id)]);
+      const { data: s } = await supabase.from("students").select("id, school_id, first_name, last_name").eq("user_id", user.id).maybeSingle();
+      if (!s || !(s as any).school_id) { setLoading(false); return; }
+      const sid = (s as any).id as string;
+      const schId = (s as any).school_id as string;
+      setStudentId(sid); setSchoolId(schId);
+      setStudentName(`${(s as any).first_name ?? ""} ${(s as any).last_name ?? ""}`.trim());
+      await Promise.all([loadLibrary(sid, schId), loadRecommendations(sid), loadSessions(sid)]);
       setLoading(false);
     })();
     // eslint-disable-next-line
