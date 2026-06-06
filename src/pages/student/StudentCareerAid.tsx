@@ -10,15 +10,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Bookmark, BookmarkCheck, ExternalLink, Briefcase, Save } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
+import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
+import jsPDF from "jspdf";
+import { format } from "date-fns";
 
-interface Resource {
-  id: string;
-  title: string;
-  description: string | null;
-  category: string;
-  url: string | null;
+interface Resource { id: string; title: string; description: string | null; category: string; url: string | null; }
+interface Path {
+  id: string; rank: number; career_title: string;
+  ss_subjects: string[]; university_courses: string[]; jamb_subjects: string[]; jamb_cutoff: string | null;
+  universities: string[]; polytechnics: string[]; colleges_of_education: string[];
+  tech_skills: string[]; soft_skills: string[]; salary_insight: string | null; market_relevance: string | null;
 }
+interface Recommendation { id: string; summary: string | null; created_at: string; paths: Path[]; }
 
 export default function StudentCareerAid() {
   const { user } = useAuth();
@@ -27,166 +32,416 @@ export default function StudentCareerAid() {
 
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [studentName, setStudentName] = useState<string>("");
   const [schoolId, setSchoolId] = useState<string | null>(null);
+
+  // Library
   const [resources, setResources] = useState<Resource[]>([]);
   const [saves, setSaves] = useState<Set<string>>(new Set());
-  const [profile, setProfile] = useState({ interests: "", strengths: "", goals: "" });
-  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Assessment
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
+
+  // Recommendations
+  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [genLoading, setGenLoading] = useState(false);
+
+  // Counseling
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [bookDate, setBookDate] = useState("");
+
+  // Mock interview
+  const [interviewCareer, setInterviewCareer] = useState("");
+  const [activeInterview, setActiveInterview] = useState<{ id: string; questions: { q: string }[] } | null>(null);
+  const [interviewAnswers, setInterviewAnswers] = useState<string[]>([]);
+  const [interviewLoading, setInterviewLoading] = useState(false);
+  const [interviewResult, setInterviewResult] = useState<{ score: number; feedback: string } | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data: s } = await supabase
-        .from("students")
-        .select("id, school_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data: s } = await supabase.from("students").select("id, school_id, full_name").eq("user_id", user.id).maybeSingle();
       if (!s) { setLoading(false); return; }
-      setStudentId(s.id);
-      setSchoolId(s.school_id);
-
-      const [{ data: res }, { data: sv }, { data: pr }] = await Promise.all([
-        supabase.from("career_resources").select("id, title, description, category, url")
-          .eq("school_id", s.school_id).eq("is_published", true).order("created_at", { ascending: false }),
-        supabase.from("student_career_saves").select("resource_id").eq("student_id", s.id),
-        supabase.from("student_career_profiles").select("interests, strengths, goals").eq("student_id", s.id).maybeSingle(),
-      ]);
-      setResources((res as Resource[]) || []);
-      setSaves(new Set(((sv as any[]) || []).map((x) => x.resource_id)));
-      if (pr) setProfile({
-        interests: ((pr as any).interests || []).join(", "),
-        strengths: ((pr as any).strengths || []).join(", "),
-        goals: (pr as any).goals || "",
-      });
+      setStudentId(s.id); setSchoolId(s.school_id); setStudentName((s as any).full_name || "");
+      await Promise.all([loadLibrary(s.id, s.school_id), loadRecommendations(s.id), loadSessions(s.id)]);
       setLoading(false);
     })();
+    // eslint-disable-next-line
   }, [user]);
 
-  const toggleSave = async (resourceId: string) => {
+  const loadLibrary = async (sid: string, schId: string) => {
+    const [{ data: res }, { data: sv }] = await Promise.all([
+      supabase.from("career_resources").select("id, title, description, category, url")
+        .eq("school_id", schId).eq("is_published", true).order("created_at", { ascending: false }),
+      supabase.from("student_career_saves").select("resource_id").eq("student_id", sid),
+    ]);
+    setResources((res as Resource[]) || []);
+    setSaves(new Set(((sv as any[]) || []).map((x) => x.resource_id)));
+  };
+
+  const loadRecommendations = async (sid: string) => {
+    const { data: rs } = await supabase.from("career_recommendations")
+      .select("id, summary, created_at").eq("student_id", sid).order("created_at", { ascending: false });
+    if (!rs || rs.length === 0) { setRecs([]); return; }
+    const ids = rs.map((r) => r.id);
+    const { data: pths } = await supabase.from("career_recommendation_paths")
+      .select("*").in("recommendation_id", ids).order("rank");
+    const grouped: Recommendation[] = (rs as any[]).map((r) => ({
+      ...r, paths: ((pths as any[]) || []).filter((p) => p.recommendation_id === r.id),
+    }));
+    setRecs(grouped);
+  };
+
+  const loadSessions = async (sid: string) => {
+    const { data } = await supabase.from("career_counseling_sessions")
+      .select("*").eq("student_id", sid).order("scheduled_at", { ascending: false });
+    setSessions((data as any[]) || []);
+  };
+
+  const toggleSave = async (rid: string) => {
     if (!studentId) return;
-    if (saves.has(resourceId)) {
-      await supabase.from("student_career_saves").delete().eq("student_id", studentId).eq("resource_id", resourceId);
-      const n = new Set(saves); n.delete(resourceId); setSaves(n);
+    if (saves.has(rid)) {
+      await supabase.from("student_career_saves").delete().eq("student_id", studentId).eq("resource_id", rid);
+      const n = new Set(saves); n.delete(rid); setSaves(n);
     } else {
-      const { error } = await supabase.from("student_career_saves").insert({ student_id: studentId, resource_id: resourceId });
-      if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
-      setSaves(new Set(saves).add(resourceId));
+      await supabase.from("student_career_saves").insert({ student_id: studentId, resource_id: rid });
+      setSaves(new Set(saves).add(rid));
     }
   };
 
-  const saveProfile = async () => {
+  const submitAssessment = async () => {
     if (!studentId || !schoolId) return;
-    setSavingProfile(true);
-    const payload = {
-      student_id: studentId,
-      school_id: schoolId,
-      interests: profile.interests.split(",").map((s) => s.trim()).filter(Boolean),
-      strengths: profile.strengths.split(",").map((s) => s.trim()).filter(Boolean),
-      goals: profile.goals.trim() || null,
-    };
-    const { error } = await supabase.from("student_career_profiles").upsert(payload, { onConflict: "student_id" });
-    setSavingProfile(false);
-    if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
-    toast({ title: "Profile saved" });
+    if (Object.keys(answers).length < HOLLAND_QUESTIONS.length) {
+      return toast({ title: "Please answer all questions", variant: "destructive" });
+    }
+    setSubmittingQuiz(true);
+    const totals: Record<HollandType, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+    for (const q of HOLLAND_QUESTIONS) totals[q.type] += answers[q.id] || 0;
+    const sorted = (Object.keys(totals) as HollandType[]).sort((a, b) => totals[b] - totals[a]);
+    const dominant = sorted[0];
+    const code = sorted.slice(0, 3).join("");
+
+    const { data: assess, error } = await supabase.from("career_assessments").insert({
+      student_id: studentId, school_id: schoolId,
+      realistic: totals.R, investigative: totals.I, artistic: totals.A,
+      social: totals.S, enterprising: totals.E, conventional: totals.C,
+      dominant_type: HOLLAND_LABELS[dominant], holland_code: code, raw_answers: answers,
+    }).select("id").single();
+    setSubmittingQuiz(false);
+    if (error || !assess) return toast({ title: "Error", description: error?.message, variant: "destructive" });
+
+    toast({ title: "Assessment saved", description: `Dominant: ${HOLLAND_LABELS[dominant]} (${code})` });
+    await generateRecommendations(assess.id);
   };
 
-  if (featuresLoading || loading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-  if (!features.careeraid) {
-    return (
-      <div className="max-w-xl mx-auto mt-12 text-center space-y-3">
-        <Briefcase className="h-12 w-12 mx-auto text-muted-foreground" />
-        <h2 className="text-xl font-bold">CareerAid is not enabled</h2>
-        <p className="text-muted-foreground">Ask your school admin to enable it.</p>
-      </div>
-    );
-  }
+  const generateRecommendations = async (assessmentId: string) => {
+    setGenLoading(true);
+    const { data, error } = await supabase.functions.invoke("careeraid-recommend", { body: { assessment_id: assessmentId } });
+    setGenLoading(false);
+    if (error || (data as any)?.error) {
+      return toast({ title: "AI failed", description: (data as any)?.error || error?.message, variant: "destructive" });
+    }
+    toast({ title: "Recommendations ready", description: "Open the My Career Plan tab." });
+    if (studentId) await loadRecommendations(studentId);
+  };
 
-  const savedList = resources.filter((r) => saves.has(r.id));
+  const downloadPdf = (rec: Recommendation) => {
+    const doc = new jsPDF();
+    let y = 15;
+    doc.setFontSize(18); doc.text("CareerAid — Career Plan", 14, y); y += 8;
+    doc.setFontSize(10); doc.text(`Student: ${studentName}`, 14, y); y += 5;
+    doc.text(`Generated: ${format(new Date(rec.created_at), "PPp")}`, 14, y); y += 8;
+    if (rec.summary) { doc.setFontSize(11); doc.text(doc.splitTextToSize(rec.summary, 180), 14, y); y += doc.splitTextToSize(rec.summary, 180).length * 5 + 4; }
+    rec.paths.forEach((p) => {
+      if (y > 260) { doc.addPage(); y = 15; }
+      doc.setFontSize(13); doc.setFont(undefined, "bold");
+      doc.text(`${p.rank}. ${p.career_title}`, 14, y); y += 6;
+      doc.setFontSize(9); doc.setFont(undefined, "normal");
+      const lines = [
+        `SS Subjects: ${p.ss_subjects.join(", ")}`,
+        `University courses: ${p.university_courses.join(", ")}`,
+        `JAMB subjects: ${p.jamb_subjects.join(", ")}  |  Cut-off: ${p.jamb_cutoff || "-"}`,
+        `Universities: ${p.universities.join(", ")}`,
+        `Polytechnics: ${p.polytechnics.join(", ")}`,
+        `Colleges of Education: ${p.colleges_of_education.join(", ")}`,
+        `Tech skills: ${p.tech_skills.join(", ")}`,
+        `Soft skills: ${p.soft_skills.join(", ")}`,
+        `Salary: ${p.salary_insight || "-"}`,
+        `Market relevance: ${p.market_relevance || "-"}`,
+      ];
+      lines.forEach((l) => {
+        const split = doc.splitTextToSize(l, 180);
+        if (y + split.length * 4 > 285) { doc.addPage(); y = 15; }
+        doc.text(split, 14, y); y += split.length * 4 + 1;
+      });
+      y += 3;
+    });
+    doc.save(`careeraid-${format(new Date(rec.created_at), "yyyyMMdd-HHmm")}.pdf`);
+  };
+
+  const bookSession = async () => {
+    if (!studentId || !schoolId || !bookDate) return;
+    const room = `careeraid-${studentId.slice(0, 8)}-${Date.now()}`;
+    const { error } = await supabase.from("career_counseling_sessions").insert({
+      school_id: schoolId, student_id: studentId,
+      scheduled_at: new Date(bookDate).toISOString(),
+      meeting_url: `https://meet.jit.si/${room}`,
+    });
+    if (error) return toast({ title: "Error", description: error.message, variant: "destructive" });
+    toast({ title: "Session booked" });
+    setBookDate("");
+    await loadSessions(studentId);
+  };
+
+  const startInterview = async () => {
+    if (!interviewCareer.trim()) return;
+    setInterviewLoading(true); setInterviewResult(null);
+    const { data, error } = await supabase.functions.invoke("careeraid-mock-interview",
+      { body: { action: "start", career_path: interviewCareer.trim() } });
+    setInterviewLoading(false);
+    if (error || (data as any)?.error) return toast({ title: "Error", description: (data as any)?.error || error?.message, variant: "destructive" });
+    setActiveInterview(data as any);
+    setInterviewAnswers(new Array((data as any).questions.length).fill(""));
+  };
+
+  const submitInterview = async () => {
+    if (!activeInterview) return;
+    setInterviewLoading(true);
+    const { data, error } = await supabase.functions.invoke("careeraid-mock-interview",
+      { body: { action: "submit", interview_id: activeInterview.id, answers: interviewAnswers } });
+    setInterviewLoading(false);
+    if (error || (data as any)?.error) return toast({ title: "Error", description: (data as any)?.error || error?.message, variant: "destructive" });
+    setInterviewResult(data as any);
+    setActiveInterview(null);
+  };
+
+  if (featuresLoading || loading) return <div className="flex justify-center h-64 items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!features.careeraid) return (
+    <div className="max-w-xl mx-auto mt-12 text-center space-y-3">
+      <Briefcase className="h-12 w-12 mx-auto text-muted-foreground" />
+      <h2 className="text-xl font-bold">CareerAid is not enabled</h2>
+      <p className="text-muted-foreground">Ask your school admin to enable it.</p>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">CareerAid</h1>
-        <p className="text-muted-foreground">Explore careers and plan your future.</p>
+        <h1 className="text-2xl font-bold">CareerAid Clinic</h1>
+        <p className="text-muted-foreground">AI-powered career guidance for Nigerian students.</p>
       </div>
 
-      <Tabs defaultValue="explore" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="assessment" className="space-y-4">
+        <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="assessment">Assessment</TabsTrigger>
+          <TabsTrigger value="plan">My Plan</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="counseling">Counseling</TabsTrigger>
+          <TabsTrigger value="interview">Mock Interview</TabsTrigger>
           <TabsTrigger value="explore">Explore</TabsTrigger>
-          <TabsTrigger value="saved">Saved ({savedList.length})</TabsTrigger>
-          <TabsTrigger value="profile">My Profile</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="assessment">
+          <Card>
+            <CardHeader>
+              <CardTitle>Holland Code Personality Assessment</CardTitle>
+              <CardDescription>Rate how much each statement describes you (1 = not at all, 5 = strongly).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {HOLLAND_QUESTIONS.map((q) => (
+                <div key={q.id} className="border-b pb-3">
+                  <p className="text-sm font-medium mb-2">{q.id}. {q.text}</p>
+                  <RadioGroup
+                    value={String(answers[q.id] ?? "")}
+                    onValueChange={(v) => setAnswers({ ...answers, [q.id]: Number(v) })}
+                    className="flex gap-3"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <div key={n} className="flex items-center gap-1">
+                        <RadioGroupItem value={String(n)} id={`q${q.id}-${n}`} />
+                        <Label htmlFor={`q${q.id}-${n}`} className="text-xs">{n}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              ))}
+              <Button onClick={submitAssessment} disabled={submittingQuiz || genLoading} className="w-full">
+                {(submittingQuiz || genLoading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Sparkles className="h-4 w-4 mr-2" />{genLoading ? "Generating AI recommendations..." : "Submit & Generate Recommendations"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="plan">
+          {recs.length === 0 ? (
+            <Card><CardContent className="py-10 text-center text-muted-foreground">Take the assessment to generate your career plan.</CardContent></Card>
+          ) : (
+            <RecommendationView rec={recs[0]} onDownload={() => downloadPdf(recs[0])} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="history">
+          {recs.length === 0 ? (
+            <Card><CardContent className="py-10 text-center text-muted-foreground">No history yet.</CardContent></Card>
+          ) : (
+            <div className="space-y-4">{recs.map((r) => <RecommendationView key={r.id} rec={r} onDownload={() => downloadPdf(r)} />)}</div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="counseling">
+          <Card>
+            <CardHeader><CardTitle>Book a counseling session</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1"><Label>Date & time</Label>
+                  <Input type="datetime-local" value={bookDate} onChange={(e) => setBookDate(e.target.value)} /></div>
+                <Button onClick={bookSession} disabled={!bookDate}><Video className="h-4 w-4 mr-2" />Book</Button>
+              </div>
+              <div className="space-y-2 mt-4">
+                {sessions.length === 0 ? <p className="text-sm text-muted-foreground">No sessions booked.</p> :
+                  sessions.map((s) => (
+                    <div key={s.id} className="flex justify-between items-center border rounded p-3">
+                      <div>
+                        <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
+                        <Badge variant="secondary" className="mt-1">{s.status}</Badge>
+                      </div>
+                      {s.meeting_url && (
+                        <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline"><Video className="h-4 w-4 mr-1" />Join</Button>
+                        </a>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="interview">
+          <Card>
+            <CardHeader><CardTitle>Mock Interview</CardTitle><CardDescription>Practice career-specific questions with AI scoring.</CardDescription></CardHeader>
+            <CardContent className="space-y-3">
+              {!activeInterview && !interviewResult && (
+                <div className="flex gap-2">
+                  <Input placeholder="e.g. Medical Doctor, Software Engineer" value={interviewCareer} onChange={(e) => setInterviewCareer(e.target.value)} />
+                  <Button onClick={startInterview} disabled={interviewLoading || !interviewCareer.trim()}>
+                    {interviewLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}<Mic className="h-4 w-4 mr-1" />Start
+                  </Button>
+                </div>
+              )}
+              {activeInterview && (
+                <div className="space-y-3">
+                  {activeInterview.questions.map((q, i) => (
+                    <div key={i}>
+                      <Label className="text-sm font-medium">Q{i + 1}. {q.q}</Label>
+                      <Textarea rows={3} value={interviewAnswers[i] || ""}
+                        onChange={(e) => { const a = [...interviewAnswers]; a[i] = e.target.value; setInterviewAnswers(a); }} />
+                    </div>
+                  ))}
+                  <Button onClick={submitInterview} disabled={interviewLoading} className="w-full">
+                    {interviewLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Submit for scoring
+                  </Button>
+                </div>
+              )}
+              {interviewResult && (
+                <Card>
+                  <CardHeader><CardTitle>Score: {interviewResult.score}/100</CardTitle></CardHeader>
+                  <CardContent>
+                    <p className="text-sm whitespace-pre-wrap">{interviewResult.feedback}</p>
+                    <Button variant="outline" className="mt-3" onClick={() => { setInterviewResult(null); setInterviewCareer(""); }}>New interview</Button>
+                  </CardContent>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="explore">
           {resources.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">No resources shared yet.</CardContent></Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {resources.map((r) => <ResourceCard key={r.id} r={r} saved={saves.has(r.id)} onToggle={() => toggleSave(r.id)} />)}
+              {resources.map((r) => (
+                <Card key={r.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start gap-2">
+                      <CardTitle className="text-base">{r.title}</CardTitle>
+                      <Badge variant="secondary">{r.category}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {r.description && <p className="text-sm text-foreground/80">{r.description}</p>}
+                    <div className="flex items-center justify-between">
+                      {r.url ? (
+                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <ExternalLink className="h-3 w-3" /> Open
+                        </a>
+                      ) : <span />}
+                      <Button size="sm" variant={saves.has(r.id) ? "default" : "outline"} onClick={() => toggleSave(r.id)}>
+                        {saves.has(r.id) ? <BookmarkCheck className="h-4 w-4 mr-1" /> : <Bookmark className="h-4 w-4 mr-1" />}
+                        {saves.has(r.id) ? "Saved" : "Save"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="saved">
-          {savedList.length === 0 ? (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">Nothing saved yet.</CardContent></Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {savedList.map((r) => <ResourceCard key={r.id} r={r} saved onToggle={() => toggleSave(r.id)} />)}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>My career profile</CardTitle>
-              <CardDescription>Help teachers guide you with personalised recommendations.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div><Label>Interests (comma-separated)</Label>
-                <Input value={profile.interests} onChange={(e) => setProfile({ ...profile, interests: e.target.value })} placeholder="science, music, design" /></div>
-              <div><Label>Strengths (comma-separated)</Label>
-                <Input value={profile.strengths} onChange={(e) => setProfile({ ...profile, strengths: e.target.value })} placeholder="problem solving, public speaking" /></div>
-              <div><Label>Goals</Label>
-                <Textarea rows={4} value={profile.goals} onChange={(e) => setProfile({ ...profile, goals: e.target.value })} placeholder="What do you want to become?" /></div>
-              <Button onClick={saveProfile} disabled={savingProfile}>
-                {savingProfile ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}Save profile
-              </Button>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function ResourceCard({ r, saved, onToggle }: { r: Resource; saved: boolean; onToggle: () => void }) {
+function RecommendationView({ rec, onDownload }: { rec: Recommendation; onDownload: () => void }) {
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-start gap-2">
-          <CardTitle className="text-base">{r.title}</CardTitle>
-          <Badge variant="secondary">{r.category}</Badge>
+          <div>
+            <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" />Career Plan</CardTitle>
+            <CardDescription>{format(new Date(rec.created_at), "PPp")}</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={onDownload}><Download className="h-4 w-4 mr-2" />PDF</Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {r.description && <p className="text-sm text-foreground/80">{r.description}</p>}
-        <div className="flex items-center justify-between">
-          {r.url ? (
-            <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-              <ExternalLink className="h-3 w-3" /> Open
-            </a>
-          ) : <span />}
-          <Button size="sm" variant={saved ? "default" : "outline"} onClick={onToggle}>
-            {saved ? <BookmarkCheck className="h-4 w-4 mr-1" /> : <Bookmark className="h-4 w-4 mr-1" />}
-            {saved ? "Saved" : "Save"}
-          </Button>
-        </div>
+      <CardContent className="space-y-4">
+        {rec.summary && <p className="text-sm text-foreground/80">{rec.summary}</p>}
+        {rec.paths.map((p) => (
+          <Card key={p.id} className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Badge>{p.rank}</Badge>{p.career_title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-2 text-xs">
+              <Info label="SS Subjects" value={p.ss_subjects.join(", ")} />
+              <Info label="University Courses" value={p.university_courses.join(", ")} />
+              <Info label="JAMB Subjects" value={p.jamb_subjects.join(", ")} />
+              <Info label="JAMB Cut-off" value={p.jamb_cutoff} />
+              <Info label="Universities" value={p.universities.join(", ")} />
+              <Info label="Polytechnics" value={p.polytechnics.join(", ")} />
+              <Info label="Colleges of Education" value={p.colleges_of_education.join(", ")} />
+              <Info label="Tech Skills" value={p.tech_skills.join(", ")} />
+              <Info label="Soft Skills" value={p.soft_skills.join(", ")} />
+              <Info label="Salary" value={p.salary_insight} />
+              <Info label="Market Relevance" value={p.market_relevance} className="md:col-span-2" />
+            </CardContent>
+          </Card>
+        ))}
       </CardContent>
     </Card>
+  );
+}
+
+function Info({ label, value, className }: { label: string; value: string | null; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="text-muted-foreground font-medium">{label}</p>
+      <p>{value || "-"}</p>
+    </div>
   );
 }
