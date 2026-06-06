@@ -396,6 +396,247 @@ export type Database = {
         }
         Relationships: []
       }
+      career_assessments: {
+        Row: {
+          artistic: number
+          conventional: number
+          created_at: string
+          dominant_type: string | null
+          enterprising: number
+          holland_code: string | null
+          id: string
+          investigative: number
+          raw_answers: Json | null
+          realistic: number
+          school_id: string
+          social: number
+          student_id: string
+        }
+        Insert: {
+          artistic?: number
+          conventional?: number
+          created_at?: string
+          dominant_type?: string | null
+          enterprising?: number
+          holland_code?: string | null
+          id?: string
+          investigative?: number
+          raw_answers?: Json | null
+          realistic?: number
+          school_id: string
+          social?: number
+          student_id: string
+        }
+        Update: {
+          artistic?: number
+          conventional?: number
+          created_at?: string
+          dominant_type?: string | null
+          enterprising?: number
+          holland_code?: string | null
+          id?: string
+          investigative?: number
+          raw_answers?: Json | null
+          realistic?: number
+          school_id?: string
+          social?: number
+          student_id?: string
+        }
+        Relationships: []
+      }
+      career_counseling_sessions: {
+        Row: {
+          counselor_user_id: string | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          meeting_url: string | null
+          notes: string | null
+          scheduled_at: string
+          school_id: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          counselor_user_id?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          meeting_url?: string | null
+          notes?: string | null
+          scheduled_at: string
+          school_id: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          counselor_user_id?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          meeting_url?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          school_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      career_mock_interviews: {
+        Row: {
+          answers: Json | null
+          career_path: string
+          completed_at: string | null
+          created_at: string
+          feedback: string | null
+          id: string
+          questions: Json
+          school_id: string
+          score: number | null
+          status: string
+          student_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          career_path: string
+          completed_at?: string | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          questions?: Json
+          school_id: string
+          score?: number | null
+          status?: string
+          student_id: string
+        }
+        Update: {
+          answers?: Json | null
+          career_path?: string
+          completed_at?: string | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          questions?: Json
+          school_id?: string
+          score?: number | null
+          status?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
+      career_recommendation_paths: {
+        Row: {
+          career_title: string
+          colleges_of_education: string[] | null
+          created_at: string
+          id: string
+          jamb_cutoff: string | null
+          jamb_subjects: string[] | null
+          market_relevance: string | null
+          polytechnics: string[] | null
+          rank: number
+          recommendation_id: string
+          salary_insight: string | null
+          school_id: string
+          soft_skills: string[] | null
+          ss_subjects: string[] | null
+          student_id: string
+          tech_skills: string[] | null
+          universities: string[] | null
+          university_courses: string[] | null
+        }
+        Insert: {
+          career_title: string
+          colleges_of_education?: string[] | null
+          created_at?: string
+          id?: string
+          jamb_cutoff?: string | null
+          jamb_subjects?: string[] | null
+          market_relevance?: string | null
+          polytechnics?: string[] | null
+          rank: number
+          recommendation_id: string
+          salary_insight?: string | null
+          school_id: string
+          soft_skills?: string[] | null
+          ss_subjects?: string[] | null
+          student_id: string
+          tech_skills?: string[] | null
+          universities?: string[] | null
+          university_courses?: string[] | null
+        }
+        Update: {
+          career_title?: string
+          colleges_of_education?: string[] | null
+          created_at?: string
+          id?: string
+          jamb_cutoff?: string | null
+          jamb_subjects?: string[] | null
+          market_relevance?: string | null
+          polytechnics?: string[] | null
+          rank?: number
+          recommendation_id?: string
+          salary_insight?: string | null
+          school_id?: string
+          soft_skills?: string[] | null
+          ss_subjects?: string[] | null
+          student_id?: string
+          tech_skills?: string[] | null
+          universities?: string[] | null
+          university_courses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_recommendation_paths_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "career_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_recommendations: {
+        Row: {
+          assessment_id: string | null
+          created_at: string
+          id: string
+          model: string | null
+          school_id: string
+          student_id: string
+          summary: string | null
+        }
+        Insert: {
+          assessment_id?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          school_id: string
+          student_id: string
+          summary?: string | null
+        }
+        Update: {
+          assessment_id?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          school_id?: string
+          student_id?: string
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_recommendations_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "career_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       career_resources: {
         Row: {
           category: string
