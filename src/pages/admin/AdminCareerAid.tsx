@@ -78,7 +78,7 @@ export default function AdminCareerAid() {
         .eq("school_id", schoolId).order("created_at", { ascending: false }),
       supabase.from("students").select("id,first_name,last_name,admission_number,current_class_arm_id")
         .eq("school_id", schoolId).eq("is_active", true).order("last_name"),
-      supabase.from("career_assessments").select("id,student_id,realistic,investigative,artistic,social,enterprising,conventional,dominant_code,created_at")
+      supabase.from("career_assessments").select("id,student_id,realistic,investigative,artistic,social,enterprising,conventional,dominant_type,created_at")
         .eq("school_id", schoolId).order("created_at", { ascending: false }),
       supabase.from("career_counseling_sessions").select("id,student_id,topic,scheduled_at,status,meeting_url")
         .eq("school_id", schoolId).order("scheduled_at", { ascending: false }),
@@ -137,7 +137,7 @@ export default function AdminCareerAid() {
   const dominantDistribution = useMemo(() => {
     const counts: Record<string, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
     for (const a of assessments) {
-      const code = (a.dominant_code || "").charAt(0).toUpperCase();
+      const code = (a.dominant_type || "").charAt(0).toUpperCase();
       if (code in counts) counts[code]++;
     }
     return Object.entries(counts).map(([code, value]) => ({ code, value }));
@@ -252,7 +252,7 @@ export default function AdminCareerAid() {
                         <p className="font-medium">{studentName(a.student_id)}</p>
                         <p className="text-xs text-muted-foreground">{format(new Date(a.created_at), "PP")}</p>
                       </div>
-                      <Badge>{a.dominant_code || "—"}</Badge>
+                      <Badge>{a.dominant_type || "—"}</Badge>
                     </div>
                   ))}
                 </div>
@@ -274,7 +274,7 @@ export default function AdminCareerAid() {
                       <div>
                         <p className="font-medium">{studentName(s.student_id)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {s.topic || "General guidance"} • {format(new Date(s.scheduled_at), "PPp")}
+                          {s.notes || "General guidance"} • {format(new Date(s.scheduled_at), "PPp")}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
