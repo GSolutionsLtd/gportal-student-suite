@@ -80,7 +80,7 @@ export default function AdminCareerAid() {
         .eq("school_id", schoolId).eq("is_active", true).order("last_name"),
       supabase.from("career_assessments").select("id,student_id,realistic,investigative,artistic,social,enterprising,conventional,dominant_type,created_at")
         .eq("school_id", schoolId).order("created_at", { ascending: false }),
-      supabase.from("career_counseling_sessions").select("id,student_id,topic,scheduled_at,status,meeting_url")
+      supabase.from("career_counseling_sessions").select("id,student_id,notes,scheduled_at,status,meeting_url")
         .eq("school_id", schoolId).order("scheduled_at", { ascending: false }),
     ]);
     if (r.error) toast({ title: "Resources error", description: r.error.message, variant: "destructive" });
