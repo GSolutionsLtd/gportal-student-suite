@@ -42,14 +42,14 @@ interface AssessmentRow {
   student_id: string;
   realistic: number; investigative: number; artistic: number;
   social: number; enterprising: number; conventional: number;
-  dominant_code: string | null;
+  dominant_type: string | null;
   created_at: string;
 }
 
 interface SessionRow {
   id: string;
   student_id: string;
-  topic: string | null;
+  notes: string | null;
   scheduled_at: string;
   status: string;
   meeting_url: string | null;
