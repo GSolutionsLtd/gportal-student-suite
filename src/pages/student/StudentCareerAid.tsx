@@ -153,7 +153,7 @@ export default function StudentCareerAid() {
     const { data, error } = await supabase.functions.invoke("careeraid-recommend", { body: { assessment_id: assessmentId } });
     setGenLoading(false);
     if (error || (data as any)?.error) {
-      return toast({ title: "AI failed", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return toast({ title: "Recommendation failed", description: (data as any)?.error || error?.message, variant: "destructive" });
     }
     const response = data as { recommendation_id?: string; summary?: string; paths?: Path[]; source?: string } | null;
     if (response?.recommendation_id && Array.isArray(response.paths)) {
