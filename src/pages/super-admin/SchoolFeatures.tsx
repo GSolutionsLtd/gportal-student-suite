@@ -64,7 +64,7 @@ const FEATURE_INFO = [
   {
     key: "careeraid" as const,
     label: "CareerAid Clinic",
-    description: "Holland Code assessment, AI career recommendations, counseling",
+    description: "Personality Test assessment, AI career recommendations, counseling",
     icon: Compass,
     tier: "premium" as const,
   },
