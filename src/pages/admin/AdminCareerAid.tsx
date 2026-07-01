@@ -240,7 +240,7 @@ export default function AdminCareerAid() {
 
         <TabsContent value="assessments">
           <Card>
-            <CardHeader><CardTitle>Holland Code assessments</CardTitle><CardDescription>Latest student submissions.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Personality Test assessments</CardTitle><CardDescription>Latest student submissions.</CardDescription></CardHeader>
             <CardContent>
               {assessments.length === 0 ? (
                 <p className="text-muted-foreground text-sm">No assessments yet.</p>
@@ -295,7 +295,7 @@ export default function AdminCareerAid() {
 
         <TabsContent value="analytics">
           <Card>
-            <CardHeader><CardTitle>Holland Code distribution</CardTitle><CardDescription>Dominant interest codes across {assessments.length} assessments.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Personality Test distribution</CardTitle><CardDescription>Dominant interest codes across {assessments.length} assessments.</CardDescription></CardHeader>
             <CardContent className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dominantDistribution}>
