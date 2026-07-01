@@ -46,6 +46,7 @@ export default function StudentCareerAid() {
   // Recommendations
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [genLoading, setGenLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("assessment");
 
   // Counseling
   const [sessions, setSessions] = useState<any[]>([]);
@@ -85,12 +86,20 @@ export default function StudentCareerAid() {
   };
 
   const loadRecommendations = async (sid: string) => {
-    const { data: rs } = await supabase.from("career_recommendations")
+    const { data: rs, error: recError } = await supabase.from("career_recommendations")
       .select("id, summary, created_at").eq("student_id", sid).order("created_at", { ascending: false });
+    if (recError) {
+      toast({ title: "Could not load recommendations", description: recError.message, variant: "destructive" });
+      setRecs([]);
+      return;
+    }
     if (!rs || rs.length === 0) { setRecs([]); return; }
     const ids = rs.map((r) => r.id);
-    const { data: pths } = await supabase.from("career_recommendation_paths")
+    const { data: pths, error: pathError } = await supabase.from("career_recommendation_paths")
       .select("*").in("recommendation_id", ids).order("rank");
+    if (pathError) {
+      toast({ title: "Could not load career paths", description: pathError.message, variant: "destructive" });
+    }
     const grouped: Recommendation[] = (rs as any[]).map((r) => ({
       ...r, paths: ((pths as any[]) || []).filter((p) => p.recommendation_id === r.id),
     }));
@@ -146,7 +155,20 @@ export default function StudentCareerAid() {
     if (error || (data as any)?.error) {
       return toast({ title: "AI failed", description: (data as any)?.error || error?.message, variant: "destructive" });
     }
-    toast({ title: "Recommendations ready", description: "Open the My Career Plan tab." });
+    const response = data as { recommendation_id?: string; summary?: string; paths?: Path[]; source?: string } | null;
+    if (response?.recommendation_id && Array.isArray(response.paths)) {
+      setRecs((current) => [{
+        id: response.recommendation_id,
+        summary: response.summary || null,
+        created_at: new Date().toISOString(),
+        paths: response.paths.map((p) => ({ ...p, id: p.id || `${response.recommendation_id}-${p.rank}` })),
+      }, ...current.filter((r) => r.id !== response.recommendation_id)]);
+    }
+    setActiveTab("plan");
+    toast({
+      title: "Recommendations ready",
+      description: response?.source === "fallback" ? "Generated from the built-in CareerAid guide." : "Your career plan is ready.",
+    });
     if (studentId) await loadRecommendations(studentId);
   };
 
@@ -236,7 +258,7 @@ export default function StudentCareerAid() {
         <p className="text-muted-foreground">AI-powered career guidance for Nigerian students.</p>
       </div>
 
-      <Tabs defaultValue="assessment" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="assessment">Assessment</TabsTrigger>
           <TabsTrigger value="plan">My Plan</TabsTrigger>
