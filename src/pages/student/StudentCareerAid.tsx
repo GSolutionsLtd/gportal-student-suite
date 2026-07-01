@@ -249,7 +249,7 @@ export default function StudentCareerAid() {
         <TabsContent value="assessment">
           <Card>
             <CardHeader>
-              <CardTitle>Holland Code Personality Assessment</CardTitle>
+              <CardTitle>Personality Assessment</CardTitle>
               <CardDescription>Rate how much each statement describes you (1 = not at all, 5 = strongly).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
