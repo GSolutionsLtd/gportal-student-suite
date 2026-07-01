@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: assess, error: aerr } = await admin
       .from("career_assessments")
-      .select("*, student:students!inner(id, user_id, school_id, full_name)")
+      .select("*, student:students!inner(id, user_id, school_id, first_name, last_name)")
       .eq("id", assessment_id)
       .single();
     if (aerr || !assess) return json({ error: "Assessment not found" }, 404);
