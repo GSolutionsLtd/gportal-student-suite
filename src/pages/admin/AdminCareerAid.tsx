@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Trash2, ExternalLink, Briefcase, Users, ClipboardList, Video, BarChart3, BookOpen } from "lucide-react";
+import { Loader2, Plus, Trash2, ExternalLink, Briefcase, Users, ClipboardList, Video, BarChart3, BookOpen, FileText, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -43,6 +43,7 @@ interface AssessmentRow {
   realistic: number; investigative: number; artistic: number;
   social: number; enterprising: number; conventional: number;
   dominant_type: string | null;
+  holland_code: string | null;
   created_at: string;
 }
 
@@ -53,6 +54,22 @@ interface SessionRow {
   scheduled_at: string;
   status: string;
   meeting_url: string | null;
+}
+
+interface Path {
+  rank: number;
+  career_title: string;
+  ss_subjects: string[];
+  university_courses: string[];
+  jamb_subjects: string[];
+  jamb_cutoff: string | null;
+  universities: string[];
+  polytechnics: string[];
+  colleges_of_education: string[];
+  tech_skills: string[];
+  soft_skills: string[];
+  salary_insight: string | null;
+  market_relevance: string | null;
 }
 
 export default function AdminCareerAid() {
@@ -69,6 +86,9 @@ export default function AdminCareerAid() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", category: "general", url: "" });
+  
+  const [viewingRec, setViewingRec] = useState<{ name: string; summary: string | null; paths: Path[] } | null>(null);
+  const [loadingRec, setLoadingRec] = useState(false);
 
   const load = async () => {
     if (!schoolId) return;
@@ -78,7 +98,7 @@ export default function AdminCareerAid() {
         .eq("school_id", schoolId).order("created_at", { ascending: false }),
       supabase.from("students").select("id,first_name,last_name,admission_number,current_class_arm_id")
         .eq("school_id", schoolId).eq("is_active", true).order("last_name"),
-      supabase.from("career_assessments").select("id,student_id,realistic,investigative,artistic,social,enterprising,conventional,dominant_type,created_at")
+      supabase.from("career_assessments").select("id,student_id,realistic,investigative,artistic,social,enterprising,conventional,dominant_type,holland_code,created_at")
         .eq("school_id", schoolId).order("created_at", { ascending: false }),
       supabase.from("career_counseling_sessions").select("id,student_id,notes,scheduled_at,status,meeting_url")
         .eq("school_id", schoolId).order("scheduled_at", { ascending: false }),
@@ -100,7 +120,6 @@ export default function AdminCareerAid() {
       .on("postgres_changes", { event: "*", schema: "public", table: "career_assessments", filter: `school_id=eq.${schoolId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId]);
 
   const save = async () => {
@@ -134,10 +153,27 @@ export default function AdminCareerAid() {
     return s ? `${s.first_name} ${s.last_name}` : "Unknown student";
   };
 
+  const viewRecommendation = async (studentId: string, name: string) => {
+    setLoadingRec(true);
+    const { data: rec } = await supabase.from("career_recommendations")
+      .select("id, summary, paths:career_recommendation_paths(*)")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (!rec) {
+      toast({ title: "No recommendation", description: "This student hasn't generated recommendations yet.", variant: "default" });
+    } else {
+      setViewingRec({ name, summary: rec.summary, paths: (rec.paths as Path[] || []).sort((a,b) => a.rank - b.rank) });
+    }
+    setLoadingRec(false);
+  };
+
   const dominantDistribution = useMemo(() => {
     const counts: Record<string, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
     for (const a of assessments) {
-      const code = (a.dominant_type || "").charAt(0).toUpperCase();
+      const code = (a.holland_code || "").charAt(0).toUpperCase();
       if (code in counts) counts[code]++;
     }
     return Object.entries(counts).map(([code, value]) => ({ code, value }));
@@ -160,7 +196,7 @@ export default function AdminCareerAid() {
     <div className="space-y-6" data-testid="admin-careeraid">
       <div>
         <h1 className="text-2xl font-bold">CareerAid Clinic</h1>
-        <p className="text-muted-foreground">Oversee guidance resources, assessments, counseling, and analytics.</p>
+        <p className="text-muted-foreground">Oversee guidance resources, personality assessments, and career plans.</p>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
@@ -220,15 +256,23 @@ export default function AdminCareerAid() {
                 <div className="divide-y">
                   {students.map((s) => {
                     const hasAssessment = assessments.some((a) => a.student_id === s.id);
+                    const name = `${s.first_name} ${s.last_name}`;
                     return (
                       <div key={s.id} className="flex items-center justify-between py-2">
                         <div>
-                          <p className="font-medium">{s.first_name} {s.last_name}</p>
+                          <p className="font-medium">{name}</p>
                           <p className="text-xs text-muted-foreground">{s.admission_number || "—"}</p>
                         </div>
-                        <Badge variant={hasAssessment ? "default" : "outline"}>
-                          {hasAssessment ? "Assessed" : "Pending"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={hasAssessment ? "default" : "outline"}>
+                            {hasAssessment ? "Assessed" : "Pending"}
+                          </Badge>
+                          {hasAssessment && (
+                            <Button size="sm" variant="ghost" onClick={() => viewRecommendation(s.id, name)}>
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -252,7 +296,12 @@ export default function AdminCareerAid() {
                         <p className="font-medium">{studentName(a.student_id)}</p>
                         <p className="text-xs text-muted-foreground">{format(new Date(a.created_at), "PP")}</p>
                       </div>
-                      <Badge>{a.dominant_type || "—"}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge>{a.dominant_type || "—"} ({a.holland_code || "—"})</Badge>
+                        <Button size="sm" variant="outline" onClick={() => viewRecommendation(a.student_id, studentName(a.student_id))}>
+                          View Plan
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -295,7 +344,7 @@ export default function AdminCareerAid() {
 
         <TabsContent value="analytics">
           <Card>
-            <CardHeader><CardTitle>Personality Test distribution</CardTitle><CardDescription>Dominant interest codes across {assessments.length} assessments.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Personality Test distribution</CardTitle><CardDescription>Dominant interest types across {assessments.length} assessments.</CardDescription></CardHeader>
             <CardContent className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dominantDistribution}>
@@ -331,6 +380,52 @@ export default function AdminCareerAid() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!viewingRec} onOpenChange={(o) => !o && setViewingRec(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Career Plan: {viewingRec?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 pt-4">
+            {viewingRec?.summary && <p className="text-sm text-foreground/80 leading-relaxed">{viewingRec.summary}</p>}
+            <div className="space-y-4">
+              {viewingRec?.paths.map((p) => (
+                <Card key={p.rank} className="border-primary/20">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Badge>{p.rank}</Badge>{p.career_title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid md:grid-cols-2 gap-x-4 gap-y-3 text-xs pb-4">
+                    <Info label="SS Subjects" value={p.ss_subjects.join(", ")} />
+                    <Info label="University Courses" value={p.university_courses.join(", ")} />
+                    <Info label="JAMB Subjects" value={p.jamb_subjects.join(", ")} />
+                    <Info label="JAMB Cut-off" value={p.jamb_cutoff} />
+                    <Info label="Universities" value={p.universities.join(", ")} />
+                    <Info label="Polytechnics" value={p.polytechnics.join(", ")} />
+                    <Info label="Colleges" value={p.colleges_of_education.join(", ")} />
+                    <Info label="Tech Skills" value={p.tech_skills.join(", ")} />
+                    <Info label="Soft Skills" value={p.soft_skills.join(", ")} />
+                    <Info label="Salary" value={p.salary_insight} />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <p className="text-muted-foreground font-medium mb-0.5">{label}</p>
+      <p className="text-foreground">{value || "-"}</p>
     </div>
   );
 }
