@@ -6,10 +6,10 @@
 
 @layer base {
   :root {
-    /* Primary - Deep Indigo (Education/Trust) */
-    --primary: 238 66% 55%;
+    /* Primary - Royal Purple (GPortal Brand) */
+    --primary: 265 75% 52%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 238 70% 65%;
+    --primary-glow: 275 80% 65%;
     
     /* Background & Surface */
     --background: 220 20% 97%;
