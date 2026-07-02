@@ -48,9 +48,10 @@
     /* Border & Input */
     --border: 220 15% 90%;
     --input: 220 15% 90%;
-    --ring: 238 66% 55%;
+    --ring: 265 75% 52%;
     
     --radius: 0.625rem;
+    
     
     /* Sidebar */
     --sidebar-background: 224 50% 12%;
