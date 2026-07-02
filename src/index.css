@@ -6,10 +6,10 @@
 
 @layer base {
   :root {
-    /* Primary - Deep Indigo (Education/Trust) */
-    --primary: 238 66% 55%;
+    /* Primary - Royal Purple (GPortal Brand) */
+    --primary: 265 75% 52%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 238 70% 65%;
+    --primary-glow: 275 80% 65%;
     
     /* Background & Surface */
     --background: 220 20% 97%;
@@ -48,9 +48,10 @@
     /* Border & Input */
     --border: 220 15% 90%;
     --input: 220 15% 90%;
-    --ring: 238 66% 55%;
+    --ring: 265 75% 52%;
     
     --radius: 0.625rem;
+    
     
     /* Sidebar */
     --sidebar-background: 224 50% 12%;
@@ -63,15 +64,15 @@
     --sidebar-ring: 238 66% 55%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(238, 66%, 55%) 0%, hsl(258, 70%, 60%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(168, 80%, 42%) 0%, hsl(180, 70%, 45%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(224, 50%, 10%) 0%, hsl(238, 50%, 20%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(265, 75%, 52%) 0%, hsl(285, 80%, 62%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(275, 80%, 60%) 0%, hsl(295, 75%, 65%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(260, 60%, 15%) 0%, hsl(275, 65%, 28%) 100%);
     
     /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(224 50% 12% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(224 50% 12% / 0.08), 0 2px 4px -2px hsl(224 50% 12% / 0.05);
-    --shadow-lg: 0 10px 15px -3px hsl(224 50% 12% / 0.1), 0 4px 6px -4px hsl(224 50% 12% / 0.05);
-    --shadow-glow: 0 0 30px hsl(238 66% 55% / 0.2);
+    --shadow-sm: 0 1px 2px 0 hsl(265 60% 20% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(265 60% 20% / 0.08), 0 2px 4px -2px hsl(265 60% 20% / 0.05);
+    --shadow-lg: 0 10px 15px -3px hsl(265 60% 20% / 0.1), 0 4px 6px -4px hsl(265 60% 20% / 0.05);
+    --shadow-glow: 0 0 40px hsl(275 80% 60% / 0.35);
   }
 
   .dark {
