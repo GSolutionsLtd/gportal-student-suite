@@ -232,6 +232,8 @@ const faqs = [
 
 export default function Index() {
   const navigate = useNavigate();
+  const [tourOpen, setTourOpen] = useState(false);
+  const goContact = (source: string) => navigate(`/contact?source=${encodeURIComponent(source)}`);
 
   return (
     <div className="min-h-screen bg-background">
