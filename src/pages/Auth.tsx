@@ -16,7 +16,16 @@ import {
   Mail,
   Lock,
   User,
-  Upload
+  Upload,
+  ClipboardList,
+  FileCheck,
+  Wallet,
+  BookOpen as BookOpenIcon,
+  Sparkles as SparklesIcon,
+  CalendarCheck,
+  MessagesSquare,
+  Compass,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserRole, ROLE_LABELS } from "@/types/auth";
