@@ -609,13 +609,13 @@ export default function Index() {
                 Join the schools already going digital with GPortal Suite. Book a live demo or talk to our sales team today.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Button size="xl" variant="secondary" onClick={() => navigate("/auth")}>
+                <Button size="xl" variant="secondary" onClick={() => goContact("cta_book_live_demo")}>
                   Book a Live Demo <ArrowRight className="h-5 w-5" />
                 </Button>
-                <Button size="xl" variant="outline" className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                <Button size="xl" variant="outline" onClick={() => goContact("cta_contact_sales")} className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                   <Phone className="h-5 w-5" /> Contact Sales
                 </Button>
-                <Button size="xl" variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                <Button size="xl" variant="ghost" onClick={() => goContact("cta_free_consultation")} className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                   Start Free Consultation
                 </Button>
               </div>
