@@ -283,10 +283,10 @@ export default function Index() {
                 communication, attendance, career guidance and AI-powered analytics — all from one secure cloud platform.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 animate-slide-up" style={{ animationDelay: "200ms" }}>
-                <Button size="xl" variant="hero" onClick={() => navigate("/auth")}>
+                <Button size="xl" variant="hero" onClick={() => goContact("hero_request_demo")}>
                   Request Demo <ArrowRight className="h-5 w-5" />
                 </Button>
-                <Button size="xl" variant="outline">
+                <Button size="xl" variant="outline" onClick={() => setTourOpen(true)}>
                   <PlayCircle className="h-5 w-5" /> Watch Product Tour
                 </Button>
               </div>
