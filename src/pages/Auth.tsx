@@ -356,33 +356,35 @@ export default function Auth() {
         
         <div className="relative z-10 flex flex-col justify-center px-12 text-primary-foreground">
           <Logo size="lg" variant="light" />
-          <h1 className="text-4xl font-bold mt-8 mb-4">
-            Student Result Management System
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-foreground/10 text-primary-foreground text-xs font-semibold mt-8 w-fit">
+            AI-Powered School Digital Operating System
+          </div>
+          <h1 className="text-4xl font-bold mt-4 mb-4">
+            Run your entire school on one intelligent platform.
           </h1>
           <p className="text-lg text-primary-foreground/80 max-w-md">
-            Streamline academic result processing with role-based access, 
-            automated computations, and secure PIN-based result checking.
+            Results, CBT exams, fees & finance, assignments, attendance, communication,
+            CareerAid guidance and AI academic analytics — unified for admins, teachers,
+            students and parents.
           </p>
-          
-          <div className="mt-12 space-y-4">
-            <div className="flex items-center gap-3 text-primary-foreground/80">
-              <div className="h-8 w-8 rounded-lg bg-primary-foreground/10 flex items-center justify-center">
-                <GraduationCap className="h-4 w-4" />
+
+          <div className="mt-10 grid grid-cols-2 gap-3 max-w-md">
+            {[
+              { icon: ClipboardList, label: "Student Results" },
+              { icon: FileCheck, label: "CBT Examinations" },
+              { icon: Wallet, label: "Fees & Finance" },
+              { icon: BookOpenIcon, label: "Assignments" },
+              { icon: SparklesIcon, label: "AI Lesson Planner" },
+              { icon: CalendarCheck, label: "Attendance" },
+              { icon: MessagesSquare, label: "Parent Engagement" },
+              { icon: Compass, label: "CareerAid Clinic" },
+              { icon: Brain, label: "AI Academic Analytics" },
+            ].map((f) => (
+              <div key={f.label} className="flex items-center gap-2 rounded-lg bg-primary-foreground/10 px-3 py-2">
+                <f.icon className="h-4 w-4" />
+                <span className="text-xs font-medium">{f.label}</span>
               </div>
-              <span>Manage classes, subjects & academic sessions</span>
-            </div>
-            <div className="flex items-center gap-3 text-primary-foreground/80">
-              <div className="h-8 w-8 rounded-lg bg-primary-foreground/10 flex items-center justify-center">
-                <School className="h-4 w-4" />
-              </div>
-              <span>Teachers can enter and submit results</span>
-            </div>
-            <div className="flex items-center gap-3 text-primary-foreground/80">
-              <div className="h-8 w-8 rounded-lg bg-primary-foreground/10 flex items-center justify-center">
-                <Users className="h-4 w-4" />
-              </div>
-              <span>Admins approve and publish results</span>
-            </div>
+            ))}
           </div>
         </div>
       </div>
