@@ -19,6 +19,7 @@ import CheckResult from "./pages/CheckResult";
 import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 import InstallApp from "./pages/InstallApp";
+import Contact from "./pages/Contact";
 
 // Dashboard Layouts
 import { DashboardLayout } from "./components/layouts/DashboardLayout";
@@ -66,6 +67,7 @@ import SystemSettings from "./pages/super-admin/SystemSettings";
 import AuditLogs from "./pages/super-admin/AuditLogs";
 import SchoolManagement from "./pages/super-admin/SchoolManagement";
 import SchoolFeatures from "./pages/super-admin/SchoolFeatures";
+import ContactSubmissions from "./pages/super-admin/ContactSubmissions";
 
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
@@ -133,6 +135,7 @@ function App() {
               <Route path="/payment/callback" element={<PaymentCallback />} />
               <Route path="/install" element={<InstallApp />} />
               <Route path="/verify-result" element={<VerifyResult />} />
+              <Route path="/contact" element={<Contact />} />
 
               {/* Super Admin Routes (no school code) */}
               <Route 
@@ -149,6 +152,7 @@ function App() {
                 <Route path="settings" element={<SystemSettings />} />
                 <Route path="audit" element={<AuditLogs />} />
                 <Route path="features" element={<SchoolFeatures />} />
+                <Route path="contact-submissions" element={<ContactSubmissions />} />
               </Route>
 
               {/* School-scoped Admin Routes */}

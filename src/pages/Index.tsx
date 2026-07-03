@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { ProductTourModal } from "@/components/ProductTourModal";
 
 // Animated counter
 function Counter({ end, suffix = "", label }: { end: number; suffix?: string; label: string }) {
@@ -231,6 +232,8 @@ const faqs = [
 
 export default function Index() {
   const navigate = useNavigate();
+  const [tourOpen, setTourOpen] = useState(false);
+  const goContact = (source: string) => navigate(`/contact?source=${encodeURIComponent(source)}`);
 
   return (
     <div className="min-h-screen bg-background">
@@ -251,7 +254,7 @@ export default function Index() {
             <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
               Sign In
             </Button>
-            <Button variant="hero" size="sm" className="hidden sm:inline-flex" onClick={() => navigate("/auth")}>
+            <Button variant="hero" size="sm" className="hidden sm:inline-flex" onClick={() => goContact("header_request_demo")}>
               Request Demo
             </Button>
           </div>
@@ -280,10 +283,10 @@ export default function Index() {
                 communication, attendance, career guidance and AI-powered analytics — all from one secure cloud platform.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 animate-slide-up" style={{ animationDelay: "200ms" }}>
-                <Button size="xl" variant="hero" onClick={() => navigate("/auth")}>
+                <Button size="xl" variant="hero" onClick={() => goContact("hero_request_demo")}>
                   Request Demo <ArrowRight className="h-5 w-5" />
                 </Button>
-                <Button size="xl" variant="outline">
+                <Button size="xl" variant="outline" onClick={() => setTourOpen(true)}>
                   <PlayCircle className="h-5 w-5" /> Watch Product Tour
                 </Button>
               </div>
@@ -386,7 +389,7 @@ export default function Index() {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">{m.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-4">{m.desc}</p>
-                <Button variant="link" size="sm" className="px-0 h-auto text-primary">
+                <Button variant="link" size="sm" className="px-0 h-auto text-primary" onClick={() => goContact(`module_${m.title}`)}>
                   Learn more <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </Card>
@@ -606,13 +609,13 @@ export default function Index() {
                 Join the schools already going digital with GPortal Suite. Book a live demo or talk to our sales team today.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Button size="xl" variant="secondary" onClick={() => navigate("/auth")}>
+                <Button size="xl" variant="secondary" onClick={() => goContact("cta_book_live_demo")}>
                   Book a Live Demo <ArrowRight className="h-5 w-5" />
                 </Button>
-                <Button size="xl" variant="outline" className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                <Button size="xl" variant="outline" onClick={() => goContact("cta_contact_sales")} className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                   <Phone className="h-5 w-5" /> Contact Sales
                 </Button>
-                <Button size="xl" variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                <Button size="xl" variant="ghost" onClick={() => goContact("cta_free_consultation")} className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                   Start Free Consultation
                 </Button>
               </div>
@@ -642,12 +645,20 @@ export default function Index() {
             <div>
               <div className="font-semibold mb-4 text-sidebar-foreground">Product Modules</div>
               <ul className="space-y-2 text-sm text-sidebar-foreground/70">
-                <li>Result Management</li>
-                <li>CBT Examinations</li>
-                <li>Fees & Finance</li>
-                <li>Assignments</li>
-                <li>AI Lesson Planner</li>
-                <li>CareerAid Clinic</li>
+                {[
+                  "Result Management",
+                  "CBT Examinations",
+                  "Fees & Finance",
+                  "Assignments",
+                  "AI Lesson Planner",
+                  "CareerAid Clinic",
+                ].map((m) => (
+                  <li key={m}>
+                    <a href={`/contact?source=${encodeURIComponent(`footer_module_${m}`)}`} className="hover:text-sidebar-foreground">
+                      {m}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
@@ -657,6 +668,7 @@ export default function Index() {
                 <li><a href="#why" className="hover:text-sidebar-foreground">Why GPortal</a></li>
                 <li><a href="#ai" className="hover:text-sidebar-foreground">AI Advantage</a></li>
                 <li><a href="#faq" className="hover:text-sidebar-foreground">FAQ</a></li>
+                <li><a href="/contact" className="hover:text-sidebar-foreground">Contact Sales</a></li>
                 <li><a href="/auth" className="hover:text-sidebar-foreground">Sign In</a></li>
               </ul>
             </div>
@@ -677,6 +689,7 @@ export default function Index() {
           </div>
         </div>
       </footer>
+      <ProductTourModal open={tourOpen} onOpenChange={setTourOpen} source="homepage_hero" />
     </div>
   );
 }
