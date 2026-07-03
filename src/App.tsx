@@ -67,6 +67,7 @@ import SystemSettings from "./pages/super-admin/SystemSettings";
 import AuditLogs from "./pages/super-admin/AuditLogs";
 import SchoolManagement from "./pages/super-admin/SchoolManagement";
 import SchoolFeatures from "./pages/super-admin/SchoolFeatures";
+import ContactSubmissions from "./pages/super-admin/ContactSubmissions";
 
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
