@@ -56,8 +56,17 @@ export default function Contact() {
     }
     setErrors({});
     setSubmitting(true);
+    const d = parsed.data;
     const { error } = await supabase.from("contact_submissions").insert([
-      { ...parsed.data, source },
+      {
+        full_name: d.full_name,
+        school_name: d.school_name,
+        city_state: d.city_state,
+        email: d.email,
+        phone: d.phone,
+        message: d.message,
+        source,
+      },
     ]);
     setSubmitting(false);
     if (error) {
