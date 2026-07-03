@@ -254,7 +254,7 @@ export default function Index() {
             <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
               Sign In
             </Button>
-            <Button variant="hero" size="sm" className="hidden sm:inline-flex" onClick={() => navigate("/auth")}>
+            <Button variant="hero" size="sm" className="hidden sm:inline-flex" onClick={() => goContact("header_request_demo")}>
               Request Demo
             </Button>
           </div>
