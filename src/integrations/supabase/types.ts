@@ -1078,6 +1078,48 @@ export type Database = {
           },
         ]
       }
+      contact_submissions: {
+        Row: {
+          city_state: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          message: string
+          phone: string
+          school_name: string
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          city_state: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          message: string
+          phone: string
+          school_name: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          city_state?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          message?: string
+          phone?: string
+          school_name?: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fee_payments: {
         Row: {
           amount_paid: number
@@ -1636,6 +1678,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_tour_clicks: {
+        Row: {
+          created_at: string
+          id: string
+          source: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
