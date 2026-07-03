@@ -389,7 +389,7 @@ export default function Index() {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">{m.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-4">{m.desc}</p>
-                <Button variant="link" size="sm" className="px-0 h-auto text-primary">
+                <Button variant="link" size="sm" className="px-0 h-auto text-primary" onClick={() => goContact(`module_${m.title}`)}>
                   Learn more <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </Card>
