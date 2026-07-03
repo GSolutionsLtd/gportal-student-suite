@@ -19,6 +19,7 @@ import CheckResult from "./pages/CheckResult";
 import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 import InstallApp from "./pages/InstallApp";
+import Contact from "./pages/Contact";
 
 // Dashboard Layouts
 import { DashboardLayout } from "./components/layouts/DashboardLayout";
