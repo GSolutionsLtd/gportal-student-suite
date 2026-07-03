@@ -689,6 +689,7 @@ export default function Index() {
           </div>
         </div>
       </footer>
+      <ProductTourModal open={tourOpen} onOpenChange={setTourOpen} source="homepage_hero" />
     </div>
   );
 }
