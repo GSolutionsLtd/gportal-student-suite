@@ -645,12 +645,20 @@ export default function Index() {
             <div>
               <div className="font-semibold mb-4 text-sidebar-foreground">Product Modules</div>
               <ul className="space-y-2 text-sm text-sidebar-foreground/70">
-                <li>Result Management</li>
-                <li>CBT Examinations</li>
-                <li>Fees & Finance</li>
-                <li>Assignments</li>
-                <li>AI Lesson Planner</li>
-                <li>CareerAid Clinic</li>
+                {[
+                  "Result Management",
+                  "CBT Examinations",
+                  "Fees & Finance",
+                  "Assignments",
+                  "AI Lesson Planner",
+                  "CareerAid Clinic",
+                ].map((m) => (
+                  <li key={m}>
+                    <a href={`/contact?source=${encodeURIComponent(`footer_module_${m}`)}`} className="hover:text-sidebar-foreground">
+                      {m}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
@@ -660,6 +668,7 @@ export default function Index() {
                 <li><a href="#why" className="hover:text-sidebar-foreground">Why GPortal</a></li>
                 <li><a href="#ai" className="hover:text-sidebar-foreground">AI Advantage</a></li>
                 <li><a href="#faq" className="hover:text-sidebar-foreground">FAQ</a></li>
+                <li><a href="/contact" className="hover:text-sidebar-foreground">Contact Sales</a></li>
                 <li><a href="/auth" className="hover:text-sidebar-foreground">Sign In</a></li>
               </ul>
             </div>
