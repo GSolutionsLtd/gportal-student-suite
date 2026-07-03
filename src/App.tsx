@@ -152,6 +152,7 @@ function App() {
                 <Route path="settings" element={<SystemSettings />} />
                 <Route path="audit" element={<AuditLogs />} />
                 <Route path="features" element={<SchoolFeatures />} />
+                <Route path="contact-submissions" element={<ContactSubmissions />} />
               </Route>
 
               {/* School-scoped Admin Routes */}
