@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { ProductTourModal } from "@/components/ProductTourModal";
 
 // Animated counter
 function Counter({ end, suffix = "", label }: { end: number; suffix?: string; label: string }) {
