@@ -135,6 +135,7 @@ function App() {
               <Route path="/payment/callback" element={<PaymentCallback />} />
               <Route path="/install" element={<InstallApp />} />
               <Route path="/verify-result" element={<VerifyResult />} />
+              <Route path="/contact" element={<Contact />} />
 
               {/* Super Admin Routes (no school code) */}
               <Route 
