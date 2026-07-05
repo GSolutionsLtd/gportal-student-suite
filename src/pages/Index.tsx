@@ -658,9 +658,13 @@ export default function Index() {
                   "CareerAid Clinic",
                 ].map((m) => (
                   <li key={m}>
-                    <a href={`/contact?source=${encodeURIComponent(`footer_module_${m}`)}`} className="hover:text-sidebar-foreground">
+                    <button
+                      type="button"
+                      onClick={() => goContact(`footer_module_${m}`)}
+                      className="hover:text-sidebar-foreground text-left"
+                    >
                       {m}
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
