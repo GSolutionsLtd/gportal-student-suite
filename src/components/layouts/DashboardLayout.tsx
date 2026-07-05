@@ -78,6 +78,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Fee Management", icon: Key, path: "fees", feature: "finance" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
+    { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner" },
+    { label: "Attendance ✨", icon: Calendar, path: "attendance" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
@@ -86,6 +88,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
+    { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner" },
+    { label: "Attendance ✨", icon: Calendar, path: "attendance" },
     { label: "Parent Messages", icon: MessageSquare, path: "messages" },
     { label: "My Profile", icon: Users, path: "profile" },
   ],
@@ -97,6 +101,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "School Fees", icon: Key, path: "fees", feature: "finance" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
+    { label: "Attendance ✨", icon: Calendar, path: "attendance" },
   ],
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
