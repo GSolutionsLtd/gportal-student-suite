@@ -60,6 +60,8 @@ import StudentAssignments from "./pages/student/StudentAssignments";
 import AdminCareerAid from "./pages/admin/AdminCareerAid";
 import TeacherCareerAid from "./pages/teacher/TeacherCareerAid";
 import StudentCareerAid from "./pages/student/StudentCareerAid";
+import LessonPlannerFeature from "./pages/features/LessonPlanner";
+import AttendanceFeature from "./pages/features/Attendance";
 
 // Super Admin pages
 import UserManagement from "./pages/super-admin/UserManagement";
