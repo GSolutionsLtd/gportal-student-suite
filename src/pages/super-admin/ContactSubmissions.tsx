@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Phone, MapPin, Building2, Trash2, RefreshCcw } from "lucide-react";
+import { Loader2, Mail, Phone, MapPin, Building2, Trash2, RefreshCcw, Download } from "lucide-react";
 
 type Submission = {
   id: string;
@@ -67,6 +67,38 @@ export default function ContactSubmissions() {
 
   const filtered = filter === "all" ? items : items.filter((i) => i.status === filter);
 
+  const exportCsv = () => {
+    if (!filtered.length) {
+      toast({ title: "Nothing to export", description: "No submissions match the current filter." });
+      return;
+    }
+    const headers = [
+      "Submitted At", "Full Name", "School Name", "City / State",
+      "Email", "Phone", "Source", "Status", "Message",
+    ];
+    const escape = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filtered.map((s) => [
+      new Date(s.created_at).toISOString(),
+      s.full_name, s.school_name, s.city_state,
+      s.email, s.phone, s.source ?? "", s.status, s.message,
+    ].map(escape).join(","));
+    const csv = "\uFEFF" + [headers.map(escape).join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    a.href = url;
+    a.download = `contact-submissions-${filter}-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Export ready", description: `${filtered.length} submission(s) downloaded as CSV.` });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -86,6 +118,9 @@ export default function ContactSubmissions() {
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" size="sm" onClick={exportCsv} className="gap-2" disabled={!filtered.length}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={load} className="gap-2">
             <RefreshCcw className="h-4 w-4" /> Refresh
           </Button>

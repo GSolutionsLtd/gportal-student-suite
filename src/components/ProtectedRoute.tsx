@@ -1,4 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSchoolContext } from '@/hooks/useSchoolContext';
 import { UserRole } from '@/types/auth';
@@ -13,6 +15,19 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   const { user, userRole, isLoading } = useAuth();
   const { schoolCode, loading: schoolLoading } = useSchoolContext();
   const location = useLocation();
+  const warned = useRef(false);
+
+  const denied =
+    !isLoading && !schoolLoading && user && userRole && !allowedRoles.includes(userRole);
+
+  useEffect(() => {
+    if (denied && !warned.current) {
+      warned.current = true;
+      toast.error("Access denied", {
+        description: "You don't have permission to view that page.",
+      });
+    }
+  }, [denied]);
 
   if (isLoading || schoolLoading) {
     return (
@@ -25,19 +40,15 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     );
   }
 
-  // Not authenticated - redirect to auth page
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // No role assigned yet - redirect to auth
   if (!userRole) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Check if user has allowed role
   if (!allowedRoles.includes(userRole)) {
-    // Redirect to their appropriate dashboard based on role + school
     if (userRole === 'super_admin') {
       return <Navigate to="/super-admin" replace />;
     }

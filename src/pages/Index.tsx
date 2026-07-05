@@ -42,6 +42,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ProductTourModal } from "@/components/ProductTourModal";
+import { trackCta } from "@/lib/trackCta";
 
 // Animated counter
 function Counter({ end, suffix = "", label }: { end: number; suffix?: string; label: string }) {
@@ -233,7 +234,10 @@ const faqs = [
 export default function Index() {
   const navigate = useNavigate();
   const [tourOpen, setTourOpen] = useState(false);
-  const goContact = (source: string) => navigate(`/contact?source=${encodeURIComponent(source)}`);
+  const goContact = (source: string) => {
+    trackCta(source);
+    navigate(`/contact?source=${encodeURIComponent(source)}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -654,9 +658,13 @@ export default function Index() {
                   "CareerAid Clinic",
                 ].map((m) => (
                   <li key={m}>
-                    <a href={`/contact?source=${encodeURIComponent(`footer_module_${m}`)}`} className="hover:text-sidebar-foreground">
+                    <button
+                      type="button"
+                      onClick={() => goContact(`footer_module_${m}`)}
+                      className="hover:text-sidebar-foreground text-left"
+                    >
                       {m}
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
