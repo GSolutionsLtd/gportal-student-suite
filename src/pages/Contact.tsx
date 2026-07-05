@@ -141,20 +141,37 @@ export default function Contact() {
 
           <Card className="p-6 md:p-8">
             {submitted ? (
-              <div className="text-center py-8">
+              <div className="text-center py-8" role="status" aria-live="polite">
                 <div className="mx-auto h-14 w-14 rounded-full bg-success/10 text-success flex items-center justify-center mb-4">
                   <CheckCircle2 className="h-7 w-7" />
                 </div>
                 <h2 className="text-xl font-semibold mb-2">Thanks — we've got your request.</h2>
-                <p className="text-muted-foreground text-sm mb-6">
-                  A GPortal specialist will reach out within one business day.
+                <p className="text-muted-foreground text-sm mb-2">
+                  A GPortal specialist will reach out to <span className="font-medium text-foreground">{form.email}</span> within one business day.
                 </p>
-                <Button variant="outline" onClick={() => navigate("/")}>
-                  Back to homepage
-                </Button>
+                <p className="text-xs text-muted-foreground mb-6">
+                  A copy of your enquiry has been logged with reference source: <span className="font-mono">{source}</span>
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button variant="outline" onClick={() => navigate("/")}>Back to homepage</Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setSubmitted(false);
+                      setForm({ full_name: "", school_name: "", city_state: "", email: "", phone: "", message: "" });
+                    }}
+                  >
+                    Send another enquiry
+                  </Button>
+                </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                {Object.keys(errors).length > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 text-destructive text-sm px-3 py-2">
+                    Please fix the highlighted fields below.
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="full_name">Full Name *</Label>
                   <Input
