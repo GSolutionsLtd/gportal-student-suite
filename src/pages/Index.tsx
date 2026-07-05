@@ -42,6 +42,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ProductTourModal } from "@/components/ProductTourModal";
+import { trackCta } from "@/lib/trackCta";
 
 // Animated counter
 function Counter({ end, suffix = "", label }: { end: number; suffix?: string; label: string }) {
