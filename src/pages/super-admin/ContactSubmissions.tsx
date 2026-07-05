@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Phone, MapPin, Building2, Trash2, RefreshCcw } from "lucide-react";
+import { Loader2, Mail, Phone, MapPin, Building2, Trash2, RefreshCcw, Download } from "lucide-react";
 
 type Submission = {
   id: string;
