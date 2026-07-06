@@ -11,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck, Target, Plus, Trash2, CheckCircle2, Calendar } from "lucide-react";
 import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
@@ -59,6 +61,13 @@ export default function StudentCareerAid() {
   const [interviewLoading, setInterviewLoading] = useState(false);
   const [interviewResult, setInterviewResult] = useState<{ score: number; feedback: string } | null>(null);
 
+  // My Plan — goals
+  interface Goal { id: string; title: string; description: string | null; target_date: string | null; status: "not_started" | "in_progress" | "completed"; progress: number; }
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [newGoal, setNewGoal] = useState({ title: "", description: "", target_date: "", status: "not_started" as Goal["status"], progress: 0 });
+  const [goalSaving, setGoalSaving] = useState(false);
+
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -69,7 +78,7 @@ export default function StudentCareerAid() {
       const schId = (s as any).school_id as string;
       setStudentId(sid); setSchoolId(schId);
       setStudentName(`${(s as any).first_name ?? ""} ${(s as any).last_name ?? ""}`.trim());
-      await Promise.all([loadLibrary(sid, schId), loadRecommendations(sid), loadSessions(sid)]);
+      await Promise.all([loadLibrary(sid, schId), loadRecommendations(sid), loadSessions(sid), loadGoals(sid)]);
       setLoading(false);
     })();
     // eslint-disable-next-line
@@ -111,6 +120,45 @@ export default function StudentCareerAid() {
       .select("*").eq("student_id", sid).order("scheduled_at", { ascending: false });
     setSessions((data as any[]) || []);
   };
+
+  const loadGoals = async (sid: string) => {
+    const { data } = await supabase.from("career_plan_goals")
+      .select("id, title, description, target_date, status, progress")
+      .eq("student_id", sid).order("created_at", { ascending: false });
+    setGoals((data as Goal[]) || []);
+  };
+
+  const addGoal = async () => {
+    if (!studentId || !schoolId || !newGoal.title.trim()) return;
+    setGoalSaving(true);
+    const { error } = await supabase.from("career_plan_goals").insert({
+      student_id: studentId, school_id: schoolId,
+      title: newGoal.title.trim(),
+      description: newGoal.description.trim() || null,
+      target_date: newGoal.target_date || null,
+      status: newGoal.status,
+      progress: newGoal.progress,
+    });
+    setGoalSaving(false);
+    if (error) return toast({ title: "Failed", description: error.message, variant: "destructive" });
+    setNewGoal({ title: "", description: "", target_date: "", status: "not_started", progress: 0 });
+    await loadGoals(studentId);
+    toast({ title: "Goal added" });
+  };
+
+  const updateGoal = async (id: string, patch: Partial<Goal>) => {
+    const { error } = await supabase.from("career_plan_goals").update(patch).eq("id", id);
+    if (error) return toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    if (studentId) loadGoals(studentId);
+  };
+
+  const deleteGoal = async (id: string) => {
+    if (!confirm("Delete this goal?")) return;
+    const { error } = await supabase.from("career_plan_goals").delete().eq("id", id);
+    if (error) return toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    if (studentId) loadGoals(studentId);
+  };
+
 
   const toggleSave = async (rid: string) => {
     if (!studentId) return;
@@ -300,13 +348,123 @@ export default function StudentCareerAid() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="plan">
+        <TabsContent value="plan" className="space-y-6">
+          {/* Latest recommendation */}
           {recs.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Take the assessment to generate your career plan.</CardContent></Card>
           ) : (
             <RecommendationView rec={recs[0]} onDownload={() => downloadPdf(recs[0])} />
           )}
+
+          {/* Goals & Milestones */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5 text-primary" />Goals & Milestones</CardTitle>
+              <CardDescription>Set personal career goals and track your progress.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-2 p-3 border rounded-lg">
+                <Input placeholder="Goal title (e.g. Pass JAMB with 280+)" value={newGoal.title} onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })} />
+                <Input type="date" value={newGoal.target_date} onChange={(e) => setNewGoal({ ...newGoal, target_date: e.target.value })} />
+                <Textarea className="md:col-span-2" placeholder="Description / milestones (optional)" value={newGoal.description} onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })} rows={2} />
+                <Button className="md:col-span-2" onClick={addGoal} disabled={goalSaving || !newGoal.title.trim()}>
+                  {goalSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}<Plus className="h-4 w-4 mr-1" />Add goal
+                </Button>
+              </div>
+              {goals.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No goals yet. Add your first career goal above.</p>
+              ) : (
+                <div className="space-y-3">
+                  {goals.map((g) => (
+                    <div key={g.id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="font-medium flex items-center gap-2">
+                            {g.status === "completed" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Target className="h-4 w-4 text-primary" />}
+                            {g.title}
+                          </p>
+                          {g.description && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{g.description}</p>}
+                          {g.target_date && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Calendar className="h-3 w-3" />Target: {format(new Date(g.target_date), "PP")}</p>}
+                        </div>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteGoal(g.id)}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Select value={g.status} onValueChange={(v) => updateGoal(g.id, { status: v as Goal["status"], progress: v === "completed" ? 100 : g.progress })}>
+                          <SelectTrigger className="w-40 h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="not_started">Not started</SelectItem>
+                            <SelectItem value="in_progress">In progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input type="number" min={0} max={100} className="w-20 h-8" value={g.progress}
+                          onChange={(e) => updateGoal(g.id, { progress: Math.max(0, Math.min(100, Number(e.target.value))) })} />
+                        <span className="text-xs text-muted-foreground">%</span>
+                        <Progress value={g.progress} className="flex-1 h-2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Saved resources */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><BookmarkCheck className="h-5 w-5 text-primary" />Saved Resources</CardTitle>
+              <CardDescription>Career resources you've pinned from the Explore tab.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {resources.filter((r) => saves.has(r.id)).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No saved resources. Visit Explore to pin items.</p>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-3">
+                  {resources.filter((r) => saves.has(r.id)).map((r) => (
+                    <div key={r.id} className="border rounded-lg p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="font-medium text-sm">{r.title}</p>
+                        <Badge variant="secondary" className="text-xs">{r.category}</Badge>
+                      </div>
+                      {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
+                      {r.url && <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"><ExternalLink className="h-3 w-3" />Open</a>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Upcoming counseling sessions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Video className="h-5 w-5 text-primary" />Counseling Sessions</CardTitle>
+              <CardDescription>Your booked and past counseling sessions.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {sessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No sessions yet. Book one from the Counseling tab.</p>
+              ) : (
+                <div className="space-y-2">
+                  {sessions.slice(0, 5).map((s) => (
+                    <div key={s.id} className="flex justify-between items-center border rounded p-3">
+                      <div>
+                        <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
+                        <Badge variant="secondary" className="mt-1 text-xs">{s.status}</Badge>
+                      </div>
+                      {s.meeting_url && (
+                        <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline"><Video className="h-4 w-4 mr-1" />Join</Button>
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
+
 
         <TabsContent value="history">
           {recs.length === 0 ? (
