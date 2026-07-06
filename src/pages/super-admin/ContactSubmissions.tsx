@@ -149,7 +149,10 @@ export default function ContactSubmissions() {
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" onClick={exportCsv} className="gap-2" disabled={!filtered.length}>
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportXlsx} className="gap-2" disabled={!filtered.length}>
+            <FileSpreadsheet className="h-4 w-4" /> Excel
           </Button>
           <Button variant="outline" size="sm" onClick={load} className="gap-2">
             <RefreshCcw className="h-4 w-4" /> Refresh
