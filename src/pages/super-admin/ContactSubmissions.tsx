@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Phone, MapPin, Building2, Trash2, RefreshCcw, Download } from "lucide-react";
+import { Loader2, Mail, Phone, MapPin, Building2, Trash2, RefreshCcw, Download, FileSpreadsheet } from "lucide-react";
 
 type Submission = {
   id: string;
