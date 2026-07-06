@@ -11,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck, Target, Plus, Trash2, CheckCircle2, Calendar } from "lucide-react";
 import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
@@ -58,6 +60,13 @@ export default function StudentCareerAid() {
   const [interviewAnswers, setInterviewAnswers] = useState<string[]>([]);
   const [interviewLoading, setInterviewLoading] = useState(false);
   const [interviewResult, setInterviewResult] = useState<{ score: number; feedback: string } | null>(null);
+
+  // My Plan — goals
+  interface Goal { id: string; title: string; description: string | null; target_date: string | null; status: "not_started" | "in_progress" | "completed"; progress: number; }
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [newGoal, setNewGoal] = useState({ title: "", description: "", target_date: "", status: "not_started" as Goal["status"], progress: 0 });
+  const [goalSaving, setGoalSaving] = useState(false);
+
 
   useEffect(() => {
     if (!user) return;
