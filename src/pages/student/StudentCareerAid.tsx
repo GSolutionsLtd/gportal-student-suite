@@ -78,7 +78,7 @@ export default function StudentCareerAid() {
       const schId = (s as any).school_id as string;
       setStudentId(sid); setSchoolId(schId);
       setStudentName(`${(s as any).first_name ?? ""} ${(s as any).last_name ?? ""}`.trim());
-      await Promise.all([loadLibrary(sid, schId), loadRecommendations(sid), loadSessions(sid)]);
+      await Promise.all([loadLibrary(sid, schId), loadRecommendations(sid), loadSessions(sid), loadGoals(sid)]);
       setLoading(false);
     })();
     // eslint-disable-next-line
@@ -120,6 +120,45 @@ export default function StudentCareerAid() {
       .select("*").eq("student_id", sid).order("scheduled_at", { ascending: false });
     setSessions((data as any[]) || []);
   };
+
+  const loadGoals = async (sid: string) => {
+    const { data } = await supabase.from("career_plan_goals")
+      .select("id, title, description, target_date, status, progress")
+      .eq("student_id", sid).order("created_at", { ascending: false });
+    setGoals((data as Goal[]) || []);
+  };
+
+  const addGoal = async () => {
+    if (!studentId || !schoolId || !newGoal.title.trim()) return;
+    setGoalSaving(true);
+    const { error } = await supabase.from("career_plan_goals").insert({
+      student_id: studentId, school_id: schoolId,
+      title: newGoal.title.trim(),
+      description: newGoal.description.trim() || null,
+      target_date: newGoal.target_date || null,
+      status: newGoal.status,
+      progress: newGoal.progress,
+    });
+    setGoalSaving(false);
+    if (error) return toast({ title: "Failed", description: error.message, variant: "destructive" });
+    setNewGoal({ title: "", description: "", target_date: "", status: "not_started", progress: 0 });
+    await loadGoals(studentId);
+    toast({ title: "Goal added" });
+  };
+
+  const updateGoal = async (id: string, patch: Partial<Goal>) => {
+    const { error } = await supabase.from("career_plan_goals").update(patch).eq("id", id);
+    if (error) return toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    if (studentId) loadGoals(studentId);
+  };
+
+  const deleteGoal = async (id: string) => {
+    if (!confirm("Delete this goal?")) return;
+    const { error } = await supabase.from("career_plan_goals").delete().eq("id", id);
+    if (error) return toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    if (studentId) loadGoals(studentId);
+  };
+
 
   const toggleSave = async (rid: string) => {
     if (!studentId) return;
