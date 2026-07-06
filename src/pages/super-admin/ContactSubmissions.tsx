@@ -100,6 +100,35 @@ export default function ContactSubmissions() {
     toast({ title: "Export ready", description: `${filtered.length} submission(s) downloaded as CSV.` });
   };
 
+  const exportXlsx = () => {
+    if (!filtered.length) {
+      toast({ title: "Nothing to export", description: "No submissions match the current filter." });
+      return;
+    }
+    const data = filtered.map((s) => ({
+      "Submitted At": new Date(s.created_at).toLocaleString(),
+      "Full Name": s.full_name,
+      "School Name": s.school_name,
+      "City / State": s.city_state,
+      Email: s.email,
+      Phone: s.phone,
+      Source: s.source ?? "",
+      Status: s.status,
+      Message: s.message,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 20 }, { wch: 22 }, { wch: 28 }, { wch: 22 },
+      { wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 60 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Submissions");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    XLSX.writeFile(wb, `contact-submissions-${filter}-${stamp}.xlsx`);
+    toast({ title: "Excel export ready", description: `${filtered.length} submission(s) downloaded as .xlsx.` });
+  };
+
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
