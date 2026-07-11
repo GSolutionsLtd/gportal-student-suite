@@ -297,6 +297,31 @@ export default function AdminDashboard() {
         />
       </div>
 
+      {/* Incoming Features */}
+      <div className="bg-card rounded-xl border border-border p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Incoming Features</h2>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <button
+            onClick={() => navigate("school-website")}
+            className="text-left border border-dashed border-primary/40 rounded-lg p-4 hover:bg-accent/30 transition"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
+                <h3 className="font-medium">School Website</h3>
+              </div>
+              <Badge variant="secondary" className="text-xs">Incoming</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Manage your school's own public website — with only your school's information.
+            </p>
+          </button>
+        </div>
+      </div>
+
       {/* Analytics Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Class Performance Chart */}
