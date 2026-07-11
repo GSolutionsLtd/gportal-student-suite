@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save, FileText, BookOpen, Compass } from "lucide-react";
+import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save, FileText, BookOpen, Compass, Globe } from "lucide-react";
 
 interface SchoolFeatureData {
   id: string;
@@ -22,6 +22,7 @@ interface SchoolFeatureData {
     assignments: boolean;
     lesson_notes: boolean;
     careeraid: boolean;
+    school_website: boolean;
   };
 }
 
