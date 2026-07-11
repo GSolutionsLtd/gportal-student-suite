@@ -102,6 +102,7 @@ export function useSchoolFeatures() {
               assignments: ef.assignments === true,
               lesson_notes: ef.lesson_notes === true,
               careeraid: ef.careeraid === true,
+              school_website: ef.school_website === true,
             });
           }
         }
