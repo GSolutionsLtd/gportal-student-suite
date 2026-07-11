@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const body = await req.text();
     
     // Verify signature
-    if (!verifyPaystackSignature(body, signature, paystackSecret)) {
+    if (!(await verifyPaystackSignature(body, signature, paystackSecret))) {
       console.error("Invalid Paystack signature");
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401,
