@@ -69,6 +69,13 @@ const FEATURE_INFO = [
     icon: Compass,
     tier: "premium" as const,
   },
+  {
+    key: "school_website" as const,
+    label: "School Website",
+    description: "Public school website managed by the school with only their information",
+    icon: Globe,
+    tier: "premium" as const,
+  },
 ];
 
 export default function SchoolFeatures() {
