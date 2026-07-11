@@ -234,6 +234,7 @@ function App() {
                 <Route path="fees" element={<StudentFeePayment />} />
                 <Route path="assignments" element={<StudentAssignments />} />
                 <Route path="careeraid" element={<StudentCareerAid />} />
+                <Route path="lesson-notes" element={<StudentLessonNotes />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
               </Route>
 
