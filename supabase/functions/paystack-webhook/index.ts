@@ -33,14 +33,27 @@ interface PaystackEvent {
   };
 }
 
-const verifyPaystackSignature = (body: string, signature: string, secret: string): boolean => {
-  // Create HMAC SHA512 hash
+const verifyPaystackSignature = async (body: string, signature: string, secret: string): Promise<boolean> => {
+  if (!signature || !secret) return false;
   const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const data = encoder.encode(body);
-  
-  // Simple signature check - in production use crypto.subtle for HMAC
-  return signature.length > 0;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-512" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  const expected = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  // Constant-time compare
+  if (expected.length !== signature.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < expected.length; i++) {
+    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return mismatch === 0;
 };
 
 Deno.serve(async (req) => {
