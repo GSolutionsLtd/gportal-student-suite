@@ -13,10 +13,36 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Starting subscription expiry check...");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const cronSecret = Deno.env.get("CRON_SECRET");
+
+    // Restrict to scheduler (shared secret) OR authenticated super_admin
+    const providedCron = req.headers.get("x-cron-secret");
+    const authHeader = req.headers.get("Authorization") || "";
+    let authorized = false;
+    if (cronSecret && providedCron && providedCron === cronSecret) {
+      authorized = true;
+    } else if (authHeader.startsWith("Bearer ")) {
+      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData } = await anonClient.auth.getUser();
+      if (userData?.user) {
+        const { data: isSuper } = await anonClient.rpc("has_role", {
+          _user_id: userData.user.id,
+          _role: "super_admin",
+        });
+        authorized = Boolean(isSuper);
+      }
+    }
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const now = new Date().toISOString();
