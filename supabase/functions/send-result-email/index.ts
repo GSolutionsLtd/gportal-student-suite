@@ -84,8 +84,15 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Cap attachment size (~8MB base64)
+    if (pdfBase64 && pdfBase64.length > 8_000_000) {
+      return new Response(
+        JSON.stringify({ error: "Attachment too large" }),
+        { status: 413, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Get school settings for branding
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
