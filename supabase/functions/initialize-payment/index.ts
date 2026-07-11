@@ -225,6 +225,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Only super admins or school admins for that school may initiate subscription payment
+    const { data: isSuper } = await supabase.rpc("has_role", {
+      _user_id: callerId,
+      _role: "super_admin",
+    });
+    const { data: isAdminForSchool } = await supabase.rpc("is_school_admin", {
+      _user_id: callerId,
+      _school_id: school_id,
+    });
+    if (!isSuper && !isAdminForSchool) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Calculate duration based on plan type
     let durationMonths = 1;
     switch (plan_type) {
