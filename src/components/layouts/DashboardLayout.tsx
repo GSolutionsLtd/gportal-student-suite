@@ -33,13 +33,14 @@ import {
   Monitor,
   FileText,
   Briefcase,
+  Globe,
 } from "lucide-react";
 
 interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   path: string;
-  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid";
+  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid" | "school_website";
   children?: { label: string; path: string }[];
 }
 
