@@ -54,9 +54,9 @@ Deno.serve(async (req) => {
     const { school_id, email, amount, plan_type, callback_url, student_id, fee_structure_id } = payload;
 
     if (paymentType === "school_fee") {
-      if (!student_id || !fee_structure_id || !email || !amount) {
+      if (!student_id || !fee_structure_id || !email) {
         return new Response(
-          JSON.stringify({ error: "Missing required fields: student_id, fee_structure_id, email, amount" }),
+          JSON.stringify({ error: "Missing required fields: student_id, fee_structure_id, email" }),
           {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -64,9 +64,23 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Lookup student + fee structure server-side
+      const { data: student, error: studentError } = await supabase
+        .from("students")
+        .select("id, school_id, user_id")
+        .eq("id", student_id)
+        .single();
+
+      if (studentError || !student) {
+        return new Response(JSON.stringify({ error: "Student not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: feeStructure, error: feeStructureError } = await supabase
         .from("fee_structures")
-        .select("id, name, amount")
+        .select("id, name, amount, school_id")
         .eq("id", fee_structure_id)
         .single();
 
@@ -80,12 +94,44 @@ Deno.serve(async (req) => {
         );
       }
 
+      if (feeStructure.school_id !== student.school_id) {
+        return new Response(JSON.stringify({ error: "Fee structure does not belong to student's school" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Authorization: caller must be the student, a linked parent, or a school admin
+      const { data: isAdmin } = await supabase.rpc("is_school_admin", {
+        _user_id: callerId,
+        _school_id: student.school_id,
+      });
+      let authorized = Boolean(isAdmin) || student.user_id === callerId;
+      if (!authorized) {
+        const { data: linked } = await supabase
+          .from("parent_students")
+          .select("id")
+          .eq("student_id", student_id)
+          .eq("parent_user_id", callerId)
+          .maybeSingle();
+        authorized = Boolean(linked);
+      }
+      if (!authorized) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Always use server-side amount from fee_structures
+      const serverAmount = Number(feeStructure.amount);
+
       const { data: payment, error: paymentError } = await supabase
         .from("fee_payments")
         .insert({
           student_id,
           fee_structure_id,
-          amount_paid: Number(amount),
+          amount_paid: serverAmount,
           payment_method: "online",
           status: "pending",
         })
@@ -112,7 +158,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           email,
-          amount: Math.round(Number(amount) * 100),
+          amount: Math.round(serverAmount * 100),
           reference,
           callback_url: callback_url || `${req.headers.get("origin")}/payment/callback`,
           metadata: {
