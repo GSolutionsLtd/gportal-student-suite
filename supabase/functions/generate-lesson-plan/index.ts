@@ -25,6 +25,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Role check — only teachers/admins/super_admins can burn AI credits here
+    const uid = userData.user.id;
+    const [{ data: isTeacher }, { data: isAdmin }, { data: isSuper }] = await Promise.all([
+      supabase.rpc('has_role', { _user_id: uid, _role: 'teacher' }),
+      supabase.rpc('has_role', { _user_id: uid, _role: 'admin' }),
+      supabase.rpc('has_role', { _user_id: uid, _role: 'super_admin' }),
+    ]);
+    if (!isTeacher && !isAdmin && !isSuper) {
+      return new Response(JSON.stringify({ error: 'Forbidden: teacher or admin role required' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const body = await req.json();
     const { topic, subject, grade_level, duration_minutes, curriculum, extra_notes } = body ?? {};
     if (!topic || typeof topic !== 'string') {
