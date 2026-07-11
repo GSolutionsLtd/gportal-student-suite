@@ -17,7 +17,9 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  Key
+  Key,
+  Globe,
+  Sparkles
 } from "lucide-react";
 import {
   BarChart,
