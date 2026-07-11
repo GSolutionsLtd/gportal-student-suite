@@ -194,6 +194,7 @@ function App() {
                 <Route path="careeraid" element={<AdminCareerAid />} />
                 <Route path="lesson-planner" element={<LessonPlannerFeature />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
+                <Route path="school-website" element={<SchoolWebsiteIncoming />} />
               </Route>
 
               {/* School-scoped Teacher Routes */}
