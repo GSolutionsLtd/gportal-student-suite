@@ -75,6 +75,8 @@ import ContactSubmissions from "./pages/super-admin/ContactSubmissions";
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
 import StudentCBTExam from "./pages/student/CBTExam";
 import StudentFeePayment from "./pages/student/FeePayment";
+import StudentLessonNotes from "./pages/student/LessonNotes";
+import SchoolWebsiteIncoming from "./pages/admin/SchoolWebsiteIncoming";
 
 // Parent pages
 import ParentDashboard from "./pages/dashboards/ParentDashboard";
