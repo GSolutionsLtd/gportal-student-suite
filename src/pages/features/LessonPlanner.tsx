@@ -349,11 +349,15 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
               <Select value={editing.status} onValueChange={(v) => setEditing({ ...editing, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="draft">Draft (private)</SelectItem>
+                  <SelectItem value="ready">Ready for review</SelectItem>
+                  <SelectItem value="published">Published (visible to students)</SelectItem>
                   <SelectItem value="archived">Archived</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Set to <b>Published</b> so students in the selected class arm (or the whole school if none is chosen) can read this lesson note on their dashboard.
+              </p>
             </div>
           </div>
           <DialogFooter>

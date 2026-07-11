@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save, FileText, BookOpen, Compass } from "lucide-react";
+import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save, FileText, BookOpen, Compass, Globe } from "lucide-react";
 
 interface SchoolFeatureData {
   id: string;
@@ -22,6 +22,7 @@ interface SchoolFeatureData {
     assignments: boolean;
     lesson_notes: boolean;
     careeraid: boolean;
+    school_website: boolean;
   };
 }
 
@@ -68,6 +69,13 @@ const FEATURE_INFO = [
     icon: Compass,
     tier: "premium" as const,
   },
+  {
+    key: "school_website" as const,
+    label: "School Website",
+    description: "Public school website managed by the school with only their information",
+    icon: Globe,
+    tier: "premium" as const,
+  },
 ];
 
 export default function SchoolFeatures() {
@@ -76,7 +84,7 @@ export default function SchoolFeatures() {
   const [schools, setSchools] = useState<SchoolFeatureData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editSchool, setEditSchool] = useState<SchoolFeatureData | null>(null);
-  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true, assignments: false, lesson_notes: false, careeraid: false });
+  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true, assignments: false, lesson_notes: false, careeraid: false, school_website: false });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -105,6 +113,7 @@ export default function SchoolFeatures() {
               assignments: ef.assignments === true,
               lesson_notes: ef.lesson_notes === true,
               careeraid: ef.careeraid === true,
+              school_website: ef.school_website === true,
             },
           };
         })
@@ -151,7 +160,7 @@ export default function SchoolFeatures() {
   );
 
   const countEnabled = (f: SchoolFeatureData["enabled_features"]) =>
-    [f.results, f.cbt, f.finance, f.assignments, f.lesson_notes, f.careeraid].filter(Boolean).length;
+    [f.results, f.cbt, f.finance, f.assignments, f.lesson_notes, f.careeraid, f.school_website].filter(Boolean).length;
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

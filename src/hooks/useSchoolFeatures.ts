@@ -9,6 +9,7 @@ interface SchoolFeatures {
   assignments: boolean;
   lesson_notes: boolean;
   careeraid: boolean;
+  school_website: boolean;
 }
 
 const DEFAULT_FEATURES: SchoolFeatures = {
@@ -18,6 +19,7 @@ const DEFAULT_FEATURES: SchoolFeatures = {
   assignments: false,
   lesson_notes: false,
   careeraid: false,
+  school_website: false,
 };
 
 export function useSchoolFeatures() {
@@ -100,6 +102,7 @@ export function useSchoolFeatures() {
               assignments: ef.assignments === true,
               lesson_notes: ef.lesson_notes === true,
               careeraid: ef.careeraid === true,
+              school_website: ef.school_website === true,
             });
           }
         }

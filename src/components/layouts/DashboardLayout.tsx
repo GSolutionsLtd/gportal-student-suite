@@ -33,13 +33,14 @@ import {
   Monitor,
   FileText,
   Briefcase,
+  Globe,
 } from "lucide-react";
 
 interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   path: string;
-  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid";
+  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid" | "school_website";
   children?: { label: string; path: string }[];
 }
 
@@ -78,8 +79,9 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Fee Management", icon: Key, path: "fees", feature: "finance" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
-    { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner" },
+    { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
     { label: "Attendance ✨", icon: Calendar, path: "attendance" },
+    { label: "School Website (Incoming)", icon: Globe, path: "school-website" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
@@ -88,7 +90,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
-    { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner" },
+    { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
     { label: "Attendance ✨", icon: Calendar, path: "attendance" },
     { label: "Parent Messages", icon: MessageSquare, path: "messages" },
     { label: "My Profile", icon: Users, path: "profile" },
@@ -101,6 +103,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "School Fees", icon: Key, path: "fees", feature: "finance" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
+    { label: "Lesson Notes ✨", icon: BookOpen, path: "lesson-notes", feature: "lesson_notes" },
     { label: "Attendance ✨", icon: Calendar, path: "attendance" },
   ],
   parent: [
