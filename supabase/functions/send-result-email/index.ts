@@ -28,6 +28,29 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Require authenticated admin/teacher
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+    const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+    const { data: userData, error: authErr } = await authClient.auth.getUser();
+    if (authErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+    const uid = userData.user.id;
+    const roleChecks = await Promise.all([
+      authClient.rpc("has_role", { _user_id: uid, _role: "teacher" }),
+      authClient.rpc("has_role", { _user_id: uid, _role: "admin" }),
+      authClient.rpc("has_role", { _user_id: uid, _role: "super_admin" }),
+    ]);
+    if (!roleChecks.some((r) => r.data === true)) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("RESEND_API_KEY not configured");
@@ -61,8 +84,15 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Cap attachment size (~8MB base64)
+    if (pdfBase64 && pdfBase64.length > 8_000_000) {
+      return new Response(
+        JSON.stringify({ error: "Attachment too large" }),
+        { status: 413, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Get school settings for branding
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 

@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,9 +24,33 @@ serve(async (req) => {
   }
 
   try {
-    const { performance, remarkType } = await req.json() as { 
-      performance: StudentPerformance; 
-      remarkType: 'class_teacher' | 'principal' 
+    // Require authenticated teacher/admin/super_admin
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: userData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const uid = userData.user.id;
+    const roleChecks = await Promise.all([
+      supabase.rpc("has_role", { _user_id: uid, _role: "teacher" }),
+      supabase.rpc("has_role", { _user_id: uid, _role: "admin" }),
+      supabase.rpc("has_role", { _user_id: uid, _role: "super_admin" }),
+    ]);
+    if (!roleChecks.some((r) => r.data === true)) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { performance, remarkType } = await req.json() as {
+      performance: StudentPerformance;
+      remarkType: 'class_teacher' | 'principal'
     };
 
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');

@@ -13,10 +13,36 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Starting subscription expiry check...");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const cronSecret = Deno.env.get("CRON_SECRET");
+
+    // Restrict to scheduler (shared secret) OR authenticated super_admin
+    const providedCron = req.headers.get("x-cron-secret");
+    const authHeader = req.headers.get("Authorization") || "";
+    let authorized = false;
+    if (cronSecret && providedCron && providedCron === cronSecret) {
+      authorized = true;
+    } else if (authHeader.startsWith("Bearer ")) {
+      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData } = await anonClient.auth.getUser();
+      if (userData?.user) {
+        const { data: isSuper } = await anonClient.rpc("has_role", {
+          _user_id: userData.user.id,
+          _role: "super_admin",
+        });
+        authorized = Boolean(isSuper);
+      }
+    }
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const now = new Date().toISOString();
@@ -93,6 +119,18 @@ serve(async (req) => {
             const daysRemaining = Math.ceil(
               (new Date(school.subscription_ends_at!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
             );
+
+            // Skip if we already notified this admin about this school recently (unread)
+            const { data: existing } = await supabase
+              .from("notifications")
+              .select("id")
+              .eq("user_id", admin.user_id)
+              .eq("title", "Subscription Expiring Soon")
+              .ilike("message", `%${school.name}%`)
+              .eq("is_read", false)
+              .limit(1)
+              .maybeSingle();
+            if (existing) continue;
 
             await supabase.from("notifications").insert({
               user_id: admin.user_id,
