@@ -120,6 +120,18 @@ serve(async (req) => {
               (new Date(school.subscription_ends_at!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
             );
 
+            // Skip if we already notified this admin about this school recently (unread)
+            const { data: existing } = await supabase
+              .from("notifications")
+              .select("id")
+              .eq("user_id", admin.user_id)
+              .eq("title", "Subscription Expiring Soon")
+              .ilike("message", `%${school.name}%`)
+              .eq("is_read", false)
+              .limit(1)
+              .maybeSingle();
+            if (existing) continue;
+
             await supabase.from("notifications").insert({
               user_id: admin.user_id,
               title: "Subscription Expiring Soon",
