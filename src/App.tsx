@@ -76,7 +76,8 @@ import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
 import StudentCBTExam from "./pages/student/CBTExam";
 import StudentFeePayment from "./pages/student/FeePayment";
 import StudentLessonNotes from "./pages/student/LessonNotes";
-import SchoolWebsiteIncoming from "./pages/admin/SchoolWebsiteIncoming";
+import SchoolWebsiteManager from "./pages/admin/SchoolWebsiteManager";
+import PublicSchoolSite from "./pages/PublicSchoolSite";
 
 // Parent pages
 import ParentDashboard from "./pages/dashboards/ParentDashboard";
@@ -140,6 +141,7 @@ function App() {
               <Route path="/install" element={<InstallApp />} />
               <Route path="/verify-result" element={<VerifyResult />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/site/:schoolCode" element={<PublicSchoolSite />} />
 
               {/* Super Admin Routes (no school code) */}
               <Route 
@@ -194,7 +196,7 @@ function App() {
                 <Route path="careeraid" element={<AdminCareerAid />} />
                 <Route path="lesson-planner" element={<LessonPlannerFeature />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
-                <Route path="school-website" element={<SchoolWebsiteIncoming />} />
+                <Route path="school-website" element={<SchoolWebsiteManager />} />
               </Route>
 
               {/* School-scoped Teacher Routes */}

@@ -2338,6 +2338,131 @@ export type Database = {
           },
         ]
       }
+      school_website_sections: {
+        Row: {
+          body: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          image_url: string | null
+          is_published: boolean
+          link_url: string | null
+          school_id: string
+          section_type: string
+          slug: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+          website_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          link_url?: string | null
+          school_id: string
+          section_type?: string
+          slug?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+          website_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          link_url?: string | null
+          school_id?: string
+          section_type?: string
+          slug?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          website_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_website_sections_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_website_sections_website_id_fkey"
+            columns: ["website_id"]
+            isOneToOne: false
+            referencedRelation: "school_websites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_websites: {
+        Row: {
+          about: string | null
+          address: string | null
+          admissions_info: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          hero_image_url: string | null
+          id: string
+          is_published: boolean
+          school_id: string
+          social_links: Json
+          tagline: string | null
+          theme_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          about?: string | null
+          address?: string | null
+          admissions_info?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          school_id: string
+          social_links?: Json
+          tagline?: string | null
+          theme_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          about?: string | null
+          address?: string | null
+          admissions_info?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          school_id?: string
+          social_links?: Json
+          tagline?: string | null
+          theme_color?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_websites_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: true
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schools: {
         Row: {
           address: string | null
