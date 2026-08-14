@@ -714,14 +714,14 @@ export default function TeacherAssignments() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Attachment URL (optional)</Label>
-              <Input
-                placeholder="https://..."
+            {schoolId && (
+              <AssignmentFileField
+                label="Assignment resource (optional)"
+                folder={`${schoolId}/assignments/${editing?.id || `drafts-${user?.id}`}`}
                 value={form.attachment_url}
-                onChange={(e) => setForm((f) => ({ ...f, attachment_url: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, attachment_url: v }))}
               />
-            </div>
+            )}
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
