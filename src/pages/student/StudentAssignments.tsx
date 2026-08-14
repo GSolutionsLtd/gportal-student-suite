@@ -30,6 +30,8 @@ import {
   Lock,
 } from "lucide-react";
 import { format, formatDistanceToNow, isAfter } from "date-fns";
+import AssignmentFileField from "@/components/assignments/AssignmentFileField";
+import AttachmentLink from "@/components/assignments/AttachmentLink";
 
 interface RevisionRow {
   id: string;
