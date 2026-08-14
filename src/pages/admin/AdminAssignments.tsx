@@ -261,9 +261,14 @@ export default function AdminAssignments() {
             Oversee all assignments created by teachers. Approve scores and export reports.
           </p>
         </div>
-        <Button onClick={exportPDF} disabled={filtered.length === 0}>
-          <Download className="h-4 w-4 mr-2" /> Export PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" /> New Assignment
+          </Button>
+          <Button onClick={exportPDF} disabled={filtered.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Export PDF
+          </Button>
+        </div>
       </div>
 
       <Card>
