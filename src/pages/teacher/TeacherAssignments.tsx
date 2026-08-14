@@ -29,6 +29,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { format } from "date-fns";
+import AssignmentFileField from "@/components/assignments/AssignmentFileField";
+import AttachmentLink from "@/components/assignments/AttachmentLink";
 
 interface Assignment {
   id: string;
@@ -714,14 +716,14 @@ export default function TeacherAssignments() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Attachment URL (optional)</Label>
-              <Input
-                placeholder="https://..."
+            {schoolId && (
+              <AssignmentFileField
+                label="Assignment resource (optional)"
+                folder={`${schoolId}/assignments/${editing?.id || `drafts-${user?.id}`}`}
                 value={form.attachment_url}
-                onChange={(e) => setForm((f) => ({ ...f, attachment_url: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, attachment_url: v }))}
               />
-            </div>
+            )}
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
@@ -880,7 +882,12 @@ export default function TeacherAssignments() {
                         </TableCell>
                         <TableCell>
                           {s.submitted_at ? (
-                            <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
+                            <div className="space-y-1">
+                              <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
+                              {s.attachment_url && (
+                                <div><AttachmentLink value={s.attachment_url} /></div>
+                              )}
+                            </div>
                           ) : (
                             <Badge variant="outline" className="text-xs">No submission</Badge>
                           )}
@@ -992,14 +999,7 @@ export default function TeacherAssignments() {
                                             <p className="mt-1 whitespace-pre-wrap">{r.response_text}</p>
                                           )}
                                           {r.attachment_url && (
-                                            <a
-                                              href={r.attachment_url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-primary hover:underline"
-                                            >
-                                              View attachment
-                                            </a>
+                                            <AttachmentLink value={r.attachment_url} />
                                           )}
                                         </li>
                                       ))}

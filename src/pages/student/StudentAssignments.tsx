@@ -30,6 +30,8 @@ import {
   Lock,
 } from "lucide-react";
 import { format, formatDistanceToNow, isAfter } from "date-fns";
+import AssignmentFileField from "@/components/assignments/AssignmentFileField";
+import AttachmentLink from "@/components/assignments/AttachmentLink";
 
 interface RevisionRow {
   id: string;
@@ -106,12 +108,19 @@ export default function StudentAssignments() {
       setStudentId(student.id);
       setSchoolId(student.school_id);
 
+      if (!student.current_class_arm_id) {
+        setAssignments([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: list } = await supabase
         .from("assignments")
         .select(
           "id, title, instructions, attachment_url, max_score, due_at, subject_id, allow_resubmissions, subjects(name)"
         )
         .eq("status", "published")
+        .eq("school_id", student.school_id)
         .eq("class_arm_id", student.current_class_arm_id)
         .order("due_at", { ascending: true, nullsFirst: false });
 
@@ -329,14 +338,7 @@ export default function StudentAssignments() {
                   )}
                 </div>
                 {a.attachment_url && (
-                  <a
-                    href={a.attachment_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" /> Resource link
-                  </a>
+                  <AttachmentLink value={a.attachment_url} label="Resource file" />
                 )}
                 <Button size="sm" className="w-full" onClick={() => openWork(a)}>
                   <Upload className="h-4 w-4 mr-2" />
@@ -398,15 +400,15 @@ export default function StudentAssignments() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Attachment URL (optional)</Label>
-            <Input
-              placeholder="Paste a link to your work (Google Drive, etc.)"
+          {working && schoolId && user && (
+            <AssignmentFileField
+              label="Attach your work (optional)"
+              folder={`${schoolId}/submissions/${working.id}/${user.id}`}
               value={attachmentUrl}
+              onChange={setAttachmentUrl}
               disabled={!!lockedReason}
-              onChange={(e) => setAttachmentUrl(e.target.value)}
             />
-          </div>
+          )}
 
           {/* Revision history timeline */}
           {working?.submission?.id && (
@@ -446,14 +448,9 @@ export default function StudentAssignments() {
                         </p>
                       )}
                       {working.submission.attachment_url && (
-                        <a
-                          href={working.submission.attachment_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline mt-1"
-                        >
-                          <ExternalLink className="h-3 w-3" /> Attachment
-                        </a>
+                        <div className="mt-1">
+                          <AttachmentLink value={working.submission.attachment_url} />
+                        </div>
                       )}
                     </div>
                   </li>
@@ -474,14 +471,9 @@ export default function StudentAssignments() {
                           </p>
                         )}
                         {r.attachment_url && (
-                          <a
-                            href={r.attachment_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline mt-1"
-                          >
-                            <ExternalLink className="h-3 w-3" /> Attachment
-                          </a>
+                          <div className="mt-1">
+                            <AttachmentLink value={r.attachment_url} />
+                          </div>
                         )}
                       </div>
                     </li>
