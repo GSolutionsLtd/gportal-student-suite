@@ -880,7 +880,12 @@ export default function TeacherAssignments() {
                         </TableCell>
                         <TableCell>
                           {s.submitted_at ? (
-                            <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
+                            <div className="space-y-1">
+                              <span className="text-xs">{format(new Date(s.submitted_at), "PP p")}</span>
+                              {s.attachment_url && (
+                                <div><AttachmentLink value={s.attachment_url} /></div>
+                              )}
+                            </div>
                           ) : (
                             <Badge variant="outline" className="text-xs">No submission</Badge>
                           )}
