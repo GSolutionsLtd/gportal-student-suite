@@ -453,14 +453,9 @@ export default function StudentAssignments() {
                         </p>
                       )}
                       {working.submission.attachment_url && (
-                        <a
-                          href={working.submission.attachment_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline mt-1"
-                        >
-                          <ExternalLink className="h-3 w-3" /> Attachment
-                        </a>
+                        <div className="mt-1">
+                          <AttachmentLink value={working.submission.attachment_url} />
+                        </div>
                       )}
                     </div>
                   </li>
