@@ -405,15 +405,15 @@ export default function StudentAssignments() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Attachment URL (optional)</Label>
-            <Input
-              placeholder="Paste a link to your work (Google Drive, etc.)"
+          {working && schoolId && user && (
+            <AssignmentFileField
+              label="Attach your work (optional)"
+              folder={`${schoolId}/submissions/${working.id}/${user.id}`}
               value={attachmentUrl}
+              onChange={setAttachmentUrl}
               disabled={!!lockedReason}
-              onChange={(e) => setAttachmentUrl(e.target.value)}
             />
-          </div>
+          )}
 
           {/* Revision history timeline */}
           {working?.submission?.id && (
