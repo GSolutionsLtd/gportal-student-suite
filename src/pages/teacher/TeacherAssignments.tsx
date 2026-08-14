@@ -29,6 +29,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { format } from "date-fns";
+import AssignmentFileField from "@/components/assignments/AssignmentFileField";
+import AttachmentLink from "@/components/assignments/AttachmentLink";
 
 interface Assignment {
   id: string;
