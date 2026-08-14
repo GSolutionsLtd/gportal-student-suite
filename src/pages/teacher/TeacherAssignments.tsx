@@ -992,14 +992,7 @@ export default function TeacherAssignments() {
                                             <p className="mt-1 whitespace-pre-wrap">{r.response_text}</p>
                                           )}
                                           {r.attachment_url && (
-                                            <a
-                                              href={r.attachment_url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-primary hover:underline"
-                                            >
-                                              View attachment
-                                            </a>
+                                            <AttachmentLink value={r.attachment_url} />
                                           )}
                                         </li>
                                       ))}
