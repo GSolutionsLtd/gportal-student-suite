@@ -336,14 +336,7 @@ export default function StudentAssignments() {
                   )}
                 </div>
                 {a.attachment_url && (
-                  <a
-                    href={a.attachment_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" /> Resource link
-                  </a>
+                  <AttachmentLink value={a.attachment_url} label="Resource file" />
                 )}
                 <Button size="sm" className="w-full" onClick={() => openWork(a)}>
                   <Upload className="h-4 w-4 mr-2" />
