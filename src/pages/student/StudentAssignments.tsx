@@ -106,12 +106,19 @@ export default function StudentAssignments() {
       setStudentId(student.id);
       setSchoolId(student.school_id);
 
+      if (!student.current_class_arm_id) {
+        setAssignments([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: list } = await supabase
         .from("assignments")
         .select(
           "id, title, instructions, attachment_url, max_score, due_at, subject_id, allow_resubmissions, subjects(name)"
         )
         .eq("status", "published")
+        .eq("school_id", student.school_id)
         .eq("class_arm_id", student.current_class_arm_id)
         .order("due_at", { ascending: true, nullsFirst: false });
 
