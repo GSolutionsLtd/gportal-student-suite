@@ -357,17 +357,30 @@ export default function AdminAssignments() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant={r.scores_approved ? "outline" : "default"}
-                      onClick={() => toggleApproval(r)}
-                    >
-                      {r.scores_approved ? (
-                        <><X className="h-4 w-4 mr-1" /> Revoke</>
-                      ) : (
-                        <><CheckCircle2 className="h-4 w-4 mr-1" /> Approve</>
-                      )}
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive"
+                        onClick={() => removeAssignment(r)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={r.scores_approved ? "outline" : "default"}
+                        onClick={() => toggleApproval(r)}
+                      >
+                        {r.scores_approved ? (
+                          <><X className="h-4 w-4 mr-1" /> Revoke</>
+                        ) : (
+                          <><CheckCircle2 className="h-4 w-4 mr-1" /> Approve</>
+                        )}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -375,6 +388,113 @@ export default function AdminAssignments() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{form.id ? "Edit assignment" : "New assignment"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Title *</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            </div>
+            <div>
+              <Label>Instructions</Label>
+              <Textarea
+                rows={4}
+                maxLength={5000}
+                value={form.instructions}
+                onChange={(e) => setForm({ ...form, instructions: e.target.value })}
+              />
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <Label>Teacher *</Label>
+                <Select value={form.teacher_id} onValueChange={(v) => setForm({ ...form, teacher_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                  <SelectContent>
+                    {teachers.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Class arm *</Label>
+                <Select value={form.class_arm_id} onValueChange={(v) => setForm({ ...form, class_arm_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select class arm" /></SelectTrigger>
+                  <SelectContent>
+                    {classArms.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Subject *</Label>
+                <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Max score</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.max_score}
+                  onChange={(e) => setForm({ ...form, max_score: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Due date & time</Label>
+                <Input
+                  type="datetime-local"
+                  value={form.due_at}
+                  onChange={(e) => setForm({ ...form, due_at: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="text-sm font-medium">Allow resubmissions before due date</div>
+              <Switch
+                checked={form.allow_resubmissions}
+                onCheckedChange={(v) => setForm({ ...form, allow_resubmissions: v })}
+              />
+            </div>
+            {schoolId && (
+              <AssignmentFileField
+                label="Assignment resource (optional)"
+                folder={`${schoolId}/assignments/${form.id || "admin-drafts"}`}
+                value={form.attachment_url}
+                onChange={(v) => setForm({ ...form, attachment_url: v })}
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
+            <Button onClick={saveAssignment} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
