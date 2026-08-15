@@ -60,8 +60,12 @@ export default function LessonPlannerPage() {
   const [classArms, setClassArms] = useState<{ id: string; name: string }[]>([]);
 
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiForm, setAiForm] = useState({ topic: "", subject: "", grade_level: "", duration_minutes: 40, extra_notes: "" });
+  const [aiForm, setAiForm] = useState({
+    topic: "", subject: "", grade_level: "", duration_minutes: 40, extra_notes: "",
+    subject_id: null as string | null, class_arm_id: null as string | null,
+  });
   const [aiLoading, setAiLoading] = useState(false);
+
 
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<LessonPlan> & typeof emptyPlan>(emptyPlan);
