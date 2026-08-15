@@ -91,9 +91,20 @@ const slug = (name: string) =>
 export async function uploadAssignmentFile(
   file: File,
   folder: string,
+  opts?: { dueAt?: string | Date | null; existingCount?: number; maxFiles?: number },
 ): Promise<string> {
+  const closed = assignmentWindowError(opts?.dueAt);
+  if (closed) throw new Error(closed);
+
+  const max = opts?.maxFiles ?? MAX_ASSIGNMENT_FILES;
+  if ((opts?.existingCount ?? 0) >= max) {
+    throw new Error(`You can attach at most ${max} file${max === 1 ? "" : "s"} here.`);
+  }
+
   const invalid = validateAssignmentFile(file);
   if (invalid) throw new Error(invalid);
+
+
 
   const path = `${folder.replace(/\/+$/, "")}/${Date.now()}-${slug(file.name)}`;
   const { error } = await supabase.storage
