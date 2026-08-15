@@ -67,6 +67,7 @@ import AttendanceFeature from "./pages/features/Attendance";
 import UserManagement from "./pages/super-admin/UserManagement";
 import SystemSettings from "./pages/super-admin/SystemSettings";
 import AuditLogs from "./pages/super-admin/AuditLogs";
+import AuditTrail from "./pages/shared/AuditTrail";
 import SchoolManagement from "./pages/super-admin/SchoolManagement";
 import SchoolFeatures from "./pages/super-admin/SchoolFeatures";
 import ContactSubmissions from "./pages/super-admin/ContactSubmissions";
@@ -197,6 +198,7 @@ function App() {
                 <Route path="lesson-planner" element={<LessonPlannerFeature />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
                 <Route path="school-website" element={<SchoolWebsiteManager />} />
+                <Route path="audit" element={<AuditTrail />} />
               </Route>
 
               {/* School-scoped Teacher Routes */}
@@ -218,6 +220,7 @@ function App() {
                 <Route path="careeraid" element={<TeacherCareerAid />} />
                 <Route path="lesson-planner" element={<LessonPlannerFeature />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
+                <Route path="audit" element={<AuditTrail />} />
               </Route>
 
               {/* School-scoped Student Routes */}

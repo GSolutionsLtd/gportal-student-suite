@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Download, X, Paperclip } from "lucide-react";
 import {
   ALLOWED_ASSIGNMENT_EXTENSIONS,
+  MAX_ASSIGNMENT_FILES,
+  assignmentWindowError,
   fileNameFromPath,
   isExternalUrl,
   openAssignmentFile,
@@ -22,6 +24,10 @@ interface Props {
   label?: string;
   disabled?: boolean;
   allowExternalUrl?: boolean;
+  /** When set, uploads are blocked once the due date has passed. */
+  dueAt?: string | Date | null;
+  /** Maximum number of files that may be uploaded through this field. */
+  maxFiles?: number;
 }
 
 export default function AssignmentFileField({
@@ -31,31 +37,52 @@ export default function AssignmentFileField({
   label = "Attachment",
   disabled,
   allowExternalUrl = true,
+  dueAt = null,
+  maxFiles = MAX_ASSIGNMENT_FILES,
 }: Props) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadCount, setUploadCount] = useState(0);
+
+  const windowClosed = assignmentWindowError(dueAt);
+  const limitReached = uploadCount >= maxFiles;
+  const blockedReason = windowClosed
+    ?? (limitReached ? `Upload limit reached (${maxFiles} file${maxFiles === 1 ? "" : "s"}).` : null);
+
+  const fail = (message: string) => {
+    setError(message);
+    toast({ title: "File rejected", description: message, variant: "destructive" });
+  };
 
   const handleFile = async (file?: File | null) => {
     if (!file) return;
+    setError(null);
+    if (blockedReason) return fail(blockedReason);
+
     const invalid = validateAssignmentFile(file);
-    if (invalid) {
-      toast({ title: "File rejected", description: invalid, variant: "destructive" });
-      return;
-    }
+    if (invalid) return fail(invalid);
+
     setBusy(true);
     try {
-      const path = await uploadAssignmentFile(file, folder);
+      const path = await uploadAssignmentFile(file, folder, {
+        dueAt,
+        existingCount: uploadCount,
+        maxFiles,
+      });
       if (value && !isExternalUrl(value)) await removeAssignmentFile(value);
       onChange(path);
+      setUploadCount((c) => c + 1);
       toast({ title: "File uploaded", description: file.name });
     } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+      fail(err.message);
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
+
 
   const download = async () => {
     try {
@@ -104,7 +131,7 @@ export default function AssignmentFileField({
             type="button"
             variant="outline"
             className="w-full"
-            disabled={disabled || busy}
+            disabled={disabled || busy || !!blockedReason}
             onClick={() => inputRef.current?.click()}
           >
             {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
@@ -113,16 +140,27 @@ export default function AssignmentFileField({
           {allowExternalUrl && (
             <Input
               placeholder="…or paste a link (https://)"
-              disabled={disabled}
+              disabled={disabled || !!windowClosed}
               onBlur={(e) => {
                 const v = e.target.value.trim();
-                if (v && isExternalUrl(v)) onChange(v);
+                if (!v) return;
+                if (windowClosed) return fail(windowClosed);
+                if (!isExternalUrl(v)) return fail("Links must start with http:// or https://");
+                setError(null);
+                onChange(v);
               }}
             />
           )}
+          {blockedReason && (
+            <p className="text-xs text-destructive" role="alert">{blockedReason}</p>
+          )}
+          {error && !blockedReason && (
+            <p className="text-xs text-destructive" role="alert">{error}</p>
+          )}
           <p className="text-xs text-muted-foreground">
-            Max 10 MB • {ALLOWED_ASSIGNMENT_EXTENSIONS.slice(0, 8).join(", ")}…
+            Max 10 MB • up to {maxFiles} file{maxFiles === 1 ? "" : "s"} • {ALLOWED_ASSIGNMENT_EXTENSIONS.slice(0, 8).join(", ")}…
           </p>
+
         </div>
       )}
     </div>

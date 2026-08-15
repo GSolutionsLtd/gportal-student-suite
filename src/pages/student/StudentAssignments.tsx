@@ -407,8 +407,11 @@ export default function StudentAssignments() {
               value={attachmentUrl}
               onChange={setAttachmentUrl}
               disabled={!!lockedReason}
+              dueAt={working.due_at}
+              maxFiles={1}
             />
           )}
+
 
           {/* Revision history timeline */}
           {working?.submission?.id && (
