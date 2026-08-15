@@ -1,6 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logAuditEvent } from "@/lib/auditLog";
 
 export const ASSIGNMENT_BUCKET = "assignment-files";
+
+/** Storage paths look like `<school_id>/<assignments|submissions>/<id>/...` */
+const schoolIdFromPath = (path: string) => {
+  const seg = path.split("/")[0];
+  return /^[0-9a-f-]{36}$/i.test(seg) ? seg : null;
+};
+
+const contextFromPath = (path: string) => {
+  const [, kind, id] = path.split("/");
+  return { kind: kind ?? null, context_id: id ?? null };
+};
+
 
 export const MAX_ASSIGNMENT_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 
