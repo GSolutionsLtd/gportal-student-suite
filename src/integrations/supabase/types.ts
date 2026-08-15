@@ -3090,6 +3090,8 @@ export type Database = {
         | "reject"
         | "publish"
         | "unpublish"
+        | "upload"
+        | "download"
       pin_status: "active" | "used" | "expired" | "deactivated"
       result_status:
         | "draft"
@@ -3236,6 +3238,8 @@ export const Constants = {
         "reject",
         "publish",
         "unpublish",
+        "upload",
+        "download",
       ],
       pin_status: ["active", "used", "expired", "deactivated"],
       result_status: [
