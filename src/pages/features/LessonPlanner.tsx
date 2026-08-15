@@ -320,17 +320,60 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
 
       {/* AI generation dialog */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Generate lesson plan with AI</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Generate curriculum note with AI</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>Topic *</Label><Input value={aiForm.topic} onChange={(e) => setAiForm({ ...aiForm, topic: e.target.value })} placeholder="e.g. Photosynthesis" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Subject</Label><Input value={aiForm.subject} onChange={(e) => setAiForm({ ...aiForm, subject: e.target.value })} placeholder="Biology" /></div>
-              <div><Label>Class / Grade</Label><Input value={aiForm.grade_level} onChange={(e) => setAiForm({ ...aiForm, grade_level: e.target.value })} placeholder="SS 1" /></div>
+            <div>
+              <Label>Topic(s) *</Label>
+              <Textarea
+                rows={2}
+                value={aiForm.topic}
+                onChange={(e) => setAiForm({ ...aiForm, topic: e.target.value })}
+                placeholder="e.g. Photosynthesis, Transpiration"
+              />
             </div>
-            <div><Label>Duration (minutes)</Label><Input type="number" value={aiForm.duration_minutes} onChange={(e) => setAiForm({ ...aiForm, duration_minutes: Number(e.target.value) })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Subject</Label>
+                <Select
+                  value={aiForm.subject_id || "_none"}
+                  onValueChange={(v) => setAiForm({ ...aiForm, subject_id: v === "_none" ? null : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— None —</SelectItem>
+                    {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Class level / arm</Label>
+                <Select
+                  value={aiForm.class_arm_id || "_none"}
+                  onValueChange={(v) => {
+                    const arm = classArms.find((c) => c.id === v);
+                    setAiForm({
+                      ...aiForm,
+                      class_arm_id: v === "_none" ? null : v,
+                      grade_level: arm?.name ?? aiForm.grade_level,
+                    });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— Whole school —</SelectItem>
+                    {classArms.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Class label</Label><Input value={aiForm.grade_level} onChange={(e) => setAiForm({ ...aiForm, grade_level: e.target.value })} placeholder="SS 1" /></div>
+              <div><Label>Duration (minutes)</Label><Input type="number" value={aiForm.duration_minutes} onChange={(e) => setAiForm({ ...aiForm, duration_minutes: Number(e.target.value) })} /></div>
+            </div>
             <div><Label>Extra notes (optional)</Label><Textarea value={aiForm.extra_notes} onChange={(e) => setAiForm({ ...aiForm, extra_notes: e.target.value })} placeholder="Focus on group activities, include a diagram..." /></div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setAiOpen(false)}>Cancel</Button>
             <Button onClick={generateAi} disabled={aiLoading}>
