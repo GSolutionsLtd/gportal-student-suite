@@ -16,11 +16,31 @@ const contextFromPath = (path: string) => {
 
 
 export const MAX_ASSIGNMENT_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+/** Maximum number of attachments a single assignment / submission may carry. */
+export const MAX_ASSIGNMENT_FILES = 3;
 
 export const ALLOWED_ASSIGNMENT_EXTENSIONS = [
   "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx",
   "txt", "csv", "png", "jpg", "jpeg", "webp", "zip",
 ];
+
+/** Accepted MIME types per extension. Browsers occasionally report "" — that is tolerated. */
+const ALLOWED_MIME_BY_EXTENSION: Record<string, string[]> = {
+  pdf: ["application/pdf"],
+  doc: ["application/msword"],
+  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ppt: ["application/vnd.ms-powerpoint"],
+  pptx: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+  xls: ["application/vnd.ms-excel"],
+  xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+  txt: ["text/plain"],
+  csv: ["text/csv", "application/csv", "text/plain"],
+  png: ["image/png"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  webp: ["image/webp"],
+  zip: ["application/zip", "application/x-zip-compressed", "multipart/x-zip"],
+};
 
 export const isExternalUrl = (value?: string | null) =>
   !!value && /^https?:\/\//i.test(value);
@@ -31,7 +51,22 @@ export const fileNameFromPath = (value?: string | null) => {
   return decodeURIComponent(clean.substring(clean.lastIndexOf("/") + 1));
 };
 
+/**
+ * Uploads are only allowed while the assignment window is open.
+ * Returns a human-readable reason when the window is closed, otherwise null.
+ */
+export function assignmentWindowError(dueAt?: string | Date | null): string | null {
+  if (!dueAt) return null;
+  const due = dueAt instanceof Date ? dueAt : new Date(dueAt);
+  if (Number.isNaN(due.getTime())) return null;
+  if (Date.now() > due.getTime()) {
+    return "The due date has passed — attachments can no longer be uploaded or replaced.";
+  }
+  return null;
+}
+
 export function validateAssignmentFile(file: File): string | null {
+  if (!file.size) return "That file is empty.";
   if (file.size > MAX_ASSIGNMENT_FILE_BYTES) {
     return `File is too large (max ${MAX_ASSIGNMENT_FILE_BYTES / (1024 * 1024)} MB).`;
   }
@@ -39,8 +74,15 @@ export function validateAssignmentFile(file: File): string | null {
   if (!ALLOWED_ASSIGNMENT_EXTENSIONS.includes(ext)) {
     return `Unsupported file type ".${ext}". Allowed: ${ALLOWED_ASSIGNMENT_EXTENSIONS.join(", ")}.`;
   }
+  const mime = (file.type || "").toLowerCase();
+  const expected = ALLOWED_MIME_BY_EXTENSION[ext] ?? [];
+  if (mime && expected.length && !expected.includes(mime)) {
+    return `The file contents (${mime}) do not match a ".${ext}" file.`;
+  }
+  if (file.name.length > 150) return "File name is too long (max 150 characters).";
   return null;
 }
+
 
 const slug = (name: string) =>
   name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(-80);
