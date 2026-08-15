@@ -131,7 +131,7 @@ export default function AssignmentFileField({
             type="button"
             variant="outline"
             className="w-full"
-            disabled={disabled || busy}
+            disabled={disabled || busy || !!blockedReason}
             onClick={() => inputRef.current?.click()}
           >
             {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
@@ -140,16 +140,27 @@ export default function AssignmentFileField({
           {allowExternalUrl && (
             <Input
               placeholder="…or paste a link (https://)"
-              disabled={disabled}
+              disabled={disabled || !!windowClosed}
               onBlur={(e) => {
                 const v = e.target.value.trim();
-                if (v && isExternalUrl(v)) onChange(v);
+                if (!v) return;
+                if (windowClosed) return fail(windowClosed);
+                if (!isExternalUrl(v)) return fail("Links must start with http:// or https://");
+                setError(null);
+                onChange(v);
               }}
             />
           )}
+          {blockedReason && (
+            <p className="text-xs text-destructive" role="alert">{blockedReason}</p>
+          )}
+          {error && !blockedReason && (
+            <p className="text-xs text-destructive" role="alert">{error}</p>
+          )}
           <p className="text-xs text-muted-foreground">
-            Max 10 MB • {ALLOWED_ASSIGNMENT_EXTENSIONS.slice(0, 8).join(", ")}…
+            Max 10 MB • up to {maxFiles} file{maxFiles === 1 ? "" : "s"} • {ALLOWED_ASSIGNMENT_EXTENSIONS.slice(0, 8).join(", ")}…
           </p>
+
         </div>
       )}
     </div>
