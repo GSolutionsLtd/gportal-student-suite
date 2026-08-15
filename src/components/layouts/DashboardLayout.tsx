@@ -105,7 +105,6 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "School Fees", icon: Key, path: "fees", feature: "finance" },
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
-    { label: "Audit Trail", icon: Shield, path: "audit" },
     { label: "Lesson Notes ✨", icon: BookOpen, path: "lesson-notes", feature: "lesson_notes" },
     { label: "Attendance ✨", icon: Calendar, path: "attendance" },
   ],
