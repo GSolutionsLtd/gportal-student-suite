@@ -297,6 +297,13 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
                 {isTeacher && p.teacher_user_id === user?.id && (
                   <Button size="sm" variant="outline" onClick={() => openEdit(p)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
                 )}
+                {((isTeacher && p.teacher_user_id === user?.id) || isAdmin) && (
+                  p.status === "published" ? (
+                    <Button size="sm" variant="outline" onClick={() => setStatus(p, "draft")}>Unpublish</Button>
+                  ) : (
+                    <Button size="sm" onClick={() => setStatus(p, "published")}>Publish to students</Button>
+                  )
+                )}
                 <Button size="sm" variant="outline" onClick={() => downloadPdf(p)}><Download className="h-4 w-4 mr-1" />PDF</Button>
                 <Button size="sm" variant="outline" onClick={() => downloadDocx(p)}><Download className="h-4 w-4 mr-1" />DOCX</Button>
                 {(isTeacher && p.teacher_user_id === user?.id) || isAdmin ? (
@@ -304,6 +311,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 ) : null}
+
               </CardContent>
             </Card>
           ))}
