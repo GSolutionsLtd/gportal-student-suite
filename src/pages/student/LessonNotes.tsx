@@ -83,6 +83,39 @@ export default function StudentLessonNotes() {
     })();
   }, [user]);
 
+  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const [keyword, setKeyword] = useState("");
+
+  const levels = useMemo(
+    () => Array.from(new Set(plans.map((p) => p.grade_level).filter(Boolean))) as string[],
+    [plans],
+  );
+  const subjects = useMemo(
+    () =>
+      Array.from(new Set(plans.map((p) => p.subject_id).filter(Boolean) as string[]))
+        .map((id) => ({ id, name: subjectMap[id] ?? "Unknown subject" }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [plans, subjectMap],
+  );
+
+  const filtered = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+    return plans.filter((p) => {
+      if (subjectFilter !== "all" && p.subject_id !== subjectFilter) return false;
+      if (levelFilter !== "all" && (p.grade_level ?? "") !== levelFilter) return false;
+      if (!q) return true;
+      return `${p.title} ${p.topic} ${p.objectives ?? ""} ${p.main_content ?? ""}`
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [plans, subjectFilter, levelFilter, keyword]);
+
+  const resetFilters = () => {
+    setSubjectFilter("all");
+    setLevelFilter("all");
+    setKeyword("");
+  };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -93,13 +126,69 @@ export default function StudentLessonNotes() {
         <p className="text-muted-foreground">Notes and lesson plans your teachers have published.</p>
       </div>
 
+      {plans.length > 0 && (
+        <Card>
+          <CardContent className="grid gap-3 md:grid-cols-4 pt-6">
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs" htmlFor="note-search">Search topic or keyword</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="note-search"
+                  className="pl-9"
+                  placeholder="e.g. photosynthesis"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Subject</Label>
+              <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All subjects</SelectItem>
+                  {subjects.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Class level</Label>
+              <Select value={levelFilter} onValueChange={setLevelFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All levels</SelectItem>
+                  {levels.map((l) => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-4 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Showing {filtered.length} of {plans.length} notes
+              </span>
+              <Button size="sm" variant="ghost" onClick={resetFilters}>
+                <RotateCcw className="h-4 w-4 mr-1" /> Reset
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {plans.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
           No lesson notes have been published yet. Check back soon.
         </CardContent></Card>
+      ) : filtered.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground">
+          No notes match your filters.
+        </CardContent></Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {plans.map((p) => (
+          {filtered.map((p) => (
             <Card key={p.id}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
@@ -124,6 +213,7 @@ export default function StudentLessonNotes() {
           ))}
         </div>
       )}
+
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
