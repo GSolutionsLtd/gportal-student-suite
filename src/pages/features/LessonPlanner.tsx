@@ -93,9 +93,20 @@ export default function LessonPlannerPage() {
   };
 
   const generateAi = async () => {
-    if (!aiForm.topic.trim()) return toast({ title: "Topic required", variant: "destructive" });
+    if (!aiForm.topic.trim()) return toast({ title: "Topic(s) required", variant: "destructive" });
+    const subjectName = aiForm.subject_id
+      ? subjects.find((s) => s.id === aiForm.subject_id)?.name ?? aiForm.subject
+      : aiForm.subject;
     setAiLoading(true);
-    const { data, error } = await supabase.functions.invoke("generate-lesson-plan", { body: aiForm });
+    const { data, error } = await supabase.functions.invoke("generate-lesson-plan", {
+      body: {
+        topic: aiForm.topic,
+        subject: subjectName,
+        grade_level: aiForm.grade_level,
+        duration_minutes: aiForm.duration_minutes,
+        extra_notes: aiForm.extra_notes,
+      },
+    });
     setAiLoading(false);
     if (error || (data as any)?.error) {
       return toast({ title: "AI generation failed", description: (data as any)?.error || error?.message, variant: "destructive" });
@@ -107,6 +118,8 @@ export default function LessonPlannerPage() {
       topic: aiForm.topic,
       grade_level: aiForm.grade_level,
       duration_minutes: aiForm.duration_minutes,
+      subject_id: aiForm.subject_id,
+      class_arm_id: aiForm.class_arm_id,
       objectives: plan.objectives || "",
       materials: plan.materials || "",
       introduction: plan.introduction || "",
@@ -119,8 +132,16 @@ export default function LessonPlannerPage() {
     });
     setAiOpen(false);
     setEditOpen(true);
-    toast({ title: "Lesson plan drafted", description: "Review and save." });
+    toast({ title: "Curriculum note drafted", description: "Review, then save and publish." });
   };
+
+  const setStatus = async (p: LessonPlan, status: string) => {
+    const { error } = await supabase.from("lesson_plans").update({ status }).eq("id", p.id);
+    if (error) return toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    toast({ title: status === "published" ? "Published to students" : "Unpublished" });
+    load();
+  };
+
 
   const savePlan = async () => {
     if (!schoolId || !user) return;
