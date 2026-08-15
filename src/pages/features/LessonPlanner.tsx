@@ -60,8 +60,12 @@ export default function LessonPlannerPage() {
   const [classArms, setClassArms] = useState<{ id: string; name: string }[]>([]);
 
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiForm, setAiForm] = useState({ topic: "", subject: "", grade_level: "", duration_minutes: 40, extra_notes: "" });
+  const [aiForm, setAiForm] = useState({
+    topic: "", subject: "", grade_level: "", duration_minutes: 40, extra_notes: "",
+    subject_id: null as string | null, class_arm_id: null as string | null,
+  });
   const [aiLoading, setAiLoading] = useState(false);
+
 
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<LessonPlan> & typeof emptyPlan>(emptyPlan);
@@ -89,9 +93,20 @@ export default function LessonPlannerPage() {
   };
 
   const generateAi = async () => {
-    if (!aiForm.topic.trim()) return toast({ title: "Topic required", variant: "destructive" });
+    if (!aiForm.topic.trim()) return toast({ title: "Topic(s) required", variant: "destructive" });
+    const subjectName = aiForm.subject_id
+      ? subjects.find((s) => s.id === aiForm.subject_id)?.name ?? aiForm.subject
+      : aiForm.subject;
     setAiLoading(true);
-    const { data, error } = await supabase.functions.invoke("generate-lesson-plan", { body: aiForm });
+    const { data, error } = await supabase.functions.invoke("generate-lesson-plan", {
+      body: {
+        topic: aiForm.topic,
+        subject: subjectName,
+        grade_level: aiForm.grade_level,
+        duration_minutes: aiForm.duration_minutes,
+        extra_notes: aiForm.extra_notes,
+      },
+    });
     setAiLoading(false);
     if (error || (data as any)?.error) {
       return toast({ title: "AI generation failed", description: (data as any)?.error || error?.message, variant: "destructive" });
@@ -103,6 +118,8 @@ export default function LessonPlannerPage() {
       topic: aiForm.topic,
       grade_level: aiForm.grade_level,
       duration_minutes: aiForm.duration_minutes,
+      subject_id: aiForm.subject_id,
+      class_arm_id: aiForm.class_arm_id,
       objectives: plan.objectives || "",
       materials: plan.materials || "",
       introduction: plan.introduction || "",
@@ -115,8 +132,16 @@ export default function LessonPlannerPage() {
     });
     setAiOpen(false);
     setEditOpen(true);
-    toast({ title: "Lesson plan drafted", description: "Review and save." });
+    toast({ title: "Curriculum note drafted", description: "Review, then save and publish." });
   };
+
+  const setStatus = async (p: LessonPlan, status: string) => {
+    const { error } = await supabase.from("lesson_plans").update({ status }).eq("id", p.id);
+    if (error) return toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    toast({ title: status === "published" ? "Published to students" : "Unpublished" });
+    load();
+  };
+
 
   const savePlan = async () => {
     if (!schoolId || !user) return;
@@ -272,6 +297,13 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
                 {isTeacher && p.teacher_user_id === user?.id && (
                   <Button size="sm" variant="outline" onClick={() => openEdit(p)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
                 )}
+                {((isTeacher && p.teacher_user_id === user?.id) || isAdmin) && (
+                  p.status === "published" ? (
+                    <Button size="sm" variant="outline" onClick={() => setStatus(p, "draft")}>Unpublish</Button>
+                  ) : (
+                    <Button size="sm" onClick={() => setStatus(p, "published")}>Publish to students</Button>
+                  )
+                )}
                 <Button size="sm" variant="outline" onClick={() => downloadPdf(p)}><Download className="h-4 w-4 mr-1" />PDF</Button>
                 <Button size="sm" variant="outline" onClick={() => downloadDocx(p)}><Download className="h-4 w-4 mr-1" />DOCX</Button>
                 {(isTeacher && p.teacher_user_id === user?.id) || isAdmin ? (
@@ -279,6 +311,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 ) : null}
+
               </CardContent>
             </Card>
           ))}
@@ -287,17 +320,60 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
 
       {/* AI generation dialog */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Generate lesson plan with AI</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Generate curriculum note with AI</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>Topic *</Label><Input value={aiForm.topic} onChange={(e) => setAiForm({ ...aiForm, topic: e.target.value })} placeholder="e.g. Photosynthesis" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Subject</Label><Input value={aiForm.subject} onChange={(e) => setAiForm({ ...aiForm, subject: e.target.value })} placeholder="Biology" /></div>
-              <div><Label>Class / Grade</Label><Input value={aiForm.grade_level} onChange={(e) => setAiForm({ ...aiForm, grade_level: e.target.value })} placeholder="SS 1" /></div>
+            <div>
+              <Label>Topic(s) *</Label>
+              <Textarea
+                rows={2}
+                value={aiForm.topic}
+                onChange={(e) => setAiForm({ ...aiForm, topic: e.target.value })}
+                placeholder="e.g. Photosynthesis, Transpiration"
+              />
             </div>
-            <div><Label>Duration (minutes)</Label><Input type="number" value={aiForm.duration_minutes} onChange={(e) => setAiForm({ ...aiForm, duration_minutes: Number(e.target.value) })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Subject</Label>
+                <Select
+                  value={aiForm.subject_id || "_none"}
+                  onValueChange={(v) => setAiForm({ ...aiForm, subject_id: v === "_none" ? null : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— None —</SelectItem>
+                    {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Class level / arm</Label>
+                <Select
+                  value={aiForm.class_arm_id || "_none"}
+                  onValueChange={(v) => {
+                    const arm = classArms.find((c) => c.id === v);
+                    setAiForm({
+                      ...aiForm,
+                      class_arm_id: v === "_none" ? null : v,
+                      grade_level: arm?.name ?? aiForm.grade_level,
+                    });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— Whole school —</SelectItem>
+                    {classArms.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Class label</Label><Input value={aiForm.grade_level} onChange={(e) => setAiForm({ ...aiForm, grade_level: e.target.value })} placeholder="SS 1" /></div>
+              <div><Label>Duration (minutes)</Label><Input type="number" value={aiForm.duration_minutes} onChange={(e) => setAiForm({ ...aiForm, duration_minutes: Number(e.target.value) })} /></div>
+            </div>
             <div><Label>Extra notes (optional)</Label><Textarea value={aiForm.extra_notes} onChange={(e) => setAiForm({ ...aiForm, extra_notes: e.target.value })} placeholder="Focus on group activities, include a diagram..." /></div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setAiOpen(false)}>Cancel</Button>
             <Button onClick={generateAi} disabled={aiLoading}>

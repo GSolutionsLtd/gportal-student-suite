@@ -38,11 +38,34 @@ export default function StudentLessonNotes() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data: plans } = await supabase
+
+      const { data: student } = await supabase
+        .from("students")
+        .select("id, school_id, current_class_arm_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!student?.school_id) {
+        setPlans([]);
+        setLoading(false);
+        return;
+      }
+
+      let query = supabase
         .from("lesson_plans")
         .select("*")
         .eq("status", "published")
+        .eq("school_id", student.school_id)
         .order("created_at", { ascending: false });
+
+      // Only notes for this student's class arm, or school-wide notes
+      if (student.current_class_arm_id) {
+        query = query.or(`class_arm_id.is.null,class_arm_id.eq.${student.current_class_arm_id}`);
+      } else {
+        query = query.is("class_arm_id", null);
+      }
+
+      const { data: plans } = await query;
 
       const subjectIds = Array.from(new Set((plans ?? []).map((p: any) => p.subject_id).filter(Boolean))) as string[];
       let subjMap: Record<string, string> = {};
@@ -55,6 +78,7 @@ export default function StudentLessonNotes() {
       setLoading(false);
     })();
   }, [user]);
+
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
