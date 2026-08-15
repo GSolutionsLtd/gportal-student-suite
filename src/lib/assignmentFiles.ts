@@ -58,10 +58,21 @@ export async function uploadAssignmentFile(
     .from(ASSIGNMENT_BUCKET)
     .upload(path, file, { upsert: false, contentType: file.type || undefined });
   if (error) throw error;
+
+  void logAuditEvent({
+    action: "upload",
+    table_name: "assignment_files",
+    school_id: schoolIdFromPath(path),
+    data: { event: "attachment_uploaded", path, size: file.size, ...contextFromPath(path) },
+  });
   return path;
 }
 
-/** Returns a temporary download URL for a stored path, or the external URL as-is. */
+/**
+ * Returns a signed, time-limited (10 min) download URL for a stored path.
+ * Access is enforced by storage RLS: students only receive a URL for files
+ * belonging to assignments published to their class arm, or their own submissions.
+ */
 export async function getAssignmentFileUrl(value: string): Promise<string> {
   if (isExternalUrl(value)) return value;
   const { data, error } = await supabase.storage
@@ -75,8 +86,17 @@ export async function getAssignmentFileUrl(value: string): Promise<string> {
 
 export async function openAssignmentFile(value: string) {
   const url = await getAssignmentFileUrl(value);
+  if (!isExternalUrl(value)) {
+    void logAuditEvent({
+      action: "download",
+      table_name: "assignment_files",
+      school_id: schoolIdFromPath(value),
+      data: { event: "attachment_downloaded", path: value, ...contextFromPath(value) },
+    });
+  }
   window.open(url, "_blank", "noopener,noreferrer");
 }
+
 
 export async function removeAssignmentFile(value: string) {
   if (isExternalUrl(value)) return;
