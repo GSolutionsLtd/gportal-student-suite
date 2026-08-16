@@ -255,6 +255,9 @@ export default function Index() {
             <Button variant="ghost" size="sm" onClick={() => navigate("/check-result")}>
               Check Result
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/careeraid")}>
+              CareerAid Clinic
+            </Button>
             <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
               Sign In
             </Button>
