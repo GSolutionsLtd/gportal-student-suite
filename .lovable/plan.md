@@ -1,44 +1,46 @@
-This request bundles two large efforts. To keep quality high, I'll deliver it in clearly-scoped phases and confirm priorities before writing code.
+# CareerAid Portal, Counselor Dashboard & Module Improvements
 
-## Phase A — Playwright hardening (1 turn)
-1. Add a seed script `e2e/fixtures/seed.ts` that, using the service-role key, creates: a school, admin/teacher/student users, an assignment with rubric criteria + weights, a published state with `due_at` ~24h ahead, and two submission revisions. Wired as a Playwright `globalSetup`.
-2. Replace placeholder specs with real assertions:
-   - `rubric-scoring.spec.ts`: teacher enters weighted scores → student sees weighted total + per-criterion breakdown.
-   - `revision-history.spec.ts`: student resubmits → both roles see ordered timeline (rev #1, #2) with timestamps.
-   - `due-reminders.spec.ts`: invoke `notify_due_assignments` RPC → bell shows "due soon" for teacher and student.
-   - `publish-notifications.spec.ts`: teacher publishes → student notification appears in realtime; teacher UI badge flips to Published without reload.
+This is a large scope, so it ships in three phases. Each phase is usable on its own.
 
-## Phase B — CareerAid Clinic v2 (split across 3–4 turns)
+## Phase 1 — Fixes and smaller features
 
-### B1. Data model (1 migration)
-New tables (all school-scoped, RLS + GRANTs):
-- `career_assessments` — Holland Code results (RIASEC scores, dominant type) per student.
-- `career_recommendations` — header row per generation (student, assessment_id, created_at, summary).
-- `career_recommendation_paths` — 5 ranked rows per recommendation: career_title, rank, ss_subjects[], university_courses[], jamb_subjects[], jamb_cutoff, universities[], polytechnics[], colleges_of_education[], tech_skills[], soft_skills[], salary_insight, market_relevance.
-- `career_counseling_sessions` — student, counselor_user_id, scheduled_at, status, meeting_url, notes.
-- `career_mock_interviews` — student, career_path, questions JSONB, answers JSONB, score, feedback, taken_at.
-Keep existing `career_resources`, `student_career_profiles`, `student_career_saves`.
+**Audit trail CSV export**
+Add a "Download CSV" button on the Audit Trail page that exports exactly the rows currently visible (module, action, date range and keyword filters applied), with columns: When, Action, Event, Area, Record ID, By.
 
-### B2. AI edge function
-`supabase/functions/careeraid-recommend/index.ts` — takes assessment_id, calls Lovable AI Gateway (`google/gemini-3-flash-preview`) with a Nigerian-context structured-output prompt, writes recommendation + 5 paths. Second function `careeraid-mock-interview` generates questions and scores answers.
+**Curriculum note version history**
+Every time a lesson/curriculum note is saved or its publish state changes, a snapshot is stored. Teachers and admins get a "History" panel on each note showing who changed what and when, with a "Restore this version" action that rolls the note back (including the publish state at that time). Restores are themselves versioned, so nothing is lost.
 
-### B3. Student UI
-Tabs in `StudentCareerAid.tsx`: **Assessment** (Holland Code quiz, 30 items), **My Career Plan** (latest recommendation + 5 ranked paths, PDF download via jsPDF), **History**, **Counseling** (book session, list upcoming, join link), **Mock Interview** (pick career, answer, get score), plus existing Explore/Saved/Profile.
+**Assignment due notifications**
+- Students get a reminder 48h and 24h before `due_at` when they have not submitted.
+- Teachers get a reminder 24h before `due_at` for assignments with ungraded or unapproved submissions.
+- Runs on a scheduled job; each reminder is sent once per assignment per window.
 
-### B4. Teacher & Admin UI
-- `TeacherCareerAid.tsx` → real page (no longer aliasing Admin): list of students in assigned class arms, drill into their profile, latest recommendation, history. Read-only.
-- `AdminCareerAid.tsx` → tabs: **Resources** (existing), **Students** (all CareerAid users), **Assessments**, **Recommendations history**, **Counseling sessions** (with realtime monitoring), **Analytics** (counts, top career paths, sessions/month bar chart).
+**Correct class / class-arm display**
+Class arms currently render as just the arm name (e.g. "A"). Everywhere an arm is picked or shown — Assignments (admin, teacher, student), Attendance, AI Lesson/Curriculum Planner — it will read as the full label (e.g. "JSS 1 A"), sorted by class level then arm.
+
+## Phase 2 — Public CareerAid Portal
+
+A public, school-independent entry point, mirroring the existing Result Checker.
+
+- New `/careeraid` landing + signup, linked from the homepage next to Check Result.
+- Any student can register: those from a subscribed school link via school code + admission number; independent students register with just their own details and no school affiliation.
+- Paystack checkout for independent students (a CareerAid subscription). School-affiliated students whose school has the CareerAid feature enabled skip payment.
+- After payment/verification the student gets a CareerAid account: personality assessment, AI recommendations, plan and goals, resources, mock interview and counseling booking — the same feature set school students already have.
+- Data model: CareerAid records get an optional `school_id` so independent learners are fully supported, with access rules updated accordingly.
+
+## Phase 3 — Career Counselor role, scheduling and wallet
+
+**Counselor role** — a new role with its own dashboard, able to see students from subscribed schools *and* independent CareerAid subscribers.
+
+**Live video scheduling** — booking requests land in a counselor queue; the counselor accepts, reschedules or declines, and the confirmed session gets a meeting link both sides can join from their dashboard at the scheduled time. Session notes and guidance are recorded per student.
+
+**Wallet** — for each calendar month the wallet counts distinct students the counselor actually counseled (completed sessions), accruing N2,000 per student. The dashboard shows the current month's students counseled, accrued balance, and payout history. Withdrawal is only enabled on the 28th of each month; requests are queued for admin approval and marked paid. All balance figures are computed server-side so they cannot be manipulated from the browser.
 
 ## Technical notes
-- Video counseling = generated meeting URL field (Jitsi Meet room) — no proprietary SDK needed unless you want Daily/Twilio integration (extra secret).
-- PDF download uses existing `jspdf` already in the project.
-- All new tables get audit_logs triggers consistent with Module 2.
 
-## What I need from you before I start coding
-Please confirm:
-1. **Order**: Phase A first (Playwright), then B1→B4? Or start CareerAid immediately and do Playwright after?
-2. **Video counseling**: Jitsi Meet (free, instant, no key) OR plug in Daily.co/Twilio (you'd provide API key)?
-3. **Holland Code quiz length**: standard 60 items, short 30 items, or ultra-short 12 items?
-4. **AI model**: default `google/gemini-3-flash-preview` OK, or want `gemini-3-pro` for higher quality recommendations (slower/costlier)?
+- New tables: `lesson_plan_versions`, `careeraid_subscriptions`, `counselor_wallets`, `counselor_wallet_entries`, `counselor_payout_requests`; `app_role` gains `counselor`; `career_counseling_sessions` gains counselor/booking status fields; CareerAid tables get nullable `school_id` for independent students.
+- All new tables get GRANTs plus RLS scoped by owner/school/role; wallet accrual and payout eligibility are enforced by database functions and edge functions, never client-side.
+- Reminders reuse the existing notifications table and a pg_cron scheduled edge function.
+- Paystack reuses the existing initialize/verify payment functions with a CareerAid product path.
 
-Once you answer, I'll execute phase by phase, each in its own turn so migrations stay reviewable.
+Confirm and I'll start with Phase 1.
