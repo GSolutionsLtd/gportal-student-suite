@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolContext } from "@/hooks/useSchoolContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Loader2, RotateCcw, Clock } from "lucide-react";
+import { Shield, Loader2, RotateCcw, Clock, Download } from "lucide-react";
 import { format } from "date-fns";
 
 interface LogRow {
@@ -153,6 +153,40 @@ export default function AuditTrail() {
     return d.event || d.title || d.summary || l.table_name.replace(/_/g, " ");
   };
 
+  const exportCsv = () => {
+    if (!visible.length) {
+      toast({ title: "Nothing to export", description: "No audit events match the current filters." });
+      return;
+    }
+    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["When", "Action", "Event", "Area", "Record ID", "By"];
+    const lines = [
+      header.map(cell).join(","),
+      ...visible.map((l) =>
+        [
+          format(new Date(l.created_at), "yyyy-MM-dd HH:mm:ss"),
+          l.action,
+          describe(l),
+          l.table_name,
+          l.record_id ?? "",
+          actorNames[l.user_id ?? ""] ?? "",
+        ].map(cell).join(","),
+      ),
+    ];
+    const blob = new Blob(["\ufeff", lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const range = [fromDate || "start", toDate || "today"].join("_to_");
+    a.href = url;
+    a.download = `audit-trail_${moduleFilter}_${actionFilter}_${range}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast({ title: "CSV downloaded", description: `${visible.length} event${visible.length === 1 ? "" : "s"} exported.` });
+  };
+
+
   return (
     <div className="space-y-6">
       <div>
@@ -212,9 +246,12 @@ export default function AuditTrail() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="md:col-span-5">
+          <div className="md:col-span-5 flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={reset}>
               <RotateCcw className="h-4 w-4 mr-2" /> Reset filters
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={loading || visible.length === 0}>
+              <Download className="h-4 w-4 mr-2" /> Download CSV
             </Button>
           </div>
         </CardContent>

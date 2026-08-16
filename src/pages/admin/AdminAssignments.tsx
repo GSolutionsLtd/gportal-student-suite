@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchClassArmOptions, buildArmLabel } from "@/lib/classArms";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolFeatures } from "@/hooks/useSchoolFeatures";
 import { useToast } from "@/hooks/use-toast";
@@ -39,7 +40,7 @@ interface AssignmentRow {
   term_id: string | null;
   created_at: string;
   teachers?: { id: string; profiles?: { full_name: string } | null };
-  class_arms?: { name: string };
+  class_arms?: { name: string; classes?: { name: string } | null };
   subjects?: { name: string };
   submission_count?: number;
 }
@@ -84,9 +85,10 @@ export default function AdminAssignments() {
   }, [schoolId]);
 
   const loadOptions = async () => {
-    const [{ data: tRows }, { data: caRows }, { data: sRows }] = await Promise.all([
+    const [{ data: tRows }, armOptions, { data: sRows }] = await Promise.all([
       supabase.from("teachers").select("id, user_id, staff_id").eq("school_id", schoolId!).eq("is_active", true),
-      supabase.from("class_arms").select("id, name, classes(name)").eq("school_id", schoolId!).eq("is_active", true),
+      fetchClassArmOptions(schoolId!),
+
       supabase.from("subjects").select("id, name").eq("school_id", schoolId!).eq("is_active", true).order("name"),
     ]);
     const userIds = (tRows || []).map((t: any) => t.user_id).filter(Boolean);
@@ -100,9 +102,7 @@ export default function AdminAssignments() {
         name: (profs || []).find((p: any) => p.id === t.user_id)?.full_name || t.staff_id || "Teacher",
       }))
     );
-    setClassArms(
-      (caRows || []).map((c: any) => ({ id: c.id, name: `${c.classes?.name || ""} ${c.name}`.trim() }))
-    );
+    setClassArms(armOptions.map((c) => ({ id: c.id, name: c.label })));
     setSubjects((sRows as any) || []);
   };
 
@@ -190,7 +190,7 @@ export default function AdminAssignments() {
       const { data, error } = await supabase
         .from("assignments")
         .select(
-          "id, title, max_score, due_at, status, scores_approved, teacher_id, class_arm_id, subject_id, session_id, term_id, created_at, teachers(id, profiles:profiles!teachers_user_id_fkey(full_name)), class_arms(name), subjects(name)"
+          "id, title, max_score, due_at, status, scores_approved, teacher_id, class_arm_id, subject_id, session_id, term_id, created_at, teachers(id, profiles:profiles!teachers_user_id_fkey(full_name)), class_arms(name, classes(name)), subjects(name)"
         )
         .eq("school_id", schoolId!)
         .order("created_at", { ascending: false });
@@ -200,7 +200,7 @@ export default function AdminAssignments() {
         const { data: simple } = await supabase
           .from("assignments")
           .select(
-            "id, title, max_score, due_at, status, scores_approved, teacher_id, class_arm_id, subject_id, session_id, term_id, created_at, class_arms(name), subjects(name)"
+            "id, title, max_score, due_at, status, scores_approved, teacher_id, class_arm_id, subject_id, session_id, term_id, created_at, class_arms(name, classes(name)), subjects(name)"
           )
           .eq("school_id", schoolId!)
           .order("created_at", { ascending: false });
@@ -283,7 +283,7 @@ export default function AdminAssignments() {
 
   const classOptions = useMemo(() => {
     const map = new Map<string, string>();
-    rows.forEach((r) => map.set(r.class_arm_id, r.class_arms?.name || "Class"));
+    rows.forEach((r) => map.set(r.class_arm_id, buildArmLabel(r.class_arms)));
     return Array.from(map.entries());
   }, [rows]);
 
@@ -308,7 +308,7 @@ export default function AdminAssignments() {
       body: filtered.map((r) => [
         r.title,
         r.teachers?.profiles?.full_name || "—",
-        r.class_arms?.name || "—",
+        buildArmLabel(r.class_arms) || "—",
         r.subjects?.name || "—",
         r.due_at ? format(new Date(r.due_at), "PP") : "—",
         r.status,
@@ -343,7 +343,7 @@ export default function AdminAssignments() {
         doc.text(`Rubric — ${r.title}`, 14, 16);
         doc.setFontSize(9);
         doc.text(
-          `${r.class_arms?.name || ""} • ${r.subjects?.name || ""} • Teacher: ${r.teachers?.profiles?.full_name || "—"}`,
+          `${buildArmLabel(r.class_arms)} • ${r.subjects?.name || ""} • Teacher: ${r.teachers?.profiles?.full_name || "—"}`,
           14,
           22
         );
@@ -478,7 +478,7 @@ export default function AdminAssignments() {
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.title}</TableCell>
                   <TableCell>{r.teachers?.profiles?.full_name || "—"}</TableCell>
-                  <TableCell>{r.class_arms?.name || "—"}</TableCell>
+                  <TableCell>{buildArmLabel(r.class_arms) || "—"}</TableCell>
                   <TableCell>{r.subjects?.name || "—"}</TableCell>
                   <TableCell>{r.due_at ? format(new Date(r.due_at), "PP") : "—"}</TableCell>
                   <TableCell>

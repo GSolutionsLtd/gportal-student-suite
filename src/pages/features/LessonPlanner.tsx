@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchClassArmOptions } from "@/lib/classArms";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolContext } from "@/hooks/useSchoolContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Plus, Trash2, Edit, Download, BookOpen, FileText } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, Edit, Download, BookOpen, FileText, History, RotateCcw } from "lucide-react";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 
@@ -73,6 +74,12 @@ export default function LessonPlannerPage() {
 
   const [viewing, setViewing] = useState<LessonPlan | null>(null);
 
+  const [historyFor, setHistoryFor] = useState<LessonPlan | null>(null);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [authorNames, setAuthorNames] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (!schoolId) return;
     load();
@@ -80,15 +87,15 @@ export default function LessonPlannerPage() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
+    const [{ data: p }, { data: s }, arms] = await Promise.all([
       supabase.from("lesson_plans").select("*")
         .eq("school_id", schoolId!).order("created_at", { ascending: false }),
-      supabase.from("subjects").select("id, name").eq("school_id", schoolId!),
-      supabase.from("class_arms").select("id, name").eq("school_id", schoolId!),
+      supabase.from("subjects").select("id, name").eq("school_id", schoolId!).order("name"),
+      fetchClassArmOptions(schoolId!),
     ]);
     setPlans((p as LessonPlan[]) ?? []);
     setSubjects((s as any[]) ?? []);
-    setClassArms((c as any[]) ?? []);
+    setClassArms(arms.map((a) => ({ id: a.id, name: a.label })));
     setLoading(false);
   };
 
@@ -189,6 +196,47 @@ export default function LessonPlannerPage() {
     if (error) return toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     toast({ title: "Deleted" });
     load();
+  };
+
+  const openHistory = async (p: LessonPlan) => {
+    setHistoryFor(p);
+    setVersionsLoading(true);
+    const { data, error } = await supabase
+      .from("lesson_plan_versions")
+      .select("*")
+      .eq("lesson_plan_id", p.id)
+      .order("version_number", { ascending: false });
+    if (error) toast({ title: "Could not load history", description: error.message, variant: "destructive" });
+    const rows = (data as any[]) ?? [];
+    setVersions(rows);
+    const ids = Array.from(new Set(rows.map((v) => v.changed_by).filter(Boolean)));
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+      setAuthorNames(Object.fromEntries(((profs as any[]) ?? []).map((x) => [x.id, x.full_name])));
+    }
+    setVersionsLoading(false);
+  };
+
+  const restoreVersion = async (v: any) => {
+    if (!historyFor) return;
+    if (!confirm(`Restore version ${v.version_number}? The current content is kept in history.`)) return;
+    setRestoring(v.id);
+    const { error } = await supabase.from("lesson_plans").update({
+      title: v.title, topic: v.topic, grade_level: v.grade_level,
+      duration_minutes: v.duration_minutes, objectives: v.objectives, materials: v.materials,
+      introduction: v.introduction, main_content: v.main_content, activities: v.activities,
+      evaluation: v.evaluation, homework: v.homework, references_notes: v.references_notes,
+      subject_id: v.subject_id, class_arm_id: v.class_arm_id, status: v.status,
+    }).eq("id", historyFor.id);
+    setRestoring(null);
+    if (error) return toast({ title: "Restore failed", description: error.message, variant: "destructive" });
+    toast({ title: `Restored to version ${v.version_number}` });
+    await load();
+    await openHistory(historyFor);
+  };
+
+  const CHANGE_LABEL: Record<string, string> = {
+    create: "Created", update: "Edited", publish: "Published", unpublish: "Unpublished",
   };
 
   const openEdit = (p: LessonPlan) => {
@@ -304,6 +352,11 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
                     <Button size="sm" onClick={() => setStatus(p, "published")}>Publish to students</Button>
                   )
                 )}
+                {((isTeacher && p.teacher_user_id === user?.id) || isAdmin) && (
+                  <Button size="sm" variant="outline" onClick={() => openHistory(p)}>
+                    <History className="h-4 w-4 mr-1" />History
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" onClick={() => downloadPdf(p)}><Download className="h-4 w-4 mr-1" />PDF</Button>
                 <Button size="sm" variant="outline" onClick={() => downloadDocx(p)}><Download className="h-4 w-4 mr-1" />DOCX</Button>
                 {(isTeacher && p.teacher_user_id === user?.id) || isAdmin ? (
@@ -317,6 +370,53 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
           ))}
         </div>
       )}
+
+      {/* Version history dialog */}
+      <Dialog open={!!historyFor} onOpenChange={(o) => { if (!o) { setHistoryFor(null); setVersions([]); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Version history — {historyFor?.title}</DialogTitle></DialogHeader>
+          {versionsLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : versions.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No history recorded yet. Changes from now on will be tracked here.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {versions.map((v, i) => (
+                <div key={v.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div>
+                      <p className="font-medium text-sm">
+                        v{v.version_number} · {CHANGE_LABEL[v.change_kind] ?? v.change_kind}
+                        {i === 0 && <Badge variant="secondary" className="ml-2 text-xs">Current</Badge>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(v.created_at), "PPp")}
+                        {v.changed_by ? ` · ${authorNames[v.changed_by] ?? "Unknown"}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{v.status}</Badge>
+                      {i !== 0 && (
+                        <Button size="sm" variant="outline" disabled={restoring === v.id} onClick={() => restoreVersion(v)}>
+                          {restoring === v.id
+                            ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            : <RotateCcw className="h-4 w-4 mr-1" />}
+                          Restore
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    <span className="font-medium text-foreground">{v.title}</span> — {v.topic}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* AI generation dialog */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>

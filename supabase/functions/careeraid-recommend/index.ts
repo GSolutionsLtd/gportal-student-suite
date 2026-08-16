@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: assess, error: aerr } = await admin
       .from("career_assessments")
-      .select("id, school_id, student_id, realistic, investigative, artistic, social, enterprising, conventional, dominant_type, holland_code")
+      .select("id, school_id, student_id, subscriber_user_id, realistic, investigative, artistic, social, enterprising, conventional, dominant_type, holland_code")
       .eq("id", assessment_id)
       .single();
     if (aerr || !assess) return json({ error: "Assessment not found" }, 404);
@@ -72,13 +72,29 @@ Deno.serve(async (req) => {
     // Do not rely on an implicit PostgREST relationship here: some deployments
     // do not have a FK from career_assessments.student_id to students.id, which
     // was causing false 404s after the assessment was saved.
-    const { data: student, error: serr } = await admin
-      .from("students")
-      .select("id, user_id, school_id, first_name, last_name")
-      .eq("id", assess.student_id)
-      .single();
-    if (serr || !student) return json({ error: "Student profile not found" }, 404);
-    if (student.user_id !== user.id || student.school_id !== assess.school_id) return json({ error: "Forbidden" }, 403);
+    let owner: { student_id: string | null; school_id: string | null; subscriber_user_id: string | null };
+
+    if (assess.student_id) {
+      const { data: student, error: serr } = await admin
+        .from("students")
+        .select("id, user_id, school_id, first_name, last_name")
+        .eq("id", assess.student_id)
+        .single();
+      if (serr || !student) return json({ error: "Student profile not found" }, 404);
+      if (student.user_id !== user.id || student.school_id !== assess.school_id) return json({ error: "Forbidden" }, 403);
+      owner = { student_id: student.id, school_id: student.school_id, subscriber_user_id: null };
+    } else {
+      // Independent CareerAid subscriber (no school affiliation)
+      if (assess.subscriber_user_id !== user.id) return json({ error: "Forbidden" }, 403);
+      const { data: sub } = await admin
+        .from("careeraid_subscriptions")
+        .select("id, status, expires_at")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!sub) return json({ error: "An active CareerAid subscription is required" }, 402);
+      owner = { student_id: null, school_id: null, subscriber_user_id: user.id };
+    }
 
     const prompt = `Student Personality Test profile:
 - Realistic: ${assess.realistic}
@@ -94,8 +110,9 @@ Generate 5 ranked Nigerian career paths.`;
     const parsed = await buildRecommendations(prompt, assess);
 
     const { data: rec, error: rerr } = await admin.from("career_recommendations").insert({
-      school_id: student.school_id,
-      student_id: student.id,
+      school_id: owner.school_id,
+      student_id: owner.student_id,
+      subscriber_user_id: owner.subscriber_user_id,
       assessment_id,
       summary: parsed.summary,
       model: parsed.source === "fallback" ? "rule-based-fallback" : MODEL,
@@ -104,8 +121,9 @@ Generate 5 ranked Nigerian career paths.`;
 
     const paths = parsed.paths.map((p: any) => ({
       recommendation_id: rec.id,
-      school_id: student.school_id,
-      student_id: student.id,
+      school_id: owner.school_id,
+      student_id: owner.student_id,
+      subscriber_user_id: owner.subscriber_user_id,
       rank: p.rank,
       career_title: p.career_title,
       ss_subjects: p.ss_subjects,

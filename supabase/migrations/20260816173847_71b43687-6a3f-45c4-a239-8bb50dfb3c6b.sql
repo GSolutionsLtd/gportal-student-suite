@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.accrue_counselor_wallet() FROM anon, authenticated;
