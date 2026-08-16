@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'admin' | 'teacher' | 'student' | 'parent';
+export type UserRole = 'super_admin' | 'admin' | 'teacher' | 'student' | 'parent' | 'counselor';
 
 export interface UserProfile {
   id: string;
@@ -19,6 +19,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   teacher: 'Teacher',
   student: 'Student',
   parent: 'Parent',
+  counselor: 'Career Counselor',
 };
 
 export const ROLE_ROUTES: Record<UserRole, string> = {
@@ -27,4 +28,5 @@ export const ROLE_ROUTES: Record<UserRole, string> = {
   teacher: '/teacher',
   student: '/student',
   parent: '/parent',
+  counselor: '/counselor',
 };

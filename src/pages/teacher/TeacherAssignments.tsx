@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { buildArmLabel } from "@/lib/classArms";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolFeatures } from "@/hooks/useSchoolFeatures";
 import { useToast } from "@/hooks/use-toast";
@@ -154,7 +155,7 @@ export default function TeacherAssignments() {
       const [{ data: ts }, { data: term }] = await Promise.all([
         supabase
           .from("teacher_subjects")
-          .select("class_arm_id, subject_id, session_id, class_arms(name), subjects(name)")
+          .select("class_arm_id, subject_id, session_id, class_arms(name, classes(name, level)), subjects(name)")
           .eq("teacher_id", teacher.id),
         supabase.from("terms").select("id").eq("is_current", true).maybeSingle(),
       ]);
@@ -165,7 +166,7 @@ export default function TeacherAssignments() {
           class_arm_id: row.class_arm_id,
           subject_id: row.subject_id,
           session_id: row.session_id,
-          class_arm_name: row.class_arms?.name || "Class",
+          class_arm_name: buildArmLabel(row.class_arms),
           subject_name: row.subjects?.name || "Subject",
         }))
       );

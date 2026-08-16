@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchClassArmOptions } from "@/lib/classArms";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolContext } from "@/hooks/useSchoolContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -56,9 +57,9 @@ export default function AttendancePage() {
 
   const loadArms = async () => {
     setLoading(true);
-    const { data } = await supabase.from("class_arms").select("id, name").eq("school_id", schoolId!).order("name");
-    setClassArms((data as any[]) ?? []);
-    if (data && data.length && !selectedArm) setSelectedArm((data[0] as any).id);
+    const arms = await fetchClassArmOptions(schoolId!);
+    setClassArms(arms.map((a) => ({ id: a.id, name: a.label })));
+    if (arms.length && !selectedArm) setSelectedArm(arms[0].id);
     setLoading(false);
   };
 

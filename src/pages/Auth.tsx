@@ -41,6 +41,7 @@ const roleIcons: Record<UserRole, typeof UserCog> = {
   teacher: School,
   student: GraduationCap,
   parent: Users,
+  counselor: Compass,
 };
 
 const roleColors: Record<UserRole, string> = {
@@ -49,6 +50,7 @@ const roleColors: Record<UserRole, string> = {
   teacher: "bg-success/10 text-success border-success/20",
   student: "bg-warning/10 text-warning border-warning/20",
   parent: "bg-secondary text-secondary-foreground border-secondary/20",
+  counselor: "bg-primary/10 text-primary border-primary/20",
 };
 
 // Validation schemas

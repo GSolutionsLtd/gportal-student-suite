@@ -20,6 +20,8 @@ import PaymentCallback from "./pages/PaymentCallback";
 import NotFound from "./pages/NotFound";
 import InstallApp from "./pages/InstallApp";
 import Contact from "./pages/Contact";
+import CareerAidPortal from "./pages/careeraid/CareerAidPortal";
+import CounselorDashboard from "./pages/counselor/CounselorDashboard";
 
 // Dashboard Layouts
 import { DashboardLayout } from "./components/layouts/DashboardLayout";
@@ -143,6 +145,17 @@ function App() {
               <Route path="/verify-result" element={<VerifyResult />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/site/:schoolCode" element={<PublicSchoolSite />} />
+              <Route path="/careeraid" element={<CareerAidPortal />} />
+
+              {/* Career Counselor (school-independent) */}
+              <Route
+                path="/counselor"
+                element={
+                  <ProtectedRoute allowedRoles={["counselor"]}>
+                    <CounselorDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Super Admin Routes (no school code) */}
               <Route 

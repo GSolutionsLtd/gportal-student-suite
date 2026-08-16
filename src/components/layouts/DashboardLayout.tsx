@@ -45,6 +45,7 @@ interface NavItem {
 }
 
 const roleNavItems: Record<UserRole, NavItem[]> = {
+  counselor: [],
   super_admin: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
     { label: "School Management", icon: School, path: "schools" },
