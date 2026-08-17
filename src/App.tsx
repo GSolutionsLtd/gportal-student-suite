@@ -21,7 +21,9 @@ import NotFound from "./pages/NotFound";
 import InstallApp from "./pages/InstallApp";
 import Contact from "./pages/Contact";
 import CareerAidPortal from "./pages/careeraid/CareerAidPortal";
+import CareerAidAuth from "./pages/careeraid/CareerAidAuth";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
+import CounselorAuth from "./pages/counselor/CounselorAuth";
 
 // Dashboard Layouts
 import { DashboardLayout } from "./components/layouts/DashboardLayout";
