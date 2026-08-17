@@ -224,7 +224,7 @@ export default function CareerAidPortal() {
           <Link to="/" className="flex items-center gap-2"><Logo /></Link>
           <div className="flex items-center gap-2">
             <Link to="/check-result"><Button variant="ghost" size="sm">Check Result</Button></Link>
-            {!user && <Link to="/auth"><Button size="sm">Sign in</Button></Link>}
+            {!user && <Link to="/careeraid/auth"><Button size="sm">Sign in</Button></Link>}
           </div>
         </div>
       </header>
@@ -248,8 +248,8 @@ export default function CareerAidPortal() {
             combinations, JAMB subjects, universities and skills, then book a live session with a career counselor.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link to="/auth"><Button size="lg">Get started <ArrowRight className="h-4 w-4 ml-2" /></Button></Link>
-            <Link to="/contact"><Button size="lg" variant="outline">Talk to us</Button></Link>
+            <Link to="/careeraid/auth"><Button size="lg">Get started <ArrowRight className="h-4 w-4 ml-2" /></Button></Link>
+            <Link to="/counselor/auth"><Button size="lg" variant="outline">Sign up as a Career Counselor</Button></Link>
           </div>
         </section>
 

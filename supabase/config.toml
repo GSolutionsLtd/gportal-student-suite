@@ -36,3 +36,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.super-admin-users]
 verify_jwt = false
+
+[functions.public-signup]
+verify_jwt = false

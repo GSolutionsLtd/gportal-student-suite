@@ -159,17 +159,18 @@ export default function AuditTrail() {
       return;
     }
     const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const header = ["When", "Action", "Event", "Area", "Record ID", "By"];
+    const moduleOf = (table: string) =>
+      Object.entries(MODULE_TABLES).find(([, tables]) => tables.includes(table))?.[0] ?? "other";
+    // Privacy: the export deliberately carries no school, class, student or
+    // record identifiers — only when, what action and which module.
+    const header = ["Timestamp", "Action", "Module"];
     const lines = [
       header.map(cell).join(","),
       ...visible.map((l) =>
         [
           format(new Date(l.created_at), "yyyy-MM-dd HH:mm:ss"),
           l.action,
-          describe(l),
-          l.table_name,
-          l.record_id ?? "",
-          actorNames[l.user_id ?? ""] ?? "",
+          moduleOf(l.table_name),
         ].map(cell).join(","),
       ),
     ];

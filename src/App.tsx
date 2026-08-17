@@ -21,7 +21,9 @@ import NotFound from "./pages/NotFound";
 import InstallApp from "./pages/InstallApp";
 import Contact from "./pages/Contact";
 import CareerAidPortal from "./pages/careeraid/CareerAidPortal";
+import CareerAidAuth from "./pages/careeraid/CareerAidAuth";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
+import CounselorAuth from "./pages/counselor/CounselorAuth";
 
 // Dashboard Layouts
 import { DashboardLayout } from "./components/layouts/DashboardLayout";
@@ -146,8 +148,10 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/site/:schoolCode" element={<PublicSchoolSite />} />
               <Route path="/careeraid" element={<CareerAidPortal />} />
+              <Route path="/careeraid/auth" element={<CareerAidAuth />} />
 
               {/* Career Counselor (school-independent) */}
+              <Route path="/counselor/auth" element={<CounselorAuth />} />
               <Route
                 path="/counselor"
                 element={
