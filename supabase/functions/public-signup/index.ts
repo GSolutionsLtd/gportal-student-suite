@@ -21,7 +21,6 @@ Deno.serve(async (req) => {
     const email = String(body.email ?? "").toLowerCase();
     const fullName = String(body.fullName ?? "").trim();
     const kind = String(body.kind ?? ""); // "careeraid" | "counselor"
-    const phone = body.phone ? String(body.phone).trim().slice(0, 30) : null;
 
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: "Invalid account reference." }, 400);
     if (!email.includes("@")) return json({ error: "Invalid email." }, 400);
@@ -55,17 +54,6 @@ Deno.serve(async (req) => {
     if (kind === "counselor" && !existingRole) {
       const { error: roleErr } = await admin.from("user_roles").insert({ user_id: userId, role: "counselor" });
       if (roleErr) return json({ error: roleErr.message }, 500);
-    }
-
-    if (kind === "careeraid") {
-      // Placeholder subscription record so the portal can show the payment gate.
-      const { data: sub } = await admin
-        .from("careeraid_subscriptions").select("id").eq("user_id", userId).maybeSingle();
-      if (!sub) {
-        await admin.from("careeraid_subscriptions").insert({
-          user_id: userId, full_name: fullName, email, phone, amount: 5000, status: "pending",
-        });
-      }
     }
 
     return json({ ok: true, kind });
