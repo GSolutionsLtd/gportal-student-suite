@@ -146,8 +146,10 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/site/:schoolCode" element={<PublicSchoolSite />} />
               <Route path="/careeraid" element={<CareerAidPortal />} />
+              <Route path="/careeraid/auth" element={<CareerAidAuth />} />
 
               {/* Career Counselor (school-independent) */}
+              <Route path="/counselor/auth" element={<CounselorAuth />} />
               <Route
                 path="/counselor"
                 element={
