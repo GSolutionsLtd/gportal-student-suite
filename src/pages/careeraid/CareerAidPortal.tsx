@@ -441,29 +441,74 @@ export default function CareerAidPortal() {
         </TabsContent>
 
         <TabsContent value="counseling" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Book a live guidance session</CardTitle>
-              <CardDescription>A career counselor confirms your slot and shares the meeting link.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="ca-when">Preferred date & time</Label>
-                  <Input id="ca-when" type="datetime-local" value={booking.scheduled_at}
-                    onChange={(e) => setBooking({ ...booking, scheduled_at: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="ca-topic">What do you need help with?</Label>
-                  <Textarea id="ca-topic" rows={2} value={booking.topic}
-                    onChange={(e) => setBooking({ ...booking, topic: e.target.value })} />
-                </div>
-              </div>
-              <Button onClick={bookSession} disabled={bookingBusy}>
-                {bookingBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Request session
-              </Button>
-            </CardContent>
-          </Card>
+          {!active ? (
+            <Card>
+              <CardHeader>
+                <Lock className="h-6 w-6 text-primary" />
+                <CardTitle className="text-base">Counseling is for subscribers</CardTitle>
+                <CardDescription>
+                  Subscribe for ₦5,000 / month to see the list of available career counselors and book
+                  live video guidance sessions. Free access only covers one assessment and career plan per month.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setTab("subscribe")}>Subscribe now <ArrowRight className="h-4 w-4 ml-2" /></Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Available career counselors</CardTitle>
+                  <CardDescription>Certified counselors you can book a live video session with.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {counselors.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No counselors available right now.</p>
+                  ) : counselors.map((c) => (
+                    <div key={c.user_id} className="flex items-center justify-between border rounded-md px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium">{c.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{c.sessions_completed} session(s) completed</p>
+                      </div>
+                      <Badge variant="outline" className="gap-1">
+                        <Star className="h-3 w-3" />{c.average_rating ? Number(c.average_rating).toFixed(1) : "New"}
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Book a live guidance session</CardTitle>
+                  <CardDescription>A career counselor confirms your slot and shares the meeting link.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="ca-when">Preferred date & time</Label>
+                      <Input id="ca-when" type="datetime-local" value={booking.scheduled_at}
+                        onChange={(e) => setBooking({ ...booking, scheduled_at: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ca-topic">What do you need help with?</Label>
+                      <Textarea id="ca-topic" rows={2} value={booking.topic}
+                        onChange={(e) => setBooking({ ...booking, topic: e.target.value })} />
+                    </div>
+                  </div>
+                  {unratedSessions.length > 0 && (
+                    <p className="text-xs text-destructive">
+                      Please review and rate your last completed session before booking a new one.
+                    </p>
+                  )}
+                  <Button onClick={bookSession} disabled={bookingBusy || unratedSessions.length > 0}>
+                    {bookingBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Request session
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           <Card>
             <CardHeader><CardTitle className="text-base">Your sessions</CardTitle></CardHeader>
@@ -471,24 +516,60 @@ export default function CareerAidPortal() {
               {sessions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No sessions booked yet.</p>
               ) : sessions.map((s) => (
-                <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 border rounded-md px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
-                    {s.topic && <p className="text-xs text-muted-foreground">{s.topic}</p>}
+                <div key={s.id} className="border rounded-md px-3 py-2 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
+                      {s.topic && <p className="text-xs text-muted-foreground">{s.topic}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{s.status}</Badge>
+                      {s.meeting_url && s.status === "accepted" && (
+                        <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm"><Video className="h-4 w-4 mr-1" />Join</Button>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{s.status}</Badge>
-                    {s.meeting_url && s.status === "accepted" && (
-                      <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm"><Video className="h-4 w-4 mr-1" />Join</Button>
-                      </a>
-                    )}
-                  </div>
+
+                  {s.status === "completed" && (
+                    ratings[s.id] ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Star className="h-3 w-3" /> You rated this session {ratings[s.id].rating}/5
+                        {ratings[s.id].comment ? ` — “${ratings[s.id].comment}”` : ""}
+                      </p>
+                    ) : (
+                      <div className="space-y-2 border-t pt-2">
+                        <p className="text-xs font-medium">Review required — rate your counselor</p>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button key={n} type="button" aria-label={`${n} star`}
+                              onClick={() => setRatingDraft({ ...ratingDraft, [s.id]: { ...(ratingDraft[s.id] ?? { comment: "" }), rating: n } })}>
+                              <Star className={`h-5 w-5 ${(ratingDraft[s.id]?.rating ?? 0) >= n ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                            </button>
+                          ))}
+                        </div>
+                        <Textarea rows={2} placeholder="How helpful was the session?"
+                          value={ratingDraft[s.id]?.comment ?? ""}
+                          onChange={(e) => setRatingDraft({ ...ratingDraft, [s.id]: { rating: ratingDraft[s.id]?.rating ?? 0, comment: e.target.value } })} />
+                        <Button size="sm" disabled={ratingBusy === s.id} onClick={() => submitRating(s.id)}>
+                          {ratingBusy === s.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Submit review
+                        </Button>
+                      </div>
+                    )
+                  )}
                 </div>
               ))}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {!active && (
+          <TabsContent value="subscribe">
+            <SubscribeCard />
+          </TabsContent>
+        )}
+
       </Tabs>
     </Shell>
   );
