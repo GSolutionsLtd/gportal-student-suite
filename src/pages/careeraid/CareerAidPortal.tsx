@@ -79,8 +79,18 @@ export default function CareerAidPortal() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [booking, setBooking] = useState({ scheduled_at: "", topic: "" });
   const [bookingBusy, setBookingBusy] = useState(false);
+  const [counselors, setCounselors] = useState<{ user_id: string; full_name: string; sessions_completed: number; average_rating: number | null }[]>([]);
+  const [ratings, setRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
+  const [ratingDraft, setRatingDraft] = useState<Record<string, { rating: number; comment: string }>>({});
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null);
 
-  const active = subscription?.status === "active";
+  const active = subscription?.status === "active"
+    && (!subscription?.expires_at || new Date(subscription.expires_at) > new Date());
+
+  const unratedSessions = useMemo(
+    () => sessions.filter((s) => s.status === "completed" && !ratings[s.id]),
+    [sessions, ratings],
+  );
 
   const loadAll = async (uid: string) => {
     const [{ data: recRows }, { data: goalRows }, { data: sessionRows }] = await Promise.all([
@@ -93,6 +103,30 @@ export default function CareerAidPortal() {
     setRecs(((recRows as any[]) ?? []).map((r) => ({ ...r, paths: (r.paths ?? []).sort((a: Path, b: Path) => a.rank - b.rank) })));
     setGoals((goalRows as any[]) ?? []);
     setSessions((sessionRows as any[]) ?? []);
+
+    const { data: ratingRows } = await supabase
+      .from("counselor_session_ratings").select("session_id, rating, comment").eq("rater_user_id", uid);
+    const map: Record<string, { rating: number; comment: string | null }> = {};
+    ((ratingRows as any[]) ?? []).forEach((r) => { map[r.session_id] = { rating: r.rating, comment: r.comment }; });
+    setRatings(map);
+  };
+
+  const loadCounselors = async () => {
+    const { data } = await supabase.rpc("list_career_counselors" as any);
+    setCounselors((data as any[]) ?? []);
+  };
+
+  const submitRating = async (sessionId: string) => {
+    const draft = ratingDraft[sessionId];
+    if (!draft?.rating) return toast({ title: "Pick a star rating", variant: "destructive" });
+    setRatingBusy(sessionId);
+    const { error } = await supabase.from("counselor_session_ratings").insert({
+      session_id: sessionId, rating: draft.rating, comment: draft.comment?.trim() || null,
+    } as any);
+    setRatingBusy(null);
+    if (error) return toast({ title: "Could not save review", description: error.message, variant: "destructive" });
+    toast({ title: "Thanks for your review" });
+    if (user) { await loadAll(user.id); await loadCounselors().catch(() => {}); }
   };
 
   useEffect(() => {
@@ -114,7 +148,12 @@ export default function CareerAidPortal() {
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       setSubscription(sub);
       setForm((f) => ({ ...f, full_name: f.full_name || (sub as any)?.full_name || "" }));
-      if ((sub as any)?.status === "active") await loadAll(user.id);
+      await loadAll(user.id);
+      if ((sub as any)?.status === "active") await loadCounselors().catch(() => {});
+      setLoading(false);
+    })();
+  }, [user, isLoading]);
+
       setLoading(false);
     })();
   }, [user, isLoading]);
