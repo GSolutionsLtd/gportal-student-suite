@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck, Target, Plus, Trash2, CheckCircle2, Calendar } from "lucide-react";
+import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck, Target, Plus, Trash2, CheckCircle2, Calendar, Star } from "lucide-react";
 import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
@@ -53,6 +53,10 @@ export default function StudentCareerAid() {
   // Counseling
   const [sessions, setSessions] = useState<any[]>([]);
   const [bookDate, setBookDate] = useState("");
+  const [ratings, setRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
+  const [ratingDraft, setRatingDraft] = useState<Record<string, { rating: number; comment: string }>>({});
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null);
+
 
   // Mock interview
   const [interviewCareer, setInterviewCareer] = useState("");
@@ -119,7 +123,28 @@ export default function StudentCareerAid() {
     const { data } = await supabase.from("career_counseling_sessions")
       .select("*").eq("student_id", sid).order("scheduled_at", { ascending: false });
     setSessions((data as any[]) || []);
+    if (user) {
+      const { data: rt } = await supabase.from("counselor_session_ratings")
+        .select("session_id, rating, comment").eq("rater_user_id", user.id);
+      const map: Record<string, { rating: number; comment: string | null }> = {};
+      ((rt as any[]) || []).forEach((r) => { map[r.session_id] = { rating: r.rating, comment: r.comment }; });
+      setRatings(map);
+    }
   };
+
+  const submitRating = async (sessionId: string) => {
+    const draft = ratingDraft[sessionId];
+    if (!draft?.rating) return toast({ title: "Pick a star rating", variant: "destructive" });
+    setRatingBusy(sessionId);
+    const { error } = await supabase.from("counselor_session_ratings").insert({
+      session_id: sessionId, rating: draft.rating, comment: draft.comment?.trim() || null,
+    } as any);
+    setRatingBusy(null);
+    if (error) return toast({ title: "Could not save review", description: error.message, variant: "destructive" });
+    toast({ title: "Thanks for your review" });
+    if (studentId) await loadSessions(studentId);
+  };
+
 
   const loadGoals = async (sid: string) => {
     const { data } = await supabase.from("career_plan_goals")
@@ -481,24 +506,60 @@ export default function StudentCareerAid() {
               <div className="flex gap-2 items-end">
                 <div className="flex-1"><Label>Date & time</Label>
                   <Input type="datetime-local" value={bookDate} onChange={(e) => setBookDate(e.target.value)} /></div>
-                <Button onClick={bookSession} disabled={!bookDate}><Video className="h-4 w-4 mr-2" />Book</Button>
+                <Button
+                  onClick={bookSession}
+                  disabled={!bookDate || sessions.some((s) => s.status === "completed" && !ratings[s.id])}
+                >
+                  <Video className="h-4 w-4 mr-2" />Book
+                </Button>
               </div>
+              {sessions.some((s) => s.status === "completed" && !ratings[s.id]) && (
+                <p className="text-xs text-destructive">
+                  Please review and rate your last completed session before booking a new one.
+                </p>
+              )}
               <div className="space-y-2 mt-4">
                 {sessions.length === 0 ? <p className="text-sm text-muted-foreground">No sessions booked.</p> :
                   sessions.map((s) => (
-                    <div key={s.id} className="flex justify-between items-center border rounded p-3">
-                      <div>
-                        <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
-                        <Badge variant="secondary" className="mt-1">{s.status}</Badge>
+                    <div key={s.id} className="border rounded p-3 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
+                          <Badge variant="secondary" className="mt-1">{s.status}</Badge>
+                        </div>
+                        {s.meeting_url && (
+                          <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="outline"><Video className="h-4 w-4 mr-1" />Join</Button>
+                          </a>
+                        )}
                       </div>
-                      {s.meeting_url && (
-                        <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="outline"><Video className="h-4 w-4 mr-1" />Join</Button>
-                        </a>
+                      {s.status === "completed" && (
+                        ratings[s.id] ? (
+                          <p className="text-xs text-muted-foreground">You rated this session {ratings[s.id].rating}/5</p>
+                        ) : (
+                          <div className="space-y-2 border-t pt-2">
+                            <p className="text-xs font-medium">Review required — rate your counselor</p>
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <button key={n} type="button" aria-label={`${n} star`}
+                                  onClick={() => setRatingDraft({ ...ratingDraft, [s.id]: { rating: n, comment: ratingDraft[s.id]?.comment ?? "" } })}>
+                                  <Star className={`h-5 w-5 ${(ratingDraft[s.id]?.rating ?? 0) >= n ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                                </button>
+                              ))}
+                            </div>
+                            <Textarea rows={2} placeholder="How helpful was the session?"
+                              value={ratingDraft[s.id]?.comment ?? ""}
+                              onChange={(e) => setRatingDraft({ ...ratingDraft, [s.id]: { rating: ratingDraft[s.id]?.rating ?? 0, comment: e.target.value } })} />
+                            <Button size="sm" disabled={ratingBusy === s.id} onClick={() => submitRating(s.id)}>
+                              {ratingBusy === s.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Submit review
+                            </Button>
+                          </div>
+                        )
                       )}
                     </div>
                   ))}
               </div>
+
             </CardContent>
           </Card>
         </TabsContent>

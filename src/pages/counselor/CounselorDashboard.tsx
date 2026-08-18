@@ -59,16 +59,37 @@ export default function CounselorDashboard() {
 
   const subjectName = (s: any) => names[s.student_id] || names[s.subscriber_user_id] || "Student";
 
+  const MIN_STUDENTS = 5;
+
+  const unpaid = useMemo(() => entries.filter((e) => !e.payout_id), [entries]);
+
+  // Only months with at least 5 distinct students counseled can be withdrawn.
+  const qualifyingMonths = useMemo(() => {
+    const byMonth: Record<string, Set<string>> = {};
+    unpaid.forEach((e) => {
+      const m = String(e.period_month);
+      (byMonth[m] ??= new Set()).add(String(e.subject_key));
+    });
+    return new Set(Object.entries(byMonth).filter(([, s]) => s.size >= MIN_STUDENTS).map(([m]) => m));
+  }, [unpaid]);
+
   const balance = useMemo(
-    () => entries.filter((e) => !e.payout_id).reduce((sum, e) => sum + Number(e.amount || 0), 0),
-    [entries],
+    () => unpaid.reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    [unpaid],
+  );
+  const withdrawable = useMemo(
+    () => unpaid.filter((e) => qualifyingMonths.has(String(e.period_month)))
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    [unpaid, qualifyingMonths],
   );
   const thisMonthCount = useMemo(() => {
     const m = format(new Date(), "yyyy-MM");
-    return entries.filter((e) => String(e.period_month).startsWith(m)).length;
+    return new Set(entries.filter((e) => String(e.period_month).startsWith(m)).map((e) => String(e.subject_key))).size;
   }, [entries]);
 
   const withdrawalDay = new Date().getDate() === 28;
+  const meetsQuota = withdrawable > 0;
+
 
   const update = async (id: string, patch: Record<string, unknown>) => {
     setBusy(id);
@@ -153,13 +174,14 @@ export default function CounselorDashboard() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardDescription>Students counseled this month</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2"><Users className="h-5 w-5 text-primary" />{thisMonthCount}</CardTitle></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>Students counseled this month (min {MIN_STUDENTS})</CardDescription>
+            <CardTitle className="text-2xl flex items-center gap-2"><Users className="h-5 w-5 text-primary" />{thisMonthCount}/{MIN_STUDENTS}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>Wallet balance</CardDescription>
             <CardTitle className="text-2xl flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" />₦{balance.toLocaleString()}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>Rate per student / month</CardDescription>
             <CardTitle className="text-2xl">₦{RATE.toLocaleString()}</CardTitle></CardHeader></Card>
         </div>
+
 
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -191,19 +213,26 @@ export default function CounselorDashboard() {
                   <CardTitle className="text-base">Withdraw earnings</CardTitle>
                   <CardDescription>
                     You earn ₦{RATE.toLocaleString()} for each distinct student you counsel in a month.
-                    Withdrawals are only available on the 28th of every month.
+                    A month only qualifies once you have counseled at least {MIN_STUDENTS} different students,
+                    and withdrawals are only available on the 28th of every month.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <Button onClick={requestPayout} disabled={!withdrawalDay || balance <= 0 || busy === "payout"}>
+                  <Button onClick={requestPayout} disabled={!withdrawalDay || !meetsQuota || busy === "payout"}>
                     {busy === "payout" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Withdraw ₦{balance.toLocaleString()}
+                    Withdraw ₦{withdrawable.toLocaleString()}
                   </Button>
+                  {!meetsQuota && (
+                    <p className="text-xs text-muted-foreground">
+                      No month has reached {MIN_STUDENTS} counseled students yet — {thisMonthCount}/{MIN_STUDENTS} this month.
+                    </p>
+                  )}
                   {!withdrawalDay && (
                     <p className="text-xs text-muted-foreground">Withdrawal opens on the 28th of this month.</p>
                   )}
                 </CardContent>
               </Card>
+
 
               <Card>
                 <CardHeader><CardTitle className="text-base">Earning history</CardTitle></CardHeader>

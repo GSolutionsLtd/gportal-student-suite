@@ -15,7 +15,9 @@ import { Logo } from "@/components/Logo";
 import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
 import {
   Loader2, Compass, Sparkles, GraduationCap, Video, Target, CheckCircle2, ArrowRight, ShieldCheck,
+  Lock, Star,
 } from "lucide-react";
+
 import { format } from "date-fns";
 
 interface Path {
@@ -77,8 +79,18 @@ export default function CareerAidPortal() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [booking, setBooking] = useState({ scheduled_at: "", topic: "" });
   const [bookingBusy, setBookingBusy] = useState(false);
+  const [counselors, setCounselors] = useState<{ user_id: string; full_name: string; sessions_completed: number; average_rating: number | null }[]>([]);
+  const [ratings, setRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
+  const [ratingDraft, setRatingDraft] = useState<Record<string, { rating: number; comment: string }>>({});
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null);
 
-  const active = subscription?.status === "active";
+  const active = subscription?.status === "active"
+    && (!subscription?.expires_at || new Date(subscription.expires_at) > new Date());
+
+  const unratedSessions = useMemo(
+    () => sessions.filter((s) => s.status === "completed" && !ratings[s.id]),
+    [sessions, ratings],
+  );
 
   const loadAll = async (uid: string) => {
     const [{ data: recRows }, { data: goalRows }, { data: sessionRows }] = await Promise.all([
@@ -91,6 +103,30 @@ export default function CareerAidPortal() {
     setRecs(((recRows as any[]) ?? []).map((r) => ({ ...r, paths: (r.paths ?? []).sort((a: Path, b: Path) => a.rank - b.rank) })));
     setGoals((goalRows as any[]) ?? []);
     setSessions((sessionRows as any[]) ?? []);
+
+    const { data: ratingRows } = await supabase
+      .from("counselor_session_ratings").select("session_id, rating, comment").eq("rater_user_id", uid);
+    const map: Record<string, { rating: number; comment: string | null }> = {};
+    ((ratingRows as any[]) ?? []).forEach((r) => { map[r.session_id] = { rating: r.rating, comment: r.comment }; });
+    setRatings(map);
+  };
+
+  const loadCounselors = async () => {
+    const { data } = await supabase.rpc("list_career_counselors" as any);
+    setCounselors((data as any[]) ?? []);
+  };
+
+  const submitRating = async (sessionId: string) => {
+    const draft = ratingDraft[sessionId];
+    if (!draft?.rating) return toast({ title: "Pick a star rating", variant: "destructive" });
+    setRatingBusy(sessionId);
+    const { error } = await supabase.from("counselor_session_ratings").insert({
+      session_id: sessionId, rating: draft.rating, comment: draft.comment?.trim() || null,
+    } as any);
+    setRatingBusy(null);
+    if (error) return toast({ title: "Could not save review", description: error.message, variant: "destructive" });
+    toast({ title: "Thanks for your review" });
+    if (user) { await loadAll(user.id); await loadCounselors().catch(() => {}); }
   };
 
   useEffect(() => {
@@ -112,10 +148,13 @@ export default function CareerAidPortal() {
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       setSubscription(sub);
       setForm((f) => ({ ...f, full_name: f.full_name || (sub as any)?.full_name || "" }));
-      if ((sub as any)?.status === "active") await loadAll(user.id);
+      await loadAll(user.id);
+      if ((sub as any)?.status === "active") await loadCounselors().catch(() => {});
       setLoading(false);
     })();
   }, [user, isLoading]);
+
+
 
   // Paystack callback
   useEffect(() => {
@@ -133,6 +172,8 @@ export default function CareerAidPortal() {
           .eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
         setSubscription(sub);
         await loadAll(user.id);
+        await loadCounselors().catch(() => {});
+
       }
       params.delete("reference"); params.delete("trxref");
       setParams(params, { replace: true });
@@ -292,63 +333,63 @@ export default function CareerAidPortal() {
     );
   }
 
-  // ---------- Subscription gate ----------
-  if (!active) {
-    return (
-      <Shell>
-        <Card className="max-w-xl mx-auto">
-          <CardHeader>
-            <Badge variant="secondary" className="w-fit">₦5,000 / year</Badge>
-            <CardTitle>Subscribe to CareerAid Clinic</CardTitle>
-            <CardDescription>
-              Independent access — you do not need to belong to a school. Includes the Personality Assessment,
-              AI career pathways, goal tracking and live counseling bookings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1 sm:col-span-2">
-                <Label htmlFor="ca-name">Full name</Label>
-                <Input id="ca-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="ca-phone">Phone</Label>
-                <Input id="ca-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="ca-class">Class / level</Label>
-                <Input id="ca-class" placeholder="e.g. SS2" value={form.class_level} onChange={(e) => setForm({ ...form, class_level: e.target.value })} />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <Label htmlFor="ca-state">State of residence</Label>
-                <Input id="ca-state" value={form.state_of_residence} onChange={(e) => setForm({ ...form, state_of_residence: e.target.value })} />
-              </div>
-            </div>
-            <Button className="w-full" onClick={startPayment} disabled={paying}>
-              {paying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null} Pay ₦5,000 and start
-            </Button>
-            {subscription?.status === "pending" && (
-              <p className="text-xs text-muted-foreground text-center">
-                A previous payment attempt is still pending. Completing payment activates your plan instantly.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </Shell>
-    );
-  }
+  // ---------- Subscribe card (shown as a tab for free users) ----------
+  const subscribeCard = (
+    <Card className="max-w-xl mx-auto">
+      <CardHeader>
+        <Badge variant="secondary" className="w-fit">₦5,000 / month</Badge>
+        <CardTitle>Subscribe to CareerAid Clinic</CardTitle>
+        <CardDescription>
+          Independent access — you do not need to belong to a school. Unlimited assessments and career plans,
+          plus access to the counselor directory and live video counseling bookings.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="ca-name">Full name</Label>
+            <Input id="ca-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ca-phone">Phone</Label>
+            <Input id="ca-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ca-class">Class / level</Label>
+            <Input id="ca-class" placeholder="e.g. SS2" value={form.class_level} onChange={(e) => setForm({ ...form, class_level: e.target.value })} />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="ca-state">State of residence</Label>
+            <Input id="ca-state" value={form.state_of_residence} onChange={(e) => setForm({ ...form, state_of_residence: e.target.value })} />
+          </div>
+        </div>
+        <Button className="w-full" onClick={startPayment} disabled={paying}>
+          {paying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null} Pay ₦5,000 / month and unlock everything
+        </Button>
+        {subscription?.status === "pending" && (
+          <p className="text-xs text-muted-foreground text-center">
+            A previous payment attempt is still pending. Completing payment activates your plan instantly.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 
-  // ---------- Active subscriber portal ----------
+  // ---------- Learner portal ----------
   return (
     <Shell>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
         <div>
           <h1 className="text-2xl font-bold">CareerAid Clinic</h1>
           <p className="text-muted-foreground text-sm">
-            Active until {subscription?.expires_at ? format(new Date(subscription.expires_at), "PP") : "—"}
+            {active
+              ? `Active until ${subscription?.expires_at ? format(new Date(subscription.expires_at), "PP") : "—"}`
+              : "Free access: one assessment and career plan per month. Counseling requires a subscription."}
           </p>
         </div>
-        <Badge className="gap-1"><CheckCircle2 className="h-3 w-3" /> Subscribed</Badge>
+        {active
+          ? <Badge className="gap-1"><CheckCircle2 className="h-3 w-3" /> Subscribed</Badge>
+          : <Badge variant="outline" className="gap-1"><Lock className="h-3 w-3" /> Free access</Badge>}
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
@@ -356,7 +397,10 @@ export default function CareerAidPortal() {
           <TabsTrigger value="assessment"><Sparkles className="h-4 w-4 mr-2" />Personality Assessment</TabsTrigger>
           <TabsTrigger value="plan"><Target className="h-4 w-4 mr-2" />My Plan</TabsTrigger>
           <TabsTrigger value="counseling"><Video className="h-4 w-4 mr-2" />Counseling</TabsTrigger>
+          {!active && <TabsTrigger value="subscribe"><Sparkles className="h-4 w-4 mr-2" />Subscribe</TabsTrigger>}
         </TabsList>
+
+
 
         <TabsContent value="assessment">
           <Card>
@@ -441,29 +485,74 @@ export default function CareerAidPortal() {
         </TabsContent>
 
         <TabsContent value="counseling" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Book a live guidance session</CardTitle>
-              <CardDescription>A career counselor confirms your slot and shares the meeting link.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="ca-when">Preferred date & time</Label>
-                  <Input id="ca-when" type="datetime-local" value={booking.scheduled_at}
-                    onChange={(e) => setBooking({ ...booking, scheduled_at: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="ca-topic">What do you need help with?</Label>
-                  <Textarea id="ca-topic" rows={2} value={booking.topic}
-                    onChange={(e) => setBooking({ ...booking, topic: e.target.value })} />
-                </div>
-              </div>
-              <Button onClick={bookSession} disabled={bookingBusy}>
-                {bookingBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Request session
-              </Button>
-            </CardContent>
-          </Card>
+          {!active ? (
+            <Card>
+              <CardHeader>
+                <Lock className="h-6 w-6 text-primary" />
+                <CardTitle className="text-base">Counseling is for subscribers</CardTitle>
+                <CardDescription>
+                  Subscribe for ₦5,000 / month to see the list of available career counselors and book
+                  live video guidance sessions. Free access only covers one assessment and career plan per month.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setTab("subscribe")}>Subscribe now <ArrowRight className="h-4 w-4 ml-2" /></Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Available career counselors</CardTitle>
+                  <CardDescription>Certified counselors you can book a live video session with.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {counselors.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No counselors available right now.</p>
+                  ) : counselors.map((c) => (
+                    <div key={c.user_id} className="flex items-center justify-between border rounded-md px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium">{c.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{c.sessions_completed} session(s) completed</p>
+                      </div>
+                      <Badge variant="outline" className="gap-1">
+                        <Star className="h-3 w-3" />{c.average_rating ? Number(c.average_rating).toFixed(1) : "New"}
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Book a live guidance session</CardTitle>
+                  <CardDescription>A career counselor confirms your slot and shares the meeting link.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="ca-when">Preferred date & time</Label>
+                      <Input id="ca-when" type="datetime-local" value={booking.scheduled_at}
+                        onChange={(e) => setBooking({ ...booking, scheduled_at: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ca-topic">What do you need help with?</Label>
+                      <Textarea id="ca-topic" rows={2} value={booking.topic}
+                        onChange={(e) => setBooking({ ...booking, topic: e.target.value })} />
+                    </div>
+                  </div>
+                  {unratedSessions.length > 0 && (
+                    <p className="text-xs text-destructive">
+                      Please review and rate your last completed session before booking a new one.
+                    </p>
+                  )}
+                  <Button onClick={bookSession} disabled={bookingBusy || unratedSessions.length > 0}>
+                    {bookingBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Request session
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           <Card>
             <CardHeader><CardTitle className="text-base">Your sessions</CardTitle></CardHeader>
@@ -471,24 +560,60 @@ export default function CareerAidPortal() {
               {sessions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No sessions booked yet.</p>
               ) : sessions.map((s) => (
-                <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 border rounded-md px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
-                    {s.topic && <p className="text-xs text-muted-foreground">{s.topic}</p>}
+                <div key={s.id} className="border rounded-md px-3 py-2 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">{format(new Date(s.scheduled_at), "PPp")}</p>
+                      {s.topic && <p className="text-xs text-muted-foreground">{s.topic}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{s.status}</Badge>
+                      {s.meeting_url && s.status === "accepted" && (
+                        <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm"><Video className="h-4 w-4 mr-1" />Join</Button>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{s.status}</Badge>
-                    {s.meeting_url && s.status === "accepted" && (
-                      <a href={s.meeting_url} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm"><Video className="h-4 w-4 mr-1" />Join</Button>
-                      </a>
-                    )}
-                  </div>
+
+                  {s.status === "completed" && (
+                    ratings[s.id] ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Star className="h-3 w-3" /> You rated this session {ratings[s.id].rating}/5
+                        {ratings[s.id].comment ? ` — “${ratings[s.id].comment}”` : ""}
+                      </p>
+                    ) : (
+                      <div className="space-y-2 border-t pt-2">
+                        <p className="text-xs font-medium">Review required — rate your counselor</p>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button key={n} type="button" aria-label={`${n} star`}
+                              onClick={() => setRatingDraft({ ...ratingDraft, [s.id]: { ...(ratingDraft[s.id] ?? { comment: "" }), rating: n } })}>
+                              <Star className={`h-5 w-5 ${(ratingDraft[s.id]?.rating ?? 0) >= n ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                            </button>
+                          ))}
+                        </div>
+                        <Textarea rows={2} placeholder="How helpful was the session?"
+                          value={ratingDraft[s.id]?.comment ?? ""}
+                          onChange={(e) => setRatingDraft({ ...ratingDraft, [s.id]: { rating: ratingDraft[s.id]?.rating ?? 0, comment: e.target.value } })} />
+                        <Button size="sm" disabled={ratingBusy === s.id} onClick={() => submitRating(s.id)}>
+                          {ratingBusy === s.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Submit review
+                        </Button>
+                      </div>
+                    )
+                  )}
                 </div>
               ))}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {!active && (
+          <TabsContent value="subscribe">
+            {subscribeCard}
+          </TabsContent>
+        )}
+
       </Tabs>
     </Shell>
   );
