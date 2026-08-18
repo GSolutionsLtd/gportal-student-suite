@@ -53,6 +53,10 @@ export default function StudentCareerAid() {
   // Counseling
   const [sessions, setSessions] = useState<any[]>([]);
   const [bookDate, setBookDate] = useState("");
+  const [ratings, setRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
+  const [ratingDraft, setRatingDraft] = useState<Record<string, { rating: number; comment: string }>>({});
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null);
+
 
   // Mock interview
   const [interviewCareer, setInterviewCareer] = useState("");
@@ -119,7 +123,28 @@ export default function StudentCareerAid() {
     const { data } = await supabase.from("career_counseling_sessions")
       .select("*").eq("student_id", sid).order("scheduled_at", { ascending: false });
     setSessions((data as any[]) || []);
+    if (user) {
+      const { data: rt } = await supabase.from("counselor_session_ratings")
+        .select("session_id, rating, comment").eq("rater_user_id", user.id);
+      const map: Record<string, { rating: number; comment: string | null }> = {};
+      ((rt as any[]) || []).forEach((r) => { map[r.session_id] = { rating: r.rating, comment: r.comment }; });
+      setRatings(map);
+    }
   };
+
+  const submitRating = async (sessionId: string) => {
+    const draft = ratingDraft[sessionId];
+    if (!draft?.rating) return toast({ title: "Pick a star rating", variant: "destructive" });
+    setRatingBusy(sessionId);
+    const { error } = await supabase.from("counselor_session_ratings").insert({
+      session_id: sessionId, rating: draft.rating, comment: draft.comment?.trim() || null,
+    } as any);
+    setRatingBusy(null);
+    if (error) return toast({ title: "Could not save review", description: error.message, variant: "destructive" });
+    toast({ title: "Thanks for your review" });
+    if (studentId) await loadSessions(studentId);
+  };
+
 
   const loadGoals = async (sid: string) => {
     const { data } = await supabase.from("career_plan_goals")
