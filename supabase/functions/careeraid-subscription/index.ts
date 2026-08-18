@@ -93,7 +93,8 @@ Deno.serve(async (req) => {
 
       const now = new Date();
       const expires = new Date(now);
-      expires.setFullYear(expires.getFullYear() + 1);
+      expires.setMonth(expires.getMonth() + 1);
+
 
       const { error: upErr } = await admin.from("careeraid_subscriptions").update({
         status: "active", starts_at: now.toISOString(), expires_at: expires.toISOString(),

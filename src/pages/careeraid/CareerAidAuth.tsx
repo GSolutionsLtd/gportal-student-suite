@@ -94,7 +94,7 @@ export default function CareerAidAuth() {
           <p className="text-muted-foreground">
             Create a personal CareerAid account in seconds. You do not need a school code or a school
             affiliation. Take the Personality Assessment, get AI-generated Nigerian career pathways and book
-            a live video session with a career counselor for ₦5,000 per year.
+            a live video session with a career counselor for ₦5,000 per month.
           </p>
           <p className="text-sm text-muted-foreground">
             Already a student of a subscribed school?{" "}

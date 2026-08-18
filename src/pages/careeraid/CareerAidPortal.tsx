@@ -172,6 +172,8 @@ export default function CareerAidPortal() {
           .eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
         setSubscription(sub);
         await loadAll(user.id);
+        await loadCounselors().catch(() => {});
+
       }
       params.delete("reference"); params.delete("trxref");
       setParams(params, { replace: true });
