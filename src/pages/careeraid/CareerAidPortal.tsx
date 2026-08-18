@@ -154,9 +154,7 @@ export default function CareerAidPortal() {
     })();
   }, [user, isLoading]);
 
-      setLoading(false);
-    })();
-  }, [user, isLoading]);
+
 
   // Paystack callback
   useEffect(() => {
