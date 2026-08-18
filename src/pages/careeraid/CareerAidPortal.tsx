@@ -292,63 +292,63 @@ export default function CareerAidPortal() {
     );
   }
 
-  // ---------- Subscription gate ----------
-  if (!active) {
-    return (
-      <Shell>
-        <Card className="max-w-xl mx-auto">
-          <CardHeader>
-            <Badge variant="secondary" className="w-fit">₦5,000 / year</Badge>
-            <CardTitle>Subscribe to CareerAid Clinic</CardTitle>
-            <CardDescription>
-              Independent access — you do not need to belong to a school. Includes the Personality Assessment,
-              AI career pathways, goal tracking and live counseling bookings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1 sm:col-span-2">
-                <Label htmlFor="ca-name">Full name</Label>
-                <Input id="ca-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="ca-phone">Phone</Label>
-                <Input id="ca-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="ca-class">Class / level</Label>
-                <Input id="ca-class" placeholder="e.g. SS2" value={form.class_level} onChange={(e) => setForm({ ...form, class_level: e.target.value })} />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <Label htmlFor="ca-state">State of residence</Label>
-                <Input id="ca-state" value={form.state_of_residence} onChange={(e) => setForm({ ...form, state_of_residence: e.target.value })} />
-              </div>
-            </div>
-            <Button className="w-full" onClick={startPayment} disabled={paying}>
-              {paying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null} Pay ₦5,000 and start
-            </Button>
-            {subscription?.status === "pending" && (
-              <p className="text-xs text-muted-foreground text-center">
-                A previous payment attempt is still pending. Completing payment activates your plan instantly.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </Shell>
-    );
-  }
+  // ---------- Subscribe card (shown as a tab for free users) ----------
+  const subscribeCard = (
+    <Card className="max-w-xl mx-auto">
+      <CardHeader>
+        <Badge variant="secondary" className="w-fit">₦5,000 / month</Badge>
+        <CardTitle>Subscribe to CareerAid Clinic</CardTitle>
+        <CardDescription>
+          Independent access — you do not need to belong to a school. Unlimited assessments and career plans,
+          plus access to the counselor directory and live video counseling bookings.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="ca-name">Full name</Label>
+            <Input id="ca-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ca-phone">Phone</Label>
+            <Input id="ca-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ca-class">Class / level</Label>
+            <Input id="ca-class" placeholder="e.g. SS2" value={form.class_level} onChange={(e) => setForm({ ...form, class_level: e.target.value })} />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label htmlFor="ca-state">State of residence</Label>
+            <Input id="ca-state" value={form.state_of_residence} onChange={(e) => setForm({ ...form, state_of_residence: e.target.value })} />
+          </div>
+        </div>
+        <Button className="w-full" onClick={startPayment} disabled={paying}>
+          {paying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null} Pay ₦5,000 / month and unlock everything
+        </Button>
+        {subscription?.status === "pending" && (
+          <p className="text-xs text-muted-foreground text-center">
+            A previous payment attempt is still pending. Completing payment activates your plan instantly.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 
-  // ---------- Active subscriber portal ----------
+  // ---------- Learner portal ----------
   return (
     <Shell>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
         <div>
           <h1 className="text-2xl font-bold">CareerAid Clinic</h1>
           <p className="text-muted-foreground text-sm">
-            Active until {subscription?.expires_at ? format(new Date(subscription.expires_at), "PP") : "—"}
+            {active
+              ? `Active until ${subscription?.expires_at ? format(new Date(subscription.expires_at), "PP") : "—"}`
+              : "Free access: one assessment and career plan per month. Counseling requires a subscription."}
           </p>
         </div>
-        <Badge className="gap-1"><CheckCircle2 className="h-3 w-3" /> Subscribed</Badge>
+        {active
+          ? <Badge className="gap-1"><CheckCircle2 className="h-3 w-3" /> Subscribed</Badge>
+          : <Badge variant="outline" className="gap-1"><Lock className="h-3 w-3" /> Free access</Badge>}
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
@@ -356,7 +356,10 @@ export default function CareerAidPortal() {
           <TabsTrigger value="assessment"><Sparkles className="h-4 w-4 mr-2" />Personality Assessment</TabsTrigger>
           <TabsTrigger value="plan"><Target className="h-4 w-4 mr-2" />My Plan</TabsTrigger>
           <TabsTrigger value="counseling"><Video className="h-4 w-4 mr-2" />Counseling</TabsTrigger>
+          {!active && <TabsTrigger value="subscribe"><Sparkles className="h-4 w-4 mr-2" />Subscribe</TabsTrigger>}
         </TabsList>
+
+
 
         <TabsContent value="assessment">
           <Card>
