@@ -608,7 +608,7 @@ export default function CareerAidPortal() {
 
         {!active && (
           <TabsContent value="subscribe">
-            <SubscribeCard />
+            {subscribeCard}
           </TabsContent>
         )}
 
