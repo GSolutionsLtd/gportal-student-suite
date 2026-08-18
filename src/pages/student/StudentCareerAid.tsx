@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck, Target, Plus, Trash2, CheckCircle2, Calendar } from "lucide-react";
+import { Loader2, Briefcase, Sparkles, Download, Video, Mic, History, ExternalLink, Bookmark, BookmarkCheck, Target, Plus, Trash2, CheckCircle2, Calendar, Star } from "lucide-react";
 import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
