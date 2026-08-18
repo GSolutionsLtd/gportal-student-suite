@@ -1405,6 +1405,44 @@ export type Database = {
         }
         Relationships: []
       }
+      counselor_session_ratings: {
+        Row: {
+          comment: string | null
+          counselor_user_id: string | null
+          created_at: string
+          id: string
+          rater_user_id: string
+          rating: number
+          session_id: string
+        }
+        Insert: {
+          comment?: string | null
+          counselor_user_id?: string | null
+          created_at?: string
+          id?: string
+          rater_user_id?: string
+          rating: number
+          session_id: string
+        }
+        Update: {
+          comment?: string | null
+          counselor_user_id?: string | null
+          created_at?: string
+          id?: string
+          rater_user_id?: string
+          rating?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "counselor_session_ratings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "career_counseling_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       counselor_wallet_entries: {
         Row: {
           amount: number
@@ -3343,6 +3381,10 @@ export type Database = {
       }
       get_user_school_code: { Args: { _user_id: string }; Returns: string }
       get_user_school_id: { Args: { _user_id: string }; Returns: string }
+      has_active_careeraid_subscription: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3358,6 +3400,15 @@ export type Database = {
       is_school_admin: {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
+      }
+      list_career_counselors: {
+        Args: never
+        Returns: {
+          average_rating: number
+          full_name: string
+          sessions_completed: number
+          user_id: string
+        }[]
       }
       list_signup_schools: {
         Args: never
