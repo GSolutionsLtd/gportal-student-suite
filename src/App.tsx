@@ -23,6 +23,7 @@ import Contact from "./pages/Contact";
 import CareerAidPortal from "./pages/careeraid/CareerAidPortal";
 import CareerAidAuth from "./pages/careeraid/CareerAidAuth";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
+import CounselorOnboarding from "./pages/counselor/CounselorOnboarding";
 import CounselorAuth from "./pages/counselor/CounselorAuth";
 
 // Dashboard Layouts
