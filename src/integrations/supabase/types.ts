@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1402,6 +1402,69 @@ export type Database = {
           requested_at?: string
           status?: string
           students_counseled?: number
+        }
+        Relationships: []
+      }
+      counselor_profiles: {
+        Row: {
+          availability: Json
+          bio: string | null
+          certifications: string | null
+          created_at: string
+          headline: string | null
+          id: string
+          location: string | null
+          phone: string | null
+          qualifications: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          specializations: string[]
+          status: string
+          submitted_at: string
+          updated_at: string
+          user_id: string
+          years_experience: number
+        }
+        Insert: {
+          availability?: Json
+          bio?: string | null
+          certifications?: string | null
+          created_at?: string
+          headline?: string | null
+          id?: string
+          location?: string | null
+          phone?: string | null
+          qualifications?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          specializations?: string[]
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id: string
+          years_experience?: number
+        }
+        Update: {
+          availability?: Json
+          bio?: string | null
+          certifications?: string | null
+          created_at?: string
+          headline?: string | null
+          id?: string
+          location?: string | null
+          phone?: string | null
+          qualifications?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          specializations?: string[]
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id?: string
+          years_experience?: number
         }
         Relationships: []
       }
@@ -3404,10 +3467,14 @@ export type Database = {
       list_career_counselors: {
         Args: never
         Returns: {
+          availability: Json
           average_rating: number
           full_name: string
+          headline: string
           sessions_completed: number
+          specializations: string[]
           user_id: string
+          years_experience: number
         }[]
       }
       list_signup_schools: {

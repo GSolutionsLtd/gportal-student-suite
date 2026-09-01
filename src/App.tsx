@@ -23,6 +23,7 @@ import Contact from "./pages/Contact";
 import CareerAidPortal from "./pages/careeraid/CareerAidPortal";
 import CareerAidAuth from "./pages/careeraid/CareerAidAuth";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
+import CounselorOnboarding from "./pages/counselor/CounselorOnboarding";
 import CounselorAuth from "./pages/counselor/CounselorAuth";
 
 // Dashboard Layouts
@@ -160,6 +161,15 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/counselor/onboarding"
+                element={
+                  <ProtectedRoute allowedRoles={["counselor"]}>
+                    <CounselorOnboarding />
+                  </ProtectedRoute>
+                }
+              />
+
 
               {/* Super Admin Routes (no school code) */}
               <Route 
