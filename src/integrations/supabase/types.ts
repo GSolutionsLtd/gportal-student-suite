@@ -1405,6 +1405,69 @@ export type Database = {
         }
         Relationships: []
       }
+      counselor_profiles: {
+        Row: {
+          availability: Json
+          bio: string | null
+          certifications: string | null
+          created_at: string
+          headline: string | null
+          id: string
+          location: string | null
+          phone: string | null
+          qualifications: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          specializations: string[]
+          status: string
+          submitted_at: string
+          updated_at: string
+          user_id: string
+          years_experience: number
+        }
+        Insert: {
+          availability?: Json
+          bio?: string | null
+          certifications?: string | null
+          created_at?: string
+          headline?: string | null
+          id?: string
+          location?: string | null
+          phone?: string | null
+          qualifications?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          specializations?: string[]
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id: string
+          years_experience?: number
+        }
+        Update: {
+          availability?: Json
+          bio?: string | null
+          certifications?: string | null
+          created_at?: string
+          headline?: string | null
+          id?: string
+          location?: string | null
+          phone?: string | null
+          qualifications?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          specializations?: string[]
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id?: string
+          years_experience?: number
+        }
+        Relationships: []
+      }
       counselor_session_ratings: {
         Row: {
           comment: string | null
@@ -3404,10 +3467,14 @@ export type Database = {
       list_career_counselors: {
         Args: never
         Returns: {
+          availability: Json
           average_rating: number
           full_name: string
+          headline: string
           sessions_completed: number
+          specializations: string[]
           user_id: string
+          years_experience: number
         }[]
       }
       list_signup_schools: {
