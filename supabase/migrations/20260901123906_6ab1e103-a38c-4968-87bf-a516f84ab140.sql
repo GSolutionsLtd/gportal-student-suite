@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.counselor_profile_reset_review() FROM public, anon, authenticated;
