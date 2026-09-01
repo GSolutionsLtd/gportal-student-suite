@@ -161,6 +161,15 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/counselor/onboarding"
+                element={
+                  <ProtectedRoute allowedRoles={["counselor"]}>
+                    <CounselorOnboarding />
+                  </ProtectedRoute>
+                }
+              />
+
 
               {/* Super Admin Routes (no school code) */}
               <Route 
