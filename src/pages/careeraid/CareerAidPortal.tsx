@@ -15,7 +15,7 @@ import { Logo } from "@/components/Logo";
 import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
 import {
   Loader2, Compass, Sparkles, GraduationCap, Video, Target, CheckCircle2, ArrowRight, ShieldCheck,
-  Lock, Star,
+  Lock, Star, LogOut,
 } from "lucide-react";
 
 import { format } from "date-fns";
