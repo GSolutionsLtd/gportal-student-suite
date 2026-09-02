@@ -52,7 +52,7 @@ const SCALE = [
 ];
 
 export default function CareerAidPortal() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
   const { toast } = useToast();
   const [params, setParams] = useSearchParams();
 
