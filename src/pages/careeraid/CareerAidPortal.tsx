@@ -512,14 +512,27 @@ export default function CareerAidPortal() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {counselors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No counselors available right now.</p>
+                    <p className="text-sm text-muted-foreground">No approved counselors available right now.</p>
                   ) : counselors.map((c) => (
-                    <div key={c.user_id} className="flex items-center justify-between border rounded-md px-3 py-2">
-                      <div>
+                    <div key={c.user_id} className="flex items-start justify-between gap-3 border rounded-md px-3 py-2">
+                      <div className="space-y-0.5">
                         <p className="text-sm font-medium">{c.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{c.sessions_completed} session(s) completed</p>
+                        {c.headline && <p className="text-xs">{c.headline}</p>}
+                        {c.specializations && c.specializations.length > 0 && (
+                          <p className="text-xs text-muted-foreground">{c.specializations.join(", ")}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {c.years_experience ? `${c.years_experience} yr(s) experience · ` : ""}
+                          {c.sessions_completed} session(s) completed
+                        </p>
+                        {(c.availability?.days?.length || c.availability?.hours) && (
+                          <p className="text-xs text-muted-foreground">
+                            Available: {(c.availability?.days ?? []).join(", ")}
+                            {c.availability?.hours ? ` · ${c.availability.hours}` : ""}
+                          </p>
+                        )}
                       </div>
-                      <Badge variant="outline" className="gap-1">
+                      <Badge variant="outline" className="gap-1 shrink-0">
                         <Star className="h-3 w-3" />{c.average_rating ? Number(c.average_rating).toFixed(1) : "New"}
                       </Badge>
                     </div>
