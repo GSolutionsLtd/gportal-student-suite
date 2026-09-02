@@ -173,10 +173,38 @@ export default function CounselorDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Career Counselor Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Guide students from subscribed schools and independent CareerAid subscribers.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Career Counselor Dashboard</h1>
+            <p className="text-muted-foreground text-sm">Guide students from subscribed schools and independent CareerAid subscribers.</p>
+          </div>
+          <Link to="/counselor/onboarding">
+            <Button variant="outline" size="sm">{cProfile ? "Edit onboarding profile" : "Complete onboarding"}</Button>
+          </Link>
         </div>
+
+        {cProfile?.status !== "approved" && (
+          <Card className="border-primary/40">
+            <CardHeader>
+              <CardTitle className="text-base">
+                {!cProfile ? "Complete your onboarding" : cProfile.status === "rejected" ? "Profile not approved" : "Profile awaiting approval"}
+              </CardTitle>
+              <CardDescription>
+                {!cProfile
+                  ? "Submit your profile, qualifications and availability. An administrator must approve it before students can see or book you."
+                  : cProfile.status === "rejected"
+                    ? cProfile.review_note || "Update your profile and resubmit it for review."
+                    : "An administrator is reviewing your submission. You will appear in the counselor directory once approved."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/counselor/onboarding">
+                <Button size="sm">{cProfile ? "Review my submission" : "Start onboarding"}</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Card><CardHeader className="pb-2"><CardDescription>Students counseled this month (min {MIN_STUDENTS})</CardDescription>
