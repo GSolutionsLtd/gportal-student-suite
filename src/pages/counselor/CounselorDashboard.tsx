@@ -53,6 +53,10 @@ export default function CounselorDashboard() {
       ((data as any[]) ?? []).forEach((x) => { map[x.user_id] = `${x.full_name} (independent)`; });
     }
     setNames(map);
+    const { data: cp } = await supabase
+      .from("counselor_profiles" as any).select("*").eq("user_id", user.id).maybeSingle();
+    setCProfile(cp);
+
     setLoading(false);
   };
 
