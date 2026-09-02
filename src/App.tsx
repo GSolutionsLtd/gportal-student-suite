@@ -76,6 +76,7 @@ import AuditTrail from "./pages/shared/AuditTrail";
 import SchoolManagement from "./pages/super-admin/SchoolManagement";
 import SchoolFeatures from "./pages/super-admin/SchoolFeatures";
 import ContactSubmissions from "./pages/super-admin/ContactSubmissions";
+import CounselorApprovals from "./pages/super-admin/CounselorApprovals";
 
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
