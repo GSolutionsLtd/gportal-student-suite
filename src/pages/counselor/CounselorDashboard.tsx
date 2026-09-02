@@ -26,6 +26,7 @@ export default function CounselorDashboard() {
   const [names, setNames] = useState<Record<string, string>>({});
   const [linkDraft, setLinkDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [cProfile, setCProfile] = useState<any>(null);
 
   const load = async () => {
     if (!user) return;
