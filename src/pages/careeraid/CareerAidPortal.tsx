@@ -79,7 +79,7 @@ export default function CareerAidPortal() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [booking, setBooking] = useState({ scheduled_at: "", topic: "" });
   const [bookingBusy, setBookingBusy] = useState(false);
-  const [counselors, setCounselors] = useState<{ user_id: string; full_name: string; sessions_completed: number; average_rating: number | null }[]>([]);
+  const [counselors, setCounselors] = useState<{ user_id: string; full_name: string; headline?: string | null; specializations?: string[] | null; years_experience?: number | null; availability?: any; sessions_completed: number; average_rating: number | null }[]>([]);
   const [ratings, setRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
   const [ratingDraft, setRatingDraft] = useState<Record<string, { rating: number; comment: string }>>({});
   const [ratingBusy, setRatingBusy] = useState<string | null>(null);
