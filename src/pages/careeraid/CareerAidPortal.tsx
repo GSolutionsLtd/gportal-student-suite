@@ -15,7 +15,7 @@ import { Logo } from "@/components/Logo";
 import { HOLLAND_QUESTIONS, HOLLAND_LABELS, HollandType } from "@/data/hollandQuestions";
 import {
   Loader2, Compass, Sparkles, GraduationCap, Video, Target, CheckCircle2, ArrowRight, ShieldCheck,
-  Lock, Star,
+  Lock, Star, LogOut,
 } from "lucide-react";
 
 import { format } from "date-fns";
@@ -52,7 +52,7 @@ const SCALE = [
 ];
 
 export default function CareerAidPortal() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
   const { toast } = useToast();
   const [params, setParams] = useSearchParams();
 
@@ -79,7 +79,7 @@ export default function CareerAidPortal() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [booking, setBooking] = useState({ scheduled_at: "", topic: "" });
   const [bookingBusy, setBookingBusy] = useState(false);
-  const [counselors, setCounselors] = useState<{ user_id: string; full_name: string; sessions_completed: number; average_rating: number | null }[]>([]);
+  const [counselors, setCounselors] = useState<{ user_id: string; full_name: string; headline?: string | null; specializations?: string[] | null; years_experience?: number | null; availability?: any; sessions_completed: number; average_rating: number | null }[]>([]);
   const [ratings, setRatings] = useState<Record<string, { rating: number; comment: string | null }>>({});
   const [ratingDraft, setRatingDraft] = useState<Record<string, { rating: number; comment: string }>>({});
   const [ratingBusy, setRatingBusy] = useState<string | null>(null);
@@ -265,7 +265,11 @@ export default function CareerAidPortal() {
           <Link to="/" className="flex items-center gap-2"><Logo /></Link>
           <div className="flex items-center gap-2">
             <Link to="/check-result"><Button variant="ghost" size="sm">Check Result</Button></Link>
-            {!user && <Link to="/careeraid/auth"><Button size="sm">Sign in</Button></Link>}
+            {!user
+              ? <Link to="/careeraid/auth"><Button size="sm">Sign in</Button></Link>
+              : <Button variant="outline" size="sm" onClick={() => signOut()}>
+                  <LogOut className="h-4 w-4 mr-2" />Sign out
+                </Button>}
           </div>
         </div>
       </header>
@@ -508,14 +512,27 @@ export default function CareerAidPortal() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {counselors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No counselors available right now.</p>
+                    <p className="text-sm text-muted-foreground">No approved counselors available right now.</p>
                   ) : counselors.map((c) => (
-                    <div key={c.user_id} className="flex items-center justify-between border rounded-md px-3 py-2">
-                      <div>
+                    <div key={c.user_id} className="flex items-start justify-between gap-3 border rounded-md px-3 py-2">
+                      <div className="space-y-0.5">
                         <p className="text-sm font-medium">{c.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{c.sessions_completed} session(s) completed</p>
+                        {c.headline && <p className="text-xs">{c.headline}</p>}
+                        {c.specializations && c.specializations.length > 0 && (
+                          <p className="text-xs text-muted-foreground">{c.specializations.join(", ")}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {c.years_experience ? `${c.years_experience} yr(s) experience · ` : ""}
+                          {c.sessions_completed} session(s) completed
+                        </p>
+                        {(c.availability?.days?.length || c.availability?.hours) && (
+                          <p className="text-xs text-muted-foreground">
+                            Available: {(c.availability?.days ?? []).join(", ")}
+                            {c.availability?.hours ? ` · ${c.availability.hours}` : ""}
+                          </p>
+                        )}
                       </div>
-                      <Badge variant="outline" className="gap-1">
+                      <Badge variant="outline" className="gap-1 shrink-0">
                         <Star className="h-3 w-3" />{c.average_rating ? Number(c.average_rating).toFixed(1) : "New"}
                       </Badge>
                     </div>

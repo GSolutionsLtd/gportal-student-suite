@@ -54,6 +54,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "System Settings", icon: Settings, path: "settings" },
     { label: "Audit Logs", icon: Shield, path: "audit" },
     { label: "Contact Submissions", icon: FileCheck, path: "contact-submissions" },
+    { label: "Career Counselors", icon: Users, path: "counselors" },
   ],
   admin: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },

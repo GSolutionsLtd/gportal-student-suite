@@ -84,7 +84,8 @@ Deno.serve(async (req) => {
       if (student.user_id !== user.id || student.school_id !== assess.school_id) return json({ error: "Forbidden" }, 403);
       owner = { student_id: student.id, school_id: student.school_id, subscriber_user_id: null };
     } else {
-      // Independent CareerAid subscriber (no school affiliation)
+      // Independent CareerAid learner (no school affiliation).
+      // Free tier: one career plan per calendar month. Subscribers: unlimited.
       if (assess.subscriber_user_id !== user.id) return json({ error: "Forbidden" }, 403);
       const { data: sub } = await admin
         .from("careeraid_subscriptions")
@@ -92,9 +93,26 @@ Deno.serve(async (req) => {
         .eq("user_id", user.id)
         .eq("status", "active")
         .maybeSingle();
-      if (!sub) return json({ error: "An active CareerAid subscription is required" }, 402);
+
+      if (!sub) {
+        const monthStart = new Date();
+        monthStart.setUTCDate(1);
+        monthStart.setUTCHours(0, 0, 0, 0);
+        const { count } = await admin
+          .from("career_recommendations")
+          .select("id", { count: "exact", head: true })
+          .eq("subscriber_user_id", user.id)
+          .gte("created_at", monthStart.toISOString());
+        if ((count ?? 0) >= 1) {
+          return json(
+            { error: "Free access covers one career plan per month. Subscribe for unlimited access." },
+            402,
+          );
+        }
+      }
       owner = { student_id: null, school_id: null, subscriber_user_id: user.id };
     }
+
 
     const prompt = `Student Personality Test profile:
 - Realistic: ${assess.realistic}
