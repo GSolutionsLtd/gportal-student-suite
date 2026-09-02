@@ -265,7 +265,11 @@ export default function CareerAidPortal() {
           <Link to="/" className="flex items-center gap-2"><Logo /></Link>
           <div className="flex items-center gap-2">
             <Link to="/check-result"><Button variant="ghost" size="sm">Check Result</Button></Link>
-            {!user && <Link to="/careeraid/auth"><Button size="sm">Sign in</Button></Link>}
+            {!user
+              ? <Link to="/careeraid/auth"><Button size="sm">Sign in</Button></Link>
+              : <Button variant="outline" size="sm" onClick={() => signOut()}>
+                  <LogOut className="h-4 w-4 mr-2" />Sign out
+                </Button>}
           </div>
         </div>
       </header>
