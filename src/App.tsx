@@ -188,6 +188,8 @@ function App() {
                 <Route path="audit" element={<AuditLogs />} />
                 <Route path="features" element={<SchoolFeatures />} />
                 <Route path="contact-submissions" element={<ContactSubmissions />} />
+                <Route path="counselors" element={<CounselorApprovals />} />
+
               </Route>
 
               {/* School-scoped Admin Routes */}
