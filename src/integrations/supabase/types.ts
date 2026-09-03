@@ -1373,47 +1373,61 @@ export type Database = {
         Row: {
           amount: number
           counselor_user_id: string
+          failure_reason: string | null
           id: string
           notes: string | null
           paid_at: string | null
+          paystack_transfer_code: string | null
           period_month: string
           requested_at: string
           status: string
           students_counseled: number
+          transfer_reference: string | null
         }
         Insert: {
           amount?: number
           counselor_user_id: string
+          failure_reason?: string | null
           id?: string
           notes?: string | null
           paid_at?: string | null
+          paystack_transfer_code?: string | null
           period_month: string
           requested_at?: string
           status?: string
           students_counseled?: number
+          transfer_reference?: string | null
         }
         Update: {
           amount?: number
           counselor_user_id?: string
+          failure_reason?: string | null
           id?: string
           notes?: string | null
           paid_at?: string | null
+          paystack_transfer_code?: string | null
           period_month?: string
           requested_at?: string
           status?: string
           students_counseled?: number
+          transfer_reference?: string | null
         }
         Relationships: []
       }
       counselor_profiles: {
         Row: {
+          account_name: string | null
+          account_number: string | null
           availability: Json
+          bank_code: string | null
+          bank_name: string | null
           bio: string | null
           certifications: string | null
           created_at: string
           headline: string | null
           id: string
           location: string | null
+          paystack_recipient_code: string | null
           phone: string | null
           qualifications: string | null
           review_note: string | null
@@ -1427,13 +1441,18 @@ export type Database = {
           years_experience: number
         }
         Insert: {
+          account_name?: string | null
+          account_number?: string | null
           availability?: Json
+          bank_code?: string | null
+          bank_name?: string | null
           bio?: string | null
           certifications?: string | null
           created_at?: string
           headline?: string | null
           id?: string
           location?: string | null
+          paystack_recipient_code?: string | null
           phone?: string | null
           qualifications?: string | null
           review_note?: string | null
@@ -1447,13 +1466,18 @@ export type Database = {
           years_experience?: number
         }
         Update: {
+          account_name?: string | null
+          account_number?: string | null
           availability?: Json
+          bank_code?: string | null
+          bank_name?: string | null
           bio?: string | null
           certifications?: string | null
           created_at?: string
           headline?: string | null
           id?: string
           location?: string | null
+          paystack_recipient_code?: string | null
           phone?: string | null
           qualifications?: string | null
           review_note?: string | null
@@ -3413,6 +3437,48 @@ export type Database = {
       }
     }
     Functions: {
+      admin_counselor_sessions: {
+        Args: { _counselor_user_id: string }
+        Returns: {
+          completed_at: string
+          id: string
+          learner: string
+          rating: number
+          review: string
+          scheduled_at: string
+          status: string
+          topic: string
+        }[]
+      }
+      admin_list_counselor_profiles: {
+        Args: never
+        Returns: {
+          availability: Json
+          average_rating: number
+          bio: string
+          certifications: string
+          email: string
+          full_name: string
+          headline: string
+          id: string
+          location: string
+          phone: string
+          qualifications: string
+          review_note: string
+          reviewed_at: string
+          sessions_completed: number
+          sessions_total: number
+          specializations: string[]
+          status: string
+          submitted_at: string
+          user_id: string
+          years_experience: number
+        }[]
+      }
+      admin_review_counselor: {
+        Args: { _note?: string; _profile_id: string; _status: string }
+        Returns: undefined
+      }
       can_claim_school_admin: {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
@@ -3492,13 +3558,16 @@ export type Database = {
         Returns: {
           amount: number
           counselor_user_id: string
+          failure_reason: string | null
           id: string
           notes: string | null
           paid_at: string | null
+          paystack_transfer_code: string | null
           period_month: string
           requested_at: string
           status: string
           students_counseled: number
+          transfer_reference: string | null
         }
         SetofOptions: {
           from: "*"
