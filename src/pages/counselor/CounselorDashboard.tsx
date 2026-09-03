@@ -274,6 +274,41 @@ export default function CounselorDashboard() {
             <TabsContent value="wallet" className="space-y-4">
               <Card>
                 <CardHeader>
+                  <CardTitle className="text-base">Payout bank account</CardTitle>
+                  <CardDescription>
+                    {cProfile?.account_name
+                      ? `Payouts go to ${cProfile.account_name} · ${cProfile.bank_name ?? ""} ${cProfile.account_number ? `••••${String(cProfile.account_number).slice(-4)}` : ""}`
+                      : "Add the Nigerian bank account where your monthly earnings should be paid."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1 min-w-[220px] flex-1">
+                    <Label className="text-xs">Bank</Label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={bankCode}
+                      onFocus={loadBanks}
+                      onChange={(e) => setBankCode(e.target.value)}
+                    >
+                      <option value="">Select bank</option>
+                      {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1 min-w-[180px]">
+                    <Label className="text-xs" htmlFor="acct">Account number</Label>
+                    <Input id="acct" inputMode="numeric" maxLength={10} value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))} placeholder="0123456789" />
+                  </div>
+                  <Button onClick={saveBank} disabled={busy === "bank" || !bankCode || accountNumber.length !== 10}>
+                    {busy === "bank" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Verify & save
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+
+                <CardHeader>
                   <CardTitle className="text-base">Withdraw earnings</CardTitle>
                   <CardDescription>
                     You earn ₦{RATE.toLocaleString()} for each distinct student you counsel in a month.
