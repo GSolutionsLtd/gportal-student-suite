@@ -27,6 +27,10 @@ export default function CounselorDashboard() {
   const [linkDraft, setLinkDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [cProfile, setCProfile] = useState<any>(null);
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
+  const [bankCode, setBankCode] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+
 
   const load = async () => {
     if (!user) return;
@@ -112,12 +116,39 @@ export default function CounselorDashboard() {
     update(s.id, { status: "accepted", counselor_user_id: user!.id, meeting_url: url });
   };
 
+  const loadBanks = async () => {
+    if (banks.length) return;
+    const { data, error } = await supabase.functions.invoke("counselor-payout", { body: { action: "banks" } });
+    if (error) return toast({ title: "Could not load banks", description: error.message, variant: "destructive" });
+    setBanks((data as any)?.banks ?? []);
+  };
+
+  const saveBank = async () => {
+    setBusy("bank");
+    const bank = banks.find((b) => b.code === bankCode);
+    const { data, error } = await supabase.functions.invoke("counselor-payout", {
+      body: { action: "save_bank", bank_code: bankCode, bank_name: bank?.name, account_number: accountNumber },
+    });
+    setBusy(null);
+    const err = (data as any)?.error;
+    if (error || err) {
+      return toast({ title: "Could not save payout account", description: err || error?.message, variant: "destructive" });
+    }
+    toast({ title: "Payout account saved", description: `Verified as ${(data as any).account_name}` });
+    await load();
+  };
+
   const requestPayout = async () => {
     setBusy("payout");
-    const { error } = await supabase.rpc("request_counselor_payout" as any);
+    const { data, error } = await supabase.functions.invoke("counselor-payout", { body: { action: "withdraw" } });
     setBusy(null);
-    if (error) return toast({ title: "Withdrawal not allowed", description: error.message, variant: "destructive" });
-    toast({ title: "Withdrawal requested", description: "Your payout is being processed." });
+    const err = (data as any)?.error;
+    if (error || err) return toast({ title: "Withdrawal not allowed", description: err || error?.message, variant: "destructive" });
+    toast({
+      title: (data as any).status === "paid" ? "Payout sent" : "Payout processing",
+      description: `₦${Number((data as any).amount).toLocaleString()} to your bank account.`,
+    });
+
     await load();
   };
 
@@ -243,6 +274,41 @@ export default function CounselorDashboard() {
             <TabsContent value="wallet" className="space-y-4">
               <Card>
                 <CardHeader>
+                  <CardTitle className="text-base">Payout bank account</CardTitle>
+                  <CardDescription>
+                    {cProfile?.account_name
+                      ? `Payouts go to ${cProfile.account_name} · ${cProfile.bank_name ?? ""} ${cProfile.account_number ? `••••${String(cProfile.account_number).slice(-4)}` : ""}`
+                      : "Add the Nigerian bank account where your monthly earnings should be paid."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1 min-w-[220px] flex-1">
+                    <Label className="text-xs">Bank</Label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={bankCode}
+                      onFocus={loadBanks}
+                      onChange={(e) => setBankCode(e.target.value)}
+                    >
+                      <option value="">Select bank</option>
+                      {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1 min-w-[180px]">
+                    <Label className="text-xs" htmlFor="acct">Account number</Label>
+                    <Input id="acct" inputMode="numeric" maxLength={10} value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))} placeholder="0123456789" />
+                  </div>
+                  <Button onClick={saveBank} disabled={busy === "bank" || !bankCode || accountNumber.length !== 10}>
+                    {busy === "bank" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Verify & save
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+
+                <CardHeader>
                   <CardTitle className="text-base">Withdraw earnings</CardTitle>
                   <CardDescription>
                     You earn ₦{RATE.toLocaleString()} for each distinct student you counsel in a month.
@@ -251,10 +317,14 @@ export default function CounselorDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <Button onClick={requestPayout} disabled={!withdrawalDay || !meetsQuota || busy === "payout"}>
+                  <Button onClick={requestPayout} disabled={!withdrawalDay || !meetsQuota || !cProfile?.paystack_recipient_code || busy === "payout"}>
                     {busy === "payout" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Withdraw ₦{withdrawable.toLocaleString()}
                   </Button>
+                  {!cProfile?.paystack_recipient_code && (
+                    <p className="text-xs text-muted-foreground">Add and verify your payout bank account first.</p>
+                  )}
+
                   {!meetsQuota && (
                     <p className="text-xs text-muted-foreground">
                       No month has reached {MIN_STUDENTS} counseled students yet — {thisMonthCount}/{MIN_STUDENTS} this month.

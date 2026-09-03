@@ -90,7 +90,26 @@ Deno.serve(async (req) => {
         const schoolId = paymentData.metadata?.school_id;
         const durationMonths = paymentData.metadata?.duration_months || 1;
 
+        // Independent CareerAid Clinic subscription (₦5,000 / month)
+        if ((paymentData.metadata as any)?.purpose === "careeraid_subscription") {
+          const startsAt = new Date();
+          const expiresAt = new Date(startsAt);
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+          const { error } = await supabase
+            .from("careeraid_subscriptions")
+            .update({
+              status: "active",
+              starts_at: startsAt.toISOString(),
+              expires_at: expiresAt.toISOString(),
+            })
+            .eq("paystack_reference", paymentData.reference)
+            .neq("status", "active");
+          if (error) console.error("Error activating CareerAid subscription:", error);
+          break;
+        }
+
         if (schoolId) {
+
           // Calculate new subscription end date
           const now = new Date();
           const subscriptionEndsAt = new Date(now);
@@ -155,8 +174,28 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "transfer.success":
+      case "transfer.failed":
+      case "transfer.reversed": {
+        const transferCode = (event.data as any)?.transfer_code;
+        if (transferCode) {
+          const succeeded = event.event === "transfer.success";
+          const { error } = await supabase
+            .from("counselor_payouts")
+            .update({
+              status: succeeded ? "paid" : "failed",
+              paid_at: succeeded ? new Date().toISOString() : null,
+              failure_reason: succeeded ? null : ((event.data as any)?.reason || event.event),
+            })
+            .eq("paystack_transfer_code", transferCode);
+          if (error) console.error("Error updating counselor payout:", error);
+        }
+        break;
+      }
+
       default:
         console.log("Unhandled event type:", event.event);
+
     }
 
     return new Response(JSON.stringify({ received: true }), {
