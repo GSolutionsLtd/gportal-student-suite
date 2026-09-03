@@ -317,10 +317,14 @@ export default function CounselorDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <Button onClick={requestPayout} disabled={!withdrawalDay || !meetsQuota || busy === "payout"}>
+                  <Button onClick={requestPayout} disabled={!withdrawalDay || !meetsQuota || !cProfile?.paystack_recipient_code || busy === "payout"}>
                     {busy === "payout" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Withdraw ₦{withdrawable.toLocaleString()}
                   </Button>
+                  {!cProfile?.paystack_recipient_code && (
+                    <p className="text-xs text-muted-foreground">Add and verify your payout bank account first.</p>
+                  )}
+
                   {!meetsQuota && (
                     <p className="text-xs text-muted-foreground">
                       No month has reached {MIN_STUDENTS} counseled students yet — {thisMonthCount}/{MIN_STUDENTS} this month.
