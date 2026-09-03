@@ -112,12 +112,39 @@ export default function CounselorDashboard() {
     update(s.id, { status: "accepted", counselor_user_id: user!.id, meeting_url: url });
   };
 
+  const loadBanks = async () => {
+    if (banks.length) return;
+    const { data, error } = await supabase.functions.invoke("counselor-payout", { body: { action: "banks" } });
+    if (error) return toast({ title: "Could not load banks", description: error.message, variant: "destructive" });
+    setBanks((data as any)?.banks ?? []);
+  };
+
+  const saveBank = async () => {
+    setBusy("bank");
+    const bank = banks.find((b) => b.code === bankCode);
+    const { data, error } = await supabase.functions.invoke("counselor-payout", {
+      body: { action: "save_bank", bank_code: bankCode, bank_name: bank?.name, account_number: accountNumber },
+    });
+    setBusy(null);
+    const err = (data as any)?.error;
+    if (error || err) {
+      return toast({ title: "Could not save payout account", description: err || error?.message, variant: "destructive" });
+    }
+    toast({ title: "Payout account saved", description: `Verified as ${(data as any).account_name}` });
+    await load();
+  };
+
   const requestPayout = async () => {
     setBusy("payout");
-    const { error } = await supabase.rpc("request_counselor_payout" as any);
+    const { data, error } = await supabase.functions.invoke("counselor-payout", { body: { action: "withdraw" } });
     setBusy(null);
-    if (error) return toast({ title: "Withdrawal not allowed", description: error.message, variant: "destructive" });
-    toast({ title: "Withdrawal requested", description: "Your payout is being processed." });
+    const err = (data as any)?.error;
+    if (error || err) return toast({ title: "Withdrawal not allowed", description: err || error?.message, variant: "destructive" });
+    toast({
+      title: (data as any).status === "paid" ? "Payout sent" : "Payout processing",
+      description: `₦${Number((data as any).amount).toLocaleString()} to your bank account.`,
+    });
+
     await load();
   };
 
