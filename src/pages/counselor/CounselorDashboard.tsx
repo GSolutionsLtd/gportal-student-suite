@@ -27,6 +27,10 @@ export default function CounselorDashboard() {
   const [linkDraft, setLinkDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [cProfile, setCProfile] = useState<any>(null);
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
+  const [bankCode, setBankCode] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+
 
   const load = async () => {
     if (!user) return;
