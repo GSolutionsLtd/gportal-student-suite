@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { TeacherWorkHistory } from "@/components/teacher/TeacherWorkHistory";
 
 interface ClassAssignment {
   id: string;
@@ -465,6 +466,8 @@ export default function TeacherDashboard() {
           </div>
         </div>
       )}
+
+      <TeacherWorkHistory compact />
     </div>
   );
 }
