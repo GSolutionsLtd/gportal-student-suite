@@ -150,6 +150,7 @@ function App() {
               <Route path="/verify-result" element={<VerifyResult />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/site/:schoolCode" element={<PublicSchoolSite />} />
+              <Route path="/site/:schoolCode/:page" element={<PublicSchoolSite />} />
               <Route path="/careeraid" element={<CareerAidPortal />} />
               <Route path="/careeraid/auth" element={<CareerAidAuth />} />
 
