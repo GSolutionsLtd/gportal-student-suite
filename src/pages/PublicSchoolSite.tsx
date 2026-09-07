@@ -117,7 +117,8 @@ export default function PublicSchoolSite() {
       full_name: form.name.trim(),
       school_name: school.name,
       email: form.email.trim(),
-      phone: form.phone.trim() || null,
+      city_state: site?.address ?? "Not provided",
+      phone: form.phone.trim() || "Not provided",
       message: form.message.trim(),
       source: `school-website:${schoolCode}`,
     });
