@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Save, Upload, X, ImageIcon } from "lucide-react";
+import { TeacherWorkHistory } from "@/components/teacher/TeacherWorkHistory";
 
 type TeacherType = "subject" | "class" | "form";
 
@@ -325,6 +326,8 @@ export default function TeacherProfile() {
           </div>
         </CardContent>
       </Card>
+
+      <TeacherWorkHistory />
     </div>
   );
 }
