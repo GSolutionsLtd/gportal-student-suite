@@ -85,6 +85,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
     { label: "Attendance ✨", icon: Calendar, path: "attendance" },
     { label: "School Website", icon: Globe, path: "school-website" },
+    { label: "Counselor Onboarding", icon: Users, path: "counselors", feature: "careeraid" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
