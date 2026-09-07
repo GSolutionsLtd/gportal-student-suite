@@ -84,6 +84,7 @@ import StudentCBTExam from "./pages/student/CBTExam";
 import StudentFeePayment from "./pages/student/FeePayment";
 import StudentLessonNotes from "./pages/student/LessonNotes";
 import SchoolWebsiteManager from "./pages/admin/SchoolWebsiteManager";
+import AdminCounselorOnboarding from "./pages/admin/AdminCounselorOnboarding";
 import PublicSchoolSite from "./pages/PublicSchoolSite";
 
 // Parent pages
@@ -149,6 +150,7 @@ function App() {
               <Route path="/verify-result" element={<VerifyResult />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/site/:schoolCode" element={<PublicSchoolSite />} />
+              <Route path="/site/:schoolCode/:page" element={<PublicSchoolSite />} />
               <Route path="/careeraid" element={<CareerAidPortal />} />
               <Route path="/careeraid/auth" element={<CareerAidAuth />} />
 
@@ -228,6 +230,7 @@ function App() {
                 <Route path="lesson-planner" element={<LessonPlannerFeature />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
                 <Route path="school-website" element={<SchoolWebsiteManager />} />
+                <Route path="counselors" element={<AdminCounselorOnboarding />} />
                 <Route path="audit" element={<AuditTrail />} />
               </Route>
 

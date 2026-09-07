@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { DashboardLayout } from "@/components/layouts/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -174,8 +173,7 @@ export default function AdminCounselorOnboarding() {
   );
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Counselor Onboarding</h1>
           <p className="text-muted-foreground text-sm">
@@ -201,7 +199,6 @@ export default function AdminCounselorOnboarding() {
             ))}
           </Tabs>
         )}
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }
