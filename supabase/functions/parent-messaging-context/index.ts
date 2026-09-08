@@ -167,29 +167,31 @@ Deno.serve(async (req) => {
       }));
 
 
-    // Add Admin users as contactable entities
-    // We use a special prefix "admin_" to distinguish admin entries from teacher entries
-    const { data: adminRoles } = await adminClient
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
+    // Add Admin users of the parent's own school(s) as contactable entities
+    const { data: schoolAdminRows } = allowedSchoolIds.length > 0
+      ? await adminClient
+          .from("school_admins")
+          .select("user_id")
+          .in("school_id", allowedSchoolIds)
+      : { data: [] as any[] };
 
-    if (adminRoles && adminRoles.length > 0) {
-      const adminUserIds = adminRoles.map((r: any) => r.user_id);
+    const adminUserIds = [...new Set((schoolAdminRows || []).map((r: any) => r.user_id))];
+
+    if (adminUserIds.length > 0) {
       const { data: adminProfiles } = await adminClient
         .from("profiles")
         .select("id, full_name")
         .in("id", adminUserIds);
 
-      // We need a teacher record for the admin to store messages.
-      // Check if admin has a teacher record, if not we'll create a virtual mapping.
-      // For messaging, we'll use admin user_id as teacher_id reference via teachers table.
+      // Admins need a teacher record in the same school to receive messages.
       const { data: adminTeachers } = await adminClient
         .from("teachers")
-        .select("id, user_id")
-        .in("user_id", adminUserIds);
+        .select("id, user_id, school_id")
+        .in("user_id", adminUserIds)
+        .in("school_id", allowedSchoolIds);
 
       const adminTeacherMap = new Map((adminTeachers || []).map((t: any) => [t.user_id, t.id]));
+
 
       (adminProfiles || []).forEach((profile: any) => {
         const teacherId = adminTeacherMap.get(profile.id);
