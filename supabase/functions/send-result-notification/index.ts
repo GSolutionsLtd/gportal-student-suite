@@ -72,11 +72,20 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fetch school settings for branding
-    const { data: schoolSettings } = await supabase
+    // Determine the caller's school so we never touch another school's data
+    const { data: callerSchoolId } = await authClient.rpc("get_user_school_id", { _user_id: uid });
+    const isSuper = roleChecks[2].data === true;
+
+    if (!callerSchoolId && !isSuper) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    // Fetch school settings for branding (scoped to caller's school)
+    let settingsQuery = supabase
       .from("school_settings")
-      .select("school_name, logo_url, address, phone, email, motto")
-      .maybeSingle();
+      .select("school_name, logo_url, address, phone, email, motto");
+    settingsQuery = callerSchoolId ? settingsQuery.eq("school_id", callerSchoolId) : settingsQuery.limit(1);
+    const { data: schoolSettings } = await settingsQuery.maybeSingle();
 
     const schoolName = schoolSettings?.school_name || "School";
     const schoolAddress = schoolSettings?.address || "";
@@ -86,10 +95,11 @@ const handler = async (req: Request): Promise<Response> => {
     const logoUrl = schoolSettings?.logo_url || "";
 
     // Fetch results with student info and result components for summary
-    const { data: results, error: resultsError } = await supabase
+    let resultsQuery = supabase
       .from("results")
       .select(`
         id,
+        school_id,
         student_id,
         term_id,
         average_score,
@@ -112,6 +122,11 @@ const handler = async (req: Request): Promise<Response> => {
         )
       `)
       .in("id", resultIds);
+
+    if (callerSchoolId) resultsQuery = resultsQuery.eq("school_id", callerSchoolId);
+
+    const { data: results, error: resultsError } = await resultsQuery;
+
 
     if (resultsError) {
       console.error("Error fetching results:", resultsError);

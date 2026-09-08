@@ -92,15 +92,21 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get school settings for branding
+    // Get school settings for branding — scoped to the caller's own school
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { data: schoolSettings } = await supabase
+    const { data: callerSchoolId } = await authClient.rpc("get_user_school_id", { _user_id: uid });
+
+    let settingsQuery = supabase
       .from("school_settings")
-      .select("school_name, email, phone, address, motto")
-      .limit(1)
-      .maybeSingle();
+      .select("school_name, email, phone, address, motto");
+    settingsQuery = callerSchoolId
+      ? settingsQuery.eq("school_id", callerSchoolId)
+      : settingsQuery.limit(1);
+
+    const { data: schoolSettings } = await settingsQuery.maybeSingle();
+
 
     const schoolName = schoolSettings?.school_name || "School";
     const schoolEmail = schoolSettings?.email || "noreply@school.com";

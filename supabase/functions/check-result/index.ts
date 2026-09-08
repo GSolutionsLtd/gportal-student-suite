@@ -53,7 +53,7 @@ serve(async (req: Request) => {
     // 2) Find student by admission number (case-insensitive)
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, admission_number, first_name, last_name, middle_name, current_class_arm_id, guardian_email, guardian_name, guardian_phone")
+      .select("id, school_id, admission_number, first_name, last_name, middle_name, current_class_arm_id, guardian_email, guardian_name, guardian_phone")
       .ilike("admission_number", admission)
       .maybeSingle();
 
@@ -350,11 +350,15 @@ serve(async (req: Request) => {
 
     // 8) Grading scales + school settings
     const [{ data: scales, error: scalesError }, { data: schoolSettings, error: schoolError }] = await Promise.all([
-      supabase.from("grading_scales").select("grade, min_score, max_score, remark").order("min_score", { ascending: false }),
+      supabase
+        .from("grading_scales")
+        .select("grade, min_score, max_score, remark")
+        .eq("school_id", student.school_id)
+        .order("min_score", { ascending: false }),
       supabase
         .from("school_settings")
         .select("school_name, address, motto, logo_url, email, phone, principal_name, principal_signature_url")
-        .limit(1)
+        .eq("school_id", student.school_id)
         .maybeSingle(),
     ]);
 

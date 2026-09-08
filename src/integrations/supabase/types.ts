@@ -3496,6 +3496,20 @@ export type Database = {
       generate_pin_code: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
+      get_cbt_exam_paper: {
+        Args: { _exam_id: string }
+        Returns: {
+          id: string
+          marks: number
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+          question_type: string
+          sort_order: number
+        }[]
+      }
       get_grade_for_score: {
         Args: { p_score: number }
         Returns: {
@@ -3575,6 +3589,21 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      start_cbt_attempt: { Args: { _exam_id: string }; Returns: string }
+      submit_cbt_attempt: {
+        Args: {
+          _answers: Json
+          _attempt_id: string
+          _time_spent_seconds?: number
+        }
+        Returns: {
+          passed: boolean
+          percentage: number
+          score: number
+          show_result: boolean
+          total_marks: number
+        }[]
       }
       validate_admin_invite: {
         Args: { _code: string }

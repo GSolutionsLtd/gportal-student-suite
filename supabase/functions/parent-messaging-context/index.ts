@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       studentIds.length > 0
         ? adminClient
             .from("students")
-            .select("id, first_name, last_name, current_class_arm_id")
+            .select("id, first_name, last_name, current_class_arm_id, school_id")
             .in("id", studentIds)
         : Promise.resolve({ data: [], error: null }),
       adminClient
@@ -62,7 +62,10 @@ Deno.serve(async (req) => {
     if (messagesResponse.error) throw messagesResponse.error;
 
     const linkedStudents = studentsResponse.data || [];
+    // Only staff from the parent's own children's schools may ever be surfaced
+    const allowedSchoolIds = [...new Set(linkedStudents.map((s: any) => s.school_id).filter(Boolean))] as string[];
     const classArmIds = [...new Set(linkedStudents.map((student: any) => student.current_class_arm_id).filter(Boolean))] as string[];
+
 
     const [teacherAssignmentsResponse, classArmsResponse] = await Promise.all([
       classArmIds.length > 0
@@ -105,11 +108,12 @@ Deno.serve(async (req) => {
 
     let teacherIds = [...new Set(Array.from(teacherIdsByStudent.values()).flatMap((value) => Array.from(value)))];
 
-    if (teacherIds.length === 0) {
+    if (teacherIds.length === 0 && allowedSchoolIds.length > 0) {
       const { data: fallbackTeachers, error: fallbackError } = await adminClient
         .from("teachers")
         .select("id")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .in("school_id", allowedSchoolIds);
 
       if (fallbackError) throw fallbackError;
       teacherIds = (fallbackTeachers || []).map((teacher: any) => teacher.id);
@@ -117,20 +121,24 @@ Deno.serve(async (req) => {
 
     const { data: teachers, error: teachersError } = await adminClient
       .from("teachers")
-      .select("id, user_id")
+      .select("id, user_id, school_id")
       .in("id", teacherIds.length > 0 ? teacherIds : ["00000000-0000-0000-0000-000000000000"])
+      .in("school_id", allowedSchoolIds.length > 0 ? allowedSchoolIds : ["00000000-0000-0000-0000-000000000000"])
       .eq("is_active", true);
+
 
     if (teachersError) throw teachersError;
 
     const teacherUserIds = (teachers || []).map((teacher: any) => teacher.user_id);
+    // Only teachers inside the parent's own school(s) can be contacted
+    const contactableTeacherIds = new Set((teachers || []).map((teacher: any) => teacher.id));
     const messageTeacherIds = [...new Set((messagesResponse.data || []).map((message: any) => message.teacher_id))];
     const missingTeacherIds = messageTeacherIds.filter((teacherId: string) => !(teachers || []).some((teacher: any) => teacher.id === teacherId));
 
     if (missingTeacherIds.length > 0) {
       const { data: missingTeachers, error: missingTeachersError } = await adminClient
         .from("teachers")
-        .select("id, user_id")
+        .select("id, user_id, school_id")
         .in("id", missingTeacherIds);
 
       if (missingTeachersError) throw missingTeachersError;
@@ -151,34 +159,39 @@ Deno.serve(async (req) => {
       linkedStudents.map((student: any) => [student.id, `${student.first_name} ${student.last_name}`.trim()]),
     );
 
-    const availableTeachers = (teachers || []).map((teacher: any) => ({
-      id: teacher.id,
-      name: teacherNameById.get(teacher.id) || "Unknown Teacher",
-    }));
+    const availableTeachers = (teachers || [])
+      .filter((teacher: any) => contactableTeacherIds.has(teacher.id))
+      .map((teacher: any) => ({
+        id: teacher.id,
+        name: teacherNameById.get(teacher.id) || "Unknown Teacher",
+      }));
 
-    // Add Admin users as contactable entities
-    // We use a special prefix "admin_" to distinguish admin entries from teacher entries
-    const { data: adminRoles } = await adminClient
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
 
-    if (adminRoles && adminRoles.length > 0) {
-      const adminUserIds = adminRoles.map((r: any) => r.user_id);
+    // Add Admin users of the parent's own school(s) as contactable entities
+    const { data: schoolAdminRows } = allowedSchoolIds.length > 0
+      ? await adminClient
+          .from("school_admins")
+          .select("user_id")
+          .in("school_id", allowedSchoolIds)
+      : { data: [] as any[] };
+
+    const adminUserIds = [...new Set((schoolAdminRows || []).map((r: any) => r.user_id))];
+
+    if (adminUserIds.length > 0) {
       const { data: adminProfiles } = await adminClient
         .from("profiles")
         .select("id, full_name")
         .in("id", adminUserIds);
 
-      // We need a teacher record for the admin to store messages.
-      // Check if admin has a teacher record, if not we'll create a virtual mapping.
-      // For messaging, we'll use admin user_id as teacher_id reference via teachers table.
+      // Admins need a teacher record in the same school to receive messages.
       const { data: adminTeachers } = await adminClient
         .from("teachers")
-        .select("id, user_id")
-        .in("user_id", adminUserIds);
+        .select("id, user_id, school_id")
+        .in("user_id", adminUserIds)
+        .in("school_id", allowedSchoolIds);
 
       const adminTeacherMap = new Map((adminTeachers || []).map((t: any) => [t.user_id, t.id]));
+
 
       (adminProfiles || []).forEach((profile: any) => {
         const teacherId = adminTeacherMap.get(profile.id);
