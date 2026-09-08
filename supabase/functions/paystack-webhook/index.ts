@@ -178,17 +178,28 @@ Deno.serve(async (req) => {
       case "transfer.failed":
       case "transfer.reversed": {
         const transferCode = (event.data as any)?.transfer_code;
-        if (transferCode) {
+        const transferRef = (event.data as any)?.reference;
+        if (transferCode || transferRef) {
           const succeeded = event.event === "transfer.success";
-          const { error } = await supabase
+          let q = supabase
             .from("counselor_payouts")
             .update({
               status: succeeded ? "paid" : "failed",
               paid_at: succeeded ? new Date().toISOString() : null,
               failure_reason: succeeded ? null : ((event.data as any)?.reason || event.event),
-            })
-            .eq("paystack_transfer_code", transferCode);
+            });
+          q = transferCode ? q.eq("paystack_transfer_code", transferCode) : q.eq("transfer_reference", transferRef);
+          const { data: payouts, error } = await q.select("id");
           if (error) console.error("Error updating counselor payout:", error);
+
+          // Failed / reversed transfers: release the reserved earnings back to the wallet
+          if (!succeeded && payouts && payouts.length > 0) {
+            const { error: relErr } = await supabase
+              .from("counselor_wallet_entries")
+              .update({ payout_id: null })
+              .in("payout_id", payouts.map((p: any) => p.id));
+            if (relErr) console.error("Error releasing wallet entries:", relErr);
+          }
         }
         break;
       }
