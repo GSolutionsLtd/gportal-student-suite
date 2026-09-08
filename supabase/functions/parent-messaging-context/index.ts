@@ -130,13 +130,15 @@ Deno.serve(async (req) => {
     if (teachersError) throw teachersError;
 
     const teacherUserIds = (teachers || []).map((teacher: any) => teacher.user_id);
+    // Only teachers inside the parent's own school(s) can be contacted
+    const contactableTeacherIds = new Set((teachers || []).map((teacher: any) => teacher.id));
     const messageTeacherIds = [...new Set((messagesResponse.data || []).map((message: any) => message.teacher_id))];
     const missingTeacherIds = messageTeacherIds.filter((teacherId: string) => !(teachers || []).some((teacher: any) => teacher.id === teacherId));
 
     if (missingTeacherIds.length > 0) {
       const { data: missingTeachers, error: missingTeachersError } = await adminClient
         .from("teachers")
-        .select("id, user_id")
+        .select("id, user_id, school_id")
         .in("id", missingTeacherIds);
 
       if (missingTeachersError) throw missingTeachersError;
@@ -157,10 +159,13 @@ Deno.serve(async (req) => {
       linkedStudents.map((student: any) => [student.id, `${student.first_name} ${student.last_name}`.trim()]),
     );
 
-    const availableTeachers = (teachers || []).map((teacher: any) => ({
-      id: teacher.id,
-      name: teacherNameById.get(teacher.id) || "Unknown Teacher",
-    }));
+    const availableTeachers = (teachers || [])
+      .filter((teacher: any) => contactableTeacherIds.has(teacher.id))
+      .map((teacher: any) => ({
+        id: teacher.id,
+        name: teacherNameById.get(teacher.id) || "Unknown Teacher",
+      }));
+
 
     // Add Admin users as contactable entities
     // We use a special prefix "admin_" to distinguish admin entries from teacher entries
