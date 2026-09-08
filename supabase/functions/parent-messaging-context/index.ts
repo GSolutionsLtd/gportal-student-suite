@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       studentIds.length > 0
         ? adminClient
             .from("students")
-            .select("id, first_name, last_name, current_class_arm_id")
+            .select("id, first_name, last_name, current_class_arm_id, school_id")
             .in("id", studentIds)
         : Promise.resolve({ data: [], error: null }),
       adminClient
@@ -62,7 +62,10 @@ Deno.serve(async (req) => {
     if (messagesResponse.error) throw messagesResponse.error;
 
     const linkedStudents = studentsResponse.data || [];
+    // Only staff from the parent's own children's schools may ever be surfaced
+    const allowedSchoolIds = [...new Set(linkedStudents.map((s: any) => s.school_id).filter(Boolean))] as string[];
     const classArmIds = [...new Set(linkedStudents.map((student: any) => student.current_class_arm_id).filter(Boolean))] as string[];
+
 
     const [teacherAssignmentsResponse, classArmsResponse] = await Promise.all([
       classArmIds.length > 0
