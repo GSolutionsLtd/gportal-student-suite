@@ -124,6 +124,8 @@ Deno.serve(async (req) => {
           failure_reason: transfer.body?.message || "Transfer could not be started",
           transfer_reference: reference,
         }).eq("id", (payout as any).id);
+        // Return the reserved earnings to the wallet so the counselor can retry
+        await admin.from("counselor_wallet_entries").update({ payout_id: null }).eq("payout_id", (payout as any).id);
         return json({ error: transfer.body?.message || "Transfer could not be started" }, 502);
       }
 

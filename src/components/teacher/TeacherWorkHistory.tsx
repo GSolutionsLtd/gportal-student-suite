@@ -4,11 +4,22 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, BookOpen, FileText } from "lucide-react";
+import { Loader2, BookOpen, FileText, Shield } from "lucide-react";
 import { format } from "date-fns";
 
 type Plan = { id: string; title: string; topic: string | null; grade_level: string | null; status: string; created_at: string; subject_id: string | null };
 type Assignment = { id: string; title: string; status: string; due_at: string | null; created_at: string; subject_id: string | null; scores_approved: boolean | null };
+type AuditRow = { id: string; action: string; table_name: string; created_at: string; new_data: any };
+
+const MODULE_LABELS: Record<string, string> = {
+  assignments: "Assignments",
+  assignment_submissions: "Submissions",
+  assignment_rubric_scores: "Rubric scoring",
+  lesson_plans: "Curriculum notes",
+  lesson_plan_versions: "Curriculum notes",
+  results: "Results",
+  result_components: "Results",
+};
 
 export function TeacherWorkHistory({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
@@ -16,6 +27,7 @@ export function TeacherWorkHistory({ compact = false }: { compact?: boolean }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [subjects, setSubjects] = useState<Record<string, string>>({});
+  const [audit, setAudit] = useState<AuditRow[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -23,7 +35,7 @@ export function TeacherWorkHistory({ compact = false }: { compact?: boolean }) {
       setLoading(true);
       const { data: teacher } = await supabase.from("teachers").select("id").eq("user_id", user.id).maybeSingle();
 
-      const [{ data: lp }, { data: asg }, { data: subs }] = await Promise.all([
+      const [{ data: lp }, { data: asg }, { data: subs }, { data: logs }] = await Promise.all([
         supabase.from("lesson_plans").select("id, title, topic, grade_level, status, created_at, subject_id")
           .eq("teacher_user_id", user.id).order("created_at", { ascending: false }).limit(compact ? 5 : 100),
         teacher
@@ -31,7 +43,10 @@ export function TeacherWorkHistory({ compact = false }: { compact?: boolean }) {
               .eq("teacher_id", (teacher as any).id).order("created_at", { ascending: false }).limit(compact ? 5 : 100)
           : Promise.resolve({ data: [] as any[] }),
         supabase.from("subjects").select("id, name"),
+        supabase.from("audit_logs").select("id, action, table_name, created_at, new_data")
+          .eq("user_id", user.id).order("created_at", { ascending: false }).limit(compact ? 5 : 100),
       ]);
+      setAudit(((logs as any[]) ?? []) as AuditRow[]);
 
       setPlans(((lp as any[]) ?? []) as Plan[]);
       setAssignments(((asg as any[]) ?? []) as Assignment[]);
@@ -62,6 +77,7 @@ export function TeacherWorkHistory({ compact = false }: { compact?: boolean }) {
             <TabsTrigger value="notes"><BookOpen className="h-4 w-4 mr-2" />Curriculum notes</TabsTrigger>
             <TabsTrigger value="published">Published plans ({published.length})</TabsTrigger>
             <TabsTrigger value="assignments"><FileText className="h-4 w-4 mr-2" />Assignments</TabsTrigger>
+            <TabsTrigger value="audit"><Shield className="h-4 w-4 mr-2" />Audit trail</TabsTrigger>
           </TabsList>
 
           {[
