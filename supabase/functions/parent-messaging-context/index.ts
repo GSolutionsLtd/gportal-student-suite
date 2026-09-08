@@ -108,11 +108,12 @@ Deno.serve(async (req) => {
 
     let teacherIds = [...new Set(Array.from(teacherIdsByStudent.values()).flatMap((value) => Array.from(value)))];
 
-    if (teacherIds.length === 0) {
+    if (teacherIds.length === 0 && allowedSchoolIds.length > 0) {
       const { data: fallbackTeachers, error: fallbackError } = await adminClient
         .from("teachers")
         .select("id")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .in("school_id", allowedSchoolIds);
 
       if (fallbackError) throw fallbackError;
       teacherIds = (fallbackTeachers || []).map((teacher: any) => teacher.id);
@@ -120,9 +121,11 @@ Deno.serve(async (req) => {
 
     const { data: teachers, error: teachersError } = await adminClient
       .from("teachers")
-      .select("id, user_id")
+      .select("id, user_id, school_id")
       .in("id", teacherIds.length > 0 ? teacherIds : ["00000000-0000-0000-0000-000000000000"])
+      .in("school_id", allowedSchoolIds.length > 0 ? allowedSchoolIds : ["00000000-0000-0000-0000-000000000000"])
       .eq("is_active", true);
+
 
     if (teachersError) throw teachersError;
 
