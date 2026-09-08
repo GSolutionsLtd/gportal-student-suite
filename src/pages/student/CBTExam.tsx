@@ -76,27 +76,20 @@ export default function CBTExam() {
       return;
     }
 
-    // Fetch questions
-    const { data: eqs } = await supabase
-      .from("cbt_exam_questions")
-      .select("question_id, sort_order, questions(*)")
-      .eq("exam_id", exam.id)
-      .order("sort_order");
+    // Fetch questions WITHOUT answer keys (server-side filtered)
+    const { data: eqs, error: qErr } = await supabase.rpc("get_cbt_exam_paper", { _exam_id: exam.id });
 
+    if (qErr) { toast({ title: "Error", description: qErr.message, variant: "destructive" }); return; }
     if (!eqs || eqs.length === 0) {
       toast({ title: "No questions", description: "This exam has no questions yet.", variant: "destructive" });
       return;
     }
 
-    let qs = eqs.map((eq) => eq.questions).filter(Boolean);
+    let qs = [...eqs];
     if (exam.shuffle_questions) qs = qs.sort(() => Math.random() - 0.5);
 
-    // Create attempt
-    const { data: attempt, error } = await supabase
-      .from("cbt_attempts")
-      .insert({ exam_id: exam.id, student_id: studentId!, total_marks: exam.total_marks })
-      .select("id")
-      .single();
+    // Create attempt server-side (enforces attempt limits)
+    const { data: newAttemptId, error } = await supabase.rpc("start_cbt_attempt", { _exam_id: exam.id });
 
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
 
@@ -104,7 +97,7 @@ export default function CBTExam() {
     setExamQuestions(qs);
     setCurrentIndex(0);
     setAnswers({});
-    setAttemptId(attempt.id);
+    setAttemptId(newAttemptId as unknown as string);
     setTimeLeft(exam.duration_minutes * 60);
   };
 
@@ -117,31 +110,27 @@ export default function CBTExam() {
     setSubmitting(true);
 
     try {
-      // Save all answers
-      const answerRows = examQuestions.map((q: any) => ({
-        attempt_id: attemptId,
-        question_id: q.id,
-        selected_answer: answers[q.id] || null,
-        is_correct: answers[q.id] === q.correct_answer,
-        marks_awarded: answers[q.id] === q.correct_answer ? (q.marks || 1) : 0,
-      }));
+      const timeSpent = activeExam ? activeExam.duration_minutes * 60 - timeLeft : 0;
 
-      await supabase.from("cbt_answers").insert(answerRows);
+      // Grading happens entirely on the server
+      const { data, error } = await supabase.rpc("submit_cbt_attempt", {
+        _attempt_id: attemptId,
+        _answers: answers,
+        _time_spent_seconds: timeSpent,
+      });
 
-      const score = answerRows.reduce((sum, a) => sum + a.marks_awarded, 0);
-      const totalMarks = examQuestions.reduce((sum: number, q: any) => sum + (q.marks || 1), 0);
-      const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 10000) / 100 : 0;
-      const timeSpent = activeExam.duration_minutes * 60 - timeLeft;
+      if (error) throw error;
 
-      await supabase.from("cbt_attempts").update({
-        score, total_marks: totalMarks, percentage,
-        status: "completed", submitted_at: new Date().toISOString(),
-        time_spent_seconds: timeSpent,
-      }).eq("id", attemptId);
+      const graded: any = Array.isArray(data) ? data[0] : data;
 
-      setLastResult({ score, totalMarks, percentage, passed: percentage >= (activeExam.pass_mark || 40) });
+      setLastResult({
+        score: graded?.score ?? 0,
+        totalMarks: graded?.total_marks ?? 0,
+        percentage: graded?.percentage ?? 0,
+        passed: !!graded?.passed,
+      });
 
-      if (activeExam.show_result_immediately) {
+      if (graded?.show_result) {
         setResultDialog(true);
       } else {
         toast({ title: "Submitted", description: "Your exam has been submitted. Results will be available later." });
@@ -156,7 +145,8 @@ export default function CBTExam() {
     } finally {
       setSubmitting(false);
     }
-  }, [attemptId, answers, examQuestions, activeExam, timeLeft, submitting]);
+  }, [attemptId, answers, activeExam, timeLeft, submitting]);
+
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
