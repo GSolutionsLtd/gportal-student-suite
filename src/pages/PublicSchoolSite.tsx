@@ -57,34 +57,18 @@ export default function PublicSchoolSite() {
     if (!schoolCode) return;
     (async () => {
       setLoading(true);
-      const { data: schoolRow } = await supabase
-        .from("schools")
-        .select("id, name, logo_url, motto, code")
-        .ilike("code", schoolCode)
-        .maybeSingle();
+      const { data } = await (supabase as any).rpc("get_public_school_site", { _code: schoolCode });
+      const payload = data as { school: any; site: Site; sections: Section[] } | null;
 
-      if (!schoolRow) {
-        setLoading(false);
-        return;
-      }
-      setSchool({ id: schoolRow.id, name: schoolRow.name, logo_url: schoolRow.logo_url, motto: schoolRow.motto });
-
-      const { data: siteRow } = await (supabase as any)
-        .from("school_websites")
-        .select("*")
-        .eq("school_id", schoolRow.id)
-        .eq("is_published", true)
-        .maybeSingle();
-
-      if (siteRow) {
-        setSite(siteRow as Site);
-        const { data: secs } = await (supabase as any)
-          .from("school_website_sections")
-          .select("id, section_type, title, body, image_url, link_url, sort_order")
-          .eq("website_id", (siteRow as Site).id)
-          .eq("is_published", true)
-          .order("sort_order");
-        setSections((secs as Section[]) || []);
+      if (payload?.school) {
+        setSchool({
+          id: payload.school.id,
+          name: payload.school.name,
+          logo_url: payload.school.logo_url,
+          motto: payload.school.motto,
+        });
+        setSite(payload.site as Site);
+        setSections((payload.sections as Section[]) || []);
       }
       setLoading(false);
     })();
