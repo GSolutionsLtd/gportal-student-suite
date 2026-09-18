@@ -121,6 +121,26 @@ export function TeacherWorkHistory({ compact = false }: { compact?: boolean }) {
               </div>
             ))}
           </TabsContent>
+
+          <TabsContent value="audit" className="space-y-2">
+            {audit.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity has been recorded for your account yet.</p>
+            ) : audit.map((l) => (
+              <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+                <div>
+                  <p className="font-medium">
+                    {(l.new_data?.event as string | undefined)?.replace(/_/g, " ") || l.action}
+                    {l.new_data?.title ? ` — ${l.new_data.title}` : ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{MODULE_LABELS[l.table_name] || l.table_name}</p>
+                </div>
+                <span className="flex items-center gap-2">
+                  <Badge variant="outline">{l.action}</Badge>
+                  <span className="text-xs text-muted-foreground">{format(new Date(l.created_at), "PP p")}</span>
+                </span>
+              </div>
+            ))}
+          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
