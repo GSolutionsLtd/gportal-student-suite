@@ -3264,6 +3264,10 @@ export type Database = {
       }
       teachers: {
         Row: {
+          approval_note: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           date_joined: string
           id: string
@@ -3279,6 +3283,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          approval_note?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           date_joined?: string
           id?: string
@@ -3294,6 +3302,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          approval_note?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           date_joined?: string
           id?: string
