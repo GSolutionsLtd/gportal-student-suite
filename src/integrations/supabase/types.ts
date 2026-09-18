@@ -3517,6 +3517,7 @@ export type Database = {
           remark: string
         }[]
       }
+      get_public_school_site: { Args: { _code: string }; Returns: Json }
       get_teacher_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
