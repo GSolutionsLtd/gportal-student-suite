@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSchoolContext } from "@/hooks/useSchoolContext";
 import { UserRole } from "@/types/auth";
 import { Loader2 } from "lucide-react";
+import { TeacherApprovalGate } from "@/components/TeacherApprovalGate";
 
 interface SchoolProtectedRouteProps {
   children: React.ReactNode;
@@ -68,6 +69,10 @@ export function SchoolProtectedRoute({ children, allowedRoles }: SchoolProtected
         </div>
       </div>
     );
+  }
+
+  if (userRole === "teacher") {
+    return <TeacherApprovalGate>{children}</TeacherApprovalGate>;
   }
 
   return <>{children}</>;
