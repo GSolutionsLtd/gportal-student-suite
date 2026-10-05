@@ -84,6 +84,7 @@ import StudentCBTExam from "./pages/student/CBTExam";
 import StudentFeePayment from "./pages/student/FeePayment";
 import StudentLessonNotes from "./pages/student/LessonNotes";
 import SchoolWebsiteManager from "./pages/admin/SchoolWebsiteManager";
+import SchoolAdminPortal from "./pages/admin/SchoolAdminPortal";
 import AdminCounselorOnboarding from "./pages/admin/AdminCounselorOnboarding";
 import PublicSchoolSite from "./pages/PublicSchoolSite";
 
@@ -230,6 +231,7 @@ function App() {
                 <Route path="lesson-planner" element={<LessonPlannerFeature />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
                 <Route path="school-website" element={<SchoolWebsiteManager />} />
+                <Route path="portal" element={<SchoolAdminPortal />} />
                 <Route path="counselors" element={<AdminCounselorOnboarding />} />
                 <Route path="audit" element={<AuditTrail />} />
               </Route>
