@@ -1,4 +1,6 @@
 import { Logo } from "@/components/Logo";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Menu as MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -234,6 +236,7 @@ const faqs = [
 export default function Index() {
   const navigate = useNavigate();
   const [tourOpen, setTourOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const goContact = (source: string) => {
     trackCta(source);
     navigate(`/contact?source=${encodeURIComponent(source)}`);
@@ -245,28 +248,66 @@ export default function Index() {
       <header className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Logo />
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
+          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-muted-foreground">
             <a href="#modules" className="hover:text-primary transition-colors">Modules</a>
             <a href="#why" className="hover:text-primary transition-colors">Why GPortal</a>
             <a href="#ai" className="hover:text-primary transition-colors">AI</a>
             <a href="#faq" className="hover:text-primary transition-colors">FAQ</a>
           </nav>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/check-result")}>
-              Check Result
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/careeraid")}>
-              CareerAid Clinic
-            </Button>
-            <Button variant="ghost" size="sm" className="hidden lg:inline-flex" onClick={() => navigate("/counselor/auth")}>
-              Become a Counselor
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
-              Sign In
-            </Button>
-            <Button variant="hero" size="sm" className="hidden sm:inline-flex" onClick={() => goContact("header_request_demo")}>
-              Request Demo
-            </Button>
+          <div className="hidden lg:flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/check-result")}>Check Result</Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/careeraid")}>CareerAid Clinic</Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/counselor/auth")}>Become a Counselor</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>Sign In</Button>
+            <Button variant="hero" size="sm" onClick={() => goContact("header_request_demo")}>Request Demo</Button>
+          </div>
+          <div className="flex lg:hidden items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>Sign In</Button>
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <MenuIcon className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[85vw] max-w-sm overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="text-left">Menu</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-6">
+                  <div className="space-y-1">
+                    <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Explore</p>
+                    {[
+                      ["#modules", "Modules"],
+                      ["#why", "Why GPortal"],
+                      ["#ai", "AI"],
+                      ["#faq", "FAQ"],
+                    ].map(([href, label]) => (
+                      <a key={href} href={href} onClick={() => setMenuOpen(false)}
+                        className="block rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+                        {label}
+                      </a>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Portals</p>
+                    {[
+                      ["/check-result", "Check Result"],
+                      ["/careeraid", "CareerAid Clinic"],
+                      ["/counselor/auth", "Become a Counselor"],
+                      ["/auth", "Sign In / Sign Up"],
+                    ].map(([to, label]) => (
+                      <button key={to} onClick={() => { setMenuOpen(false); navigate(to); }}
+                        className="block w-full text-left rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <Button variant="hero" className="w-full" onClick={() => { setMenuOpen(false); goContact("header_request_demo"); }}>
+                    Request Demo
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
