@@ -58,6 +58,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   ],
   admin: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
+    { label: "School Admin Portal", icon: School, path: "portal" },
     { label: "Academic Setup", icon: Calendar, path: "academic" },
     { label: "Students", icon: GraduationCap, path: "students" },
     { label: "Teachers", icon: School, path: "teachers" },
