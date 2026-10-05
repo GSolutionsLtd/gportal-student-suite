@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Mail, Phone, MapPin, Globe } from "lucide-react";
+import { Loader2, Mail, Phone, MapPin, Globe, Menu as MenuIcon } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 type Site = {
   id: string;
@@ -168,7 +169,7 @@ export default function PublicSchoolSite() {
             )}
             <span className="font-bold">{school.name}</span>
           </Link>
-          <nav className="flex flex-wrap items-center gap-1">
+          <nav className="hidden md:flex flex-wrap items-center gap-1">
             {PAGES.map((p) => (
               <NavLink
                 key={p.key}
@@ -182,7 +183,34 @@ export default function PublicSchoolSite() {
               </NavLink>
             ))}
           </nav>
-          <Button asChild size="sm"><Link to="/auth">Portal login</Link></Button>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm"><Link to="/auth">Portal login</Link></Button>
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
+                  <MenuIcon className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[80vw] max-w-xs">
+                <SheetHeader><SheetTitle className="text-left">{school.name}</SheetTitle></SheetHeader>
+                <nav className="mt-6 flex flex-col gap-1">
+                  {PAGES.map((p) => (
+                    <NavLink
+                      key={p.key}
+                      to={p.key ? `${base}/${p.key}` : base}
+                      end
+                      onClick={() => setMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `rounded-md px-3 py-2.5 text-sm ${isActive ? "bg-primary/10 text-primary font-medium" : "hover:bg-accent"}`
+                      }
+                    >
+                      {p.label}
+                    </NavLink>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </header>
 

@@ -254,6 +254,7 @@ Deno.serve(async (req) => {
         staff_id: String(teacher.staff_id).trim().toUpperCase(),
         date_joined: new Date().toISOString().slice(0, 10),
         is_active: true,
+        approval_status: existingTeacher ? undefined : "pending",
         is_class_teacher: !!teacher.is_class_teacher,
         is_form_teacher: !!teacher.is_form_teacher,
         signature_url: teacher.signature_url ?? null,
