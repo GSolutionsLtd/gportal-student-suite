@@ -47,6 +47,7 @@ export default function PublicSchoolSite() {
   const { schoolCode, page } = useParams();
   const current = page ?? "";
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [school, setSchool] = useState<{ id: string; name: string; logo_url: string | null; motto: string | null } | null>(null);
   const [site, setSite] = useState<Site | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
