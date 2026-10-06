@@ -569,12 +569,12 @@ export default function TeacherAssignments() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Assignment Management</h1>
           <p className="text-muted-foreground">Create assignments, monitor submissions and publish scores.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button variant="outline" onClick={notifyDue}>
             <Bell className="h-4 w-4 mr-2" /> Send Due Reminders
           </Button>
@@ -589,6 +589,38 @@ export default function TeacherAssignments() {
           <CardTitle>My Assignments</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="divide-y md:hidden">
+            {assignments.length === 0 && (
+              <p className="py-8 px-4 text-center text-sm text-muted-foreground">No assignments yet. Tap "New Assignment" to create one.</p>
+            )}
+            {assignments.map((a) => (
+              <div key={a.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium break-words">{a.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {a.due_at ? `Due ${format(new Date(a.due_at), "PP p")}` : "No deadline"} · Max {a.max_score}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {statusBadge(a.status)}
+                    {a.scores_approved ? <Badge>Approved</Badge> : <Badge variant="outline">Pending</Badge>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button size="sm" onClick={() => openGrading(a)}><Users className="h-4 w-4 mr-1" /> Grade</Button>
+                  <Button size="sm" variant="outline" onClick={() => togglePublish(a)}>
+                    {a.status === "published" ? "Unpublish" : "Publish"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => openEdit(a)}><Pencil className="h-4 w-4 mr-1" /> Edit</Button>
+                  <Button size="sm" variant="outline" className="text-destructive" onClick={() => deleteAssignment(a)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -639,12 +671,13 @@ export default function TeacherAssignments() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
       {/* Create / Edit dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Assignment" : "New Assignment"}</DialogTitle>
             <DialogDescription>
@@ -686,7 +719,7 @@ export default function TeacherAssignments() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Max Score</Label>
                 <Input
@@ -840,7 +873,7 @@ export default function TeacherAssignments() {
 
       {/* Grading dialog */}
       <Dialog open={!!gradingFor} onOpenChange={(v) => !v && setGradingFor(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{gradingFor?.title}</DialogTitle>
             <DialogDescription>
@@ -853,7 +886,9 @@ export default function TeacherAssignments() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : (
-            <Table>
+            <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <p className="mb-2 text-xs text-muted-foreground md:hidden">Swipe sideways to see all columns.</p>
+            <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Student</TableHead>

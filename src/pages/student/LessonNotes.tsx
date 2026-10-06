@@ -128,8 +128,8 @@ export default function StudentLessonNotes() {
 
       {plans.length > 0 && (
         <Card>
-          <CardContent className="grid gap-3 md:grid-cols-4 pt-6">
-            <div className="space-y-1 md:col-span-2">
+          <CardContent className="grid gap-3 grid-cols-2 md:grid-cols-4 p-4 sm:pt-6">
+            <div className="space-y-1 col-span-2">
               <Label className="text-xs" htmlFor="note-search">Search topic or keyword</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -166,7 +166,7 @@ export default function StudentLessonNotes() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-4 flex items-center justify-between">
+            <div className="col-span-2 md:col-span-4 flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
                 Showing {filtered.length} of {plans.length} notes
               </span>
@@ -205,7 +205,7 @@ export default function StudentLessonNotes() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button size="sm" variant="outline" onClick={() => setViewing(p)}>
+                <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => setViewing(p)}>
                   <FileText className="h-4 w-4 mr-1" />Read Note
                 </Button>
               </CardContent>
@@ -216,11 +216,11 @@ export default function StudentLessonNotes() {
 
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           {viewing && (
             <>
               <DialogHeader>
-                <DialogTitle>{viewing.title}</DialogTitle>
+                <DialogTitle className="text-left leading-snug pr-6">{viewing.title}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 text-sm">
                 <p className="text-muted-foreground">
@@ -235,7 +235,7 @@ export default function StudentLessonNotes() {
                   return (
                     <div key={k}>
                       <h3 className="font-semibold text-foreground mb-1">{label}</h3>
-                      <p className="whitespace-pre-wrap text-muted-foreground">{val}</p>
+                      <p className="whitespace-pre-wrap break-words text-muted-foreground leading-relaxed">{val}</p>
                     </div>
                   );
                 })}

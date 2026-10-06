@@ -287,7 +287,7 @@ export default function StudentAssignments() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">My Assignments</h1>
+        <h1 className="text-xl sm:text-2xl font-bold">My Assignments</h1>
         <p className="text-muted-foreground">View, attempt and track your assignments.</p>
       </div>
 
@@ -351,7 +351,7 @@ export default function StudentAssignments() {
       )}
 
       <Dialog open={!!working} onOpenChange={(v) => !v && setWorking(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{working?.title}</DialogTitle>
             <DialogDescription>
@@ -489,7 +489,7 @@ export default function StudentAssignments() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 -mx-4 -mb-4 gap-2 border-t bg-background p-4 sm:static sm:m-0 sm:border-0 sm:p-0">
             <Button variant="outline" onClick={() => setWorking(null)}>Close</Button>
             <Button
               onClick={submit}
