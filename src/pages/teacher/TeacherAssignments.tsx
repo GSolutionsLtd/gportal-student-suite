@@ -1052,6 +1052,7 @@ export default function TeacherAssignments() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
 
           <DialogFooter className="gap-2">
