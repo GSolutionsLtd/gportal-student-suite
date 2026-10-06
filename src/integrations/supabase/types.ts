@@ -3618,6 +3618,25 @@ export type Database = {
           total_marks: number
         }[]
       }
+      super_admin_schools_overview: {
+        Args: never
+        Returns: {
+          code: string
+          fee_structures: number
+          fees_collected: number
+          id: string
+          logo_url: string
+          name: string
+          staff_total: number
+          students_total: number
+          subscription_ends_at: string
+          subscription_status: string
+          teachers_approved: number
+          teachers_pending: number
+          website_published: boolean
+          website_sections: number
+        }[]
+      }
       validate_admin_invite: {
         Args: { _code: string }
         Returns: {
