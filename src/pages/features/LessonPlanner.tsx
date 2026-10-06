@@ -307,7 +307,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
           <p className="text-muted-foreground">Generate, edit and export curriculum-aligned lesson plans.</p>
         </div>
         {isTeacher && (
-          <div className="flex gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <Button variant="outline" onClick={() => { setEditing(emptyPlan); setEditOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" /> New Blank
             </Button>
@@ -373,7 +373,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
 
       {/* Version history dialog */}
       <Dialog open={!!historyFor} onOpenChange={(o) => { if (!o) { setHistoryFor(null); setVersions([]); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] p-4 sm:p-6">
           <DialogHeader><DialogTitle>Version history — {historyFor?.title}</DialogTitle></DialogHeader>
           {versionsLoading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
@@ -420,7 +420,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
 
       {/* AI generation dialog */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto w-[95vw] p-4 sm:p-6">
           <DialogHeader><DialogTitle>Generate curriculum note with AI</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
@@ -432,7 +432,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
                 placeholder="e.g. Photosynthesis, Transpiration"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Subject</Label>
                 <Select
@@ -467,7 +467,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Class label</Label><Input value={aiForm.grade_level} onChange={(e) => setAiForm({ ...aiForm, grade_level: e.target.value })} placeholder="SS 1" /></div>
               <div><Label>Duration (minutes)</Label><Input type="number" value={aiForm.duration_minutes} onChange={(e) => setAiForm({ ...aiForm, duration_minutes: Number(e.target.value) })} /></div>
             </div>
@@ -485,7 +485,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] p-4 sm:p-6">
           <DialogHeader><DialogTitle>{(editing as any).id ? "Edit" : "New"} lesson plan</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid md:grid-cols-2 gap-3">
@@ -545,7 +545,7 @@ ${(["objectives","materials","introduction","main_content","activities","evaluat
 
       {/* View dialog */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] p-4 sm:p-6">
           {viewing && (
             <>
               <DialogHeader>
