@@ -77,6 +77,7 @@ import SchoolManagement from "./pages/super-admin/SchoolManagement";
 import SchoolFeatures from "./pages/super-admin/SchoolFeatures";
 import ContactSubmissions from "./pages/super-admin/ContactSubmissions";
 import CounselorApprovals from "./pages/super-admin/CounselorApprovals";
+import SchoolsOverview from "./pages/super-admin/SchoolsOverview";
 
 // Student pages
 import PerformanceAnalytics from "./pages/student/PerformanceAnalytics";
@@ -190,6 +191,7 @@ function App() {
                 <Route path="settings" element={<SystemSettings />} />
                 <Route path="audit" element={<AuditLogs />} />
                 <Route path="features" element={<SchoolFeatures />} />
+                <Route path="schools-overview" element={<SchoolsOverview />} />
                 <Route path="contact-submissions" element={<ContactSubmissions />} />
                 <Route path="counselors" element={<CounselorApprovals />} />
 

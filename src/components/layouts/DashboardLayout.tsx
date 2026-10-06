@@ -48,6 +48,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   counselor: [],
   super_admin: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
+    { label: "Schools Overview", icon: Globe, path: "schools-overview" },
     { label: "School Management", icon: School, path: "schools" },
     { label: "School Features", icon: Settings, path: "features" },
     { label: "User Management", icon: Users, path: "users" },
