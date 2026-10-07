@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791363697923,
+      "tag": "0000_concurrent_scores_admissions_curriculum",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791363718124,
+      "tag": "0001_curriculum_files_policies",
+      "breakpoints": true
+    }
+  ]
+}
