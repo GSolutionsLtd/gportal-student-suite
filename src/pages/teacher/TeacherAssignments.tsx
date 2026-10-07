@@ -509,15 +509,10 @@ export default function TeacherAssignments() {
           });
         });
         if (rubricRows.length) {
-          // Replace-on-conflict by (submission_id, criterion_id) — use delete+insert for safety
-          const submissionIds = Array.from(new Set(rubricRows.map((r) => r.submission_id)));
-          await (supabase as any)
-            .from("assignment_rubric_scores")
-            .delete()
-            .in("submission_id", submissionIds);
+          // Upsert per (submission, criterion) so concurrent graders never clash
           const { error: rsErr } = await (supabase as any)
             .from("assignment_rubric_scores")
-            .insert(rubricRows);
+            .upsert(rubricRows, { onConflict: "submission_id,criterion_id" });
           if (rsErr) throw rsErr;
         }
       }

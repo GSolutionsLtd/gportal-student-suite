@@ -354,71 +354,24 @@ export default function ResultEntry() {
         const entry = scores[student.id];
         if (!entry) continue;
 
-        let { data: existingResult } = await supabase
-          .from("results")
-          .select("id")
-          .eq("student_id", student.id)
-          .eq("term_id", currentTerm.id)
-          .eq("class_arm_id", assignment.class_arm_id)
-          .maybeSingle();
-
-        let resultIdLocal = existingResult?.id;
-
-        if (!resultIdLocal) {
-          const { data: newResult, error: resultError } = await supabase
-            .from("results")
-            .insert({
-              student_id: student.id,
-              term_id: currentTerm.id,
-              class_arm_id: assignment.class_arm_id,
-              status: "draft",
-            })
-            .select("id")
-            .single();
-
-          if (resultError) throw resultError;
-          resultIdLocal = newResult.id;
-        }
-
-        if (entry.result_component_id) {
-          const { error } = await supabase
-            .from("result_components")
-            .update({
-              test1_score: entry.test1_score,
-              test2_score: entry.test2_score,
-              other_assessment_score: entry.other_assessment_score,
-              exam_score: entry.exam_score,
-              total_score: entry.total_score,
-              entered_by: user?.id,
-              entered_at: new Date().toISOString(),
-            })
-            .eq("id", entry.result_component_id);
-
-          if (error) throw error;
-        } else {
-          const { data: newComponent, error } = await supabase
-            .from("result_components")
-            .insert({
-              result_id: resultIdLocal,
-              subject_id: assignment.subject_id,
-              test1_score: entry.test1_score,
-              test2_score: entry.test2_score,
-              other_assessment_score: entry.other_assessment_score,
-              exam_score: entry.exam_score,
-              total_score: entry.total_score,
-              entered_by: user?.id,
-            })
-            .select("id")
-            .single();
-
-          if (error) throw error;
-          
+        // Atomic, conflict-safe save: many teachers can save for the same
+        // student at the same time without duplicate-result errors.
+        const { data: compId, error } = await (supabase as any).rpc("save_result_component", {
+          _student_id: student.id,
+          _term_id: currentTerm.id,
+          _class_arm_id: assignment.class_arm_id,
+          _subject_id: assignment.subject_id,
+          _test1: entry.test1_score,
+          _test2: entry.test2_score,
+          _other: entry.other_assessment_score,
+          _exam: entry.exam_score,
+          _total: entry.total_score,
+        });
+        if (error) throw error;
+        if (!entry.result_component_id && compId) {
           setScores(prev => ({
             ...prev,
-            [student.id]: {
-              ...prev[student.id],
-              result_component_id: newComponent.id,
-            },
+            [student.id]: { ...prev[student.id], result_component_id: compId as string },
           }));
         }
       }
