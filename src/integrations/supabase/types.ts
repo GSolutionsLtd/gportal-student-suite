@@ -102,6 +102,152 @@ export type Database = {
           },
         ]
       }
+      admission_applications: {
+        Row: {
+          address: string | null
+          amount_paid: number | null
+          application_number: string
+          class_applying: string
+          created_at: string
+          date_of_birth: string | null
+          exam_at: string | null
+          exam_score: number | null
+          exam_venue: string | null
+          first_name: string
+          gender: string | null
+          guardian_email: string
+          guardian_name: string
+          guardian_phone: string
+          id: string
+          last_name: string
+          middle_name: string | null
+          paid_at: string | null
+          payment_reference: string | null
+          payment_status: string
+          previous_school: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_id: string
+          status: string
+          student_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          amount_paid?: number | null
+          application_number: string
+          class_applying: string
+          created_at?: string
+          date_of_birth?: string | null
+          exam_at?: string | null
+          exam_score?: number | null
+          exam_venue?: string | null
+          first_name: string
+          gender?: string | null
+          guardian_email: string
+          guardian_name: string
+          guardian_phone: string
+          id?: string
+          last_name: string
+          middle_name?: string | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          payment_status?: string
+          previous_school?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id: string
+          status?: string
+          student_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          amount_paid?: number | null
+          application_number?: string
+          class_applying?: string
+          created_at?: string
+          date_of_birth?: string | null
+          exam_at?: string | null
+          exam_score?: number | null
+          exam_venue?: string | null
+          first_name?: string
+          gender?: string | null
+          guardian_email?: string
+          guardian_name?: string
+          guardian_phone?: string
+          id?: string
+          last_name?: string
+          middle_name?: string | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          payment_status?: string
+          previous_school?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id?: string
+          status?: string
+          student_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admission_applications_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_applications_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admission_settings: {
+        Row: {
+          application_fee: number
+          id: string
+          instructions: string | null
+          is_open: boolean
+          school_id: string
+          session_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_fee?: number
+          id?: string
+          instructions?: string | null
+          is_open?: boolean
+          school_id: string
+          session_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_fee?: number
+          id?: string
+          instructions?: string | null
+          is_open?: boolean
+          school_id?: string
+          session_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admission_settings_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: true
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignment_reminders: {
         Row: {
           assignment_id: string
@@ -1577,6 +1723,144 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "career_counseling_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_documents: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          description: string | null
+          file_path: string
+          id: string
+          school_id: string
+          subject_id: string | null
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          description?: string | null
+          file_path: string
+          id?: string
+          school_id: string
+          subject_id?: string | null
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          description?: string | null
+          file_path?: string
+          id?: string
+          school_id?: string
+          subject_id?: string | null
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_documents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_documents_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_documents_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_schemes: {
+        Row: {
+          class_id: string
+          covered_at: string | null
+          covered_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_covered: boolean
+          objectives: string | null
+          school_id: string
+          subject_id: string
+          term_id: string | null
+          topic: string
+          updated_at: string
+          week_number: number
+        }
+        Insert: {
+          class_id: string
+          covered_at?: string | null
+          covered_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_covered?: boolean
+          objectives?: string | null
+          school_id: string
+          subject_id: string
+          term_id?: string | null
+          topic: string
+          updated_at?: string
+          week_number?: number
+        }
+        Update: {
+          class_id?: string
+          covered_at?: string | null
+          covered_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_covered?: boolean
+          objectives?: string | null
+          school_id?: string
+          subject_id?: string
+          term_id?: string | null
+          topic?: string
+          updated_at?: string
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_schemes_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_schemes_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_schemes_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_schemes_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
             referencedColumns: ["id"]
           },
         ]
@@ -3495,6 +3779,10 @@ export type Database = {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
       }
+      check_admission_status: {
+        Args: { _application_number: string; _email: string }
+        Returns: Json
+      }
       compute_class_positions: {
         Args: { p_class_arm_id: string; p_term_id: string }
         Returns: undefined
@@ -3508,6 +3796,7 @@ export type Database = {
       generate_pin_code: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
+      get_admission_portal: { Args: { _code: string }; Returns: Json }
       get_cbt_exam_paper: {
         Args: { _exam_id: string }
         Returns: {
@@ -3603,7 +3892,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_result_component: {
+        Args: {
+          _class_arm_id: string
+          _exam: number
+          _other: number
+          _student_id: string
+          _subject_id: string
+          _term_id: string
+          _test1: number
+          _test2: number
+          _total: number
+        }
+        Returns: string
+      }
       start_cbt_attempt: { Args: { _exam_id: string }; Returns: string }
+      submit_admission_application: {
+        Args: { _code: string; _data: Json }
+        Returns: Json
+      }
       submit_cbt_attempt: {
         Args: {
           _answers: Json
