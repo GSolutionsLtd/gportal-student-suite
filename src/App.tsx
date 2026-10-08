@@ -66,6 +66,9 @@ import AdminCareerAid from "./pages/admin/AdminCareerAid";
 import TeacherCareerAid from "./pages/teacher/TeacherCareerAid";
 import StudentCareerAid from "./pages/student/StudentCareerAid";
 import LessonPlannerFeature from "./pages/features/LessonPlanner";
+import CurriculumModule from "./pages/features/Curriculum";
+import AdminAdmissions from "./pages/admin/AdminAdmissions";
+import AdmissionPortal from "./pages/AdmissionPortal";
 import AttendanceFeature from "./pages/features/Attendance";
 
 // Super Admin pages
@@ -153,6 +156,7 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/site/:schoolCode" element={<PublicSchoolSite />} />
               <Route path="/site/:schoolCode/:page" element={<PublicSchoolSite />} />
+              <Route path="/admissions/:schoolCode" element={<AdmissionPortal />} />
               <Route path="/careeraid" element={<CareerAidPortal />} />
               <Route path="/careeraid/auth" element={<CareerAidAuth />} />
 
@@ -234,6 +238,8 @@ function App() {
                 <Route path="attendance" element={<AttendanceFeature />} />
                 <Route path="school-website" element={<SchoolWebsiteManager />} />
                 <Route path="portal" element={<SchoolAdminPortal />} />
+                <Route path="curriculum" element={<CurriculumModule />} />
+                <Route path="admissions" element={<AdminAdmissions />} />
                 <Route path="counselors" element={<AdminCounselorOnboarding />} />
                 <Route path="audit" element={<AuditTrail />} />
               </Route>
@@ -255,6 +261,7 @@ function App() {
                 <Route path="cbt" element={<TeacherCBTManagement />} />
                 <Route path="assignments" element={<TeacherAssignments />} />
                 <Route path="careeraid" element={<TeacherCareerAid />} />
+                <Route path="curriculum" element={<CurriculumModule />} />
                 <Route path="lesson-planner" element={<LessonPlannerFeature />} />
                 <Route path="attendance" element={<AttendanceFeature />} />
                 <Route path="audit" element={<AuditTrail />} />
