@@ -1,0 +1,2 @@
+- Teacher score saves go through the save_result_component RPC (ON CONFLICT upsert) — prevents duplicate-result races when many teachers save at once.
+- Public admission forms write only via submit_admission_application RPC — anon has no direct table access.
