@@ -40,7 +40,7 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   path: string;
-  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid" | "school_website";
+  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid" | "school_website" | "curriculum" | "admissions";
   children?: { label: string; path: string }[];
 }
 
@@ -88,6 +88,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Attendance ✨", icon: Calendar, path: "attendance" },
     { label: "School Website", icon: Globe, path: "school-website" },
     { label: "Counselor Onboarding", icon: Users, path: "counselors", feature: "careeraid" },
+    { label: "Curriculum", icon: BookOpen, path: "curriculum", feature: "curriculum" },
+    { label: "Admissions", icon: GraduationCap, path: "admissions", feature: "admissions" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
@@ -99,6 +101,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Audit Trail", icon: Shield, path: "audit" },
     { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
     { label: "Attendance ✨", icon: Calendar, path: "attendance" },
+    { label: "Curriculum", icon: BookOpen, path: "curriculum", feature: "curriculum" },
     { label: "Parent Messages", icon: MessageSquare, path: "messages" },
     { label: "My Profile", icon: Users, path: "profile" },
   ],

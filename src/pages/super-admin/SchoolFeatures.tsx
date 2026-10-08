@@ -23,6 +23,8 @@ interface SchoolFeatureData {
     lesson_notes: boolean;
     careeraid: boolean;
     school_website: boolean;
+    curriculum: boolean;
+    admissions: boolean;
   };
 }
 
@@ -76,6 +78,20 @@ const FEATURE_INFO = [
     icon: Globe,
     tier: "premium" as const,
   },
+  {
+    key: "curriculum" as const,
+    label: "Curriculum Management",
+    description: "Scheme of work per term, topic coverage tracking, curriculum library",
+    icon: BookOpen,
+    tier: "premium" as const,
+  },
+  {
+    key: "admissions" as const,
+    label: "Admission Management",
+    description: "Online applications, entrance exams, application fees, enrolment",
+    icon: ClipboardList,
+    tier: "premium" as const,
+  },
 ];
 
 export default function SchoolFeatures() {
@@ -84,7 +100,7 @@ export default function SchoolFeatures() {
   const [schools, setSchools] = useState<SchoolFeatureData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editSchool, setEditSchool] = useState<SchoolFeatureData | null>(null);
-  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true, assignments: false, lesson_notes: false, careeraid: false, school_website: false });
+  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true, assignments: false, lesson_notes: false, careeraid: false, school_website: false, curriculum: false, admissions: false });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -114,6 +130,8 @@ export default function SchoolFeatures() {
               lesson_notes: ef.lesson_notes === true,
               careeraid: ef.careeraid === true,
               school_website: ef.school_website === true,
+              curriculum: ef.curriculum === true,
+              admissions: ef.admissions === true,
             },
           };
         })
@@ -160,7 +178,7 @@ export default function SchoolFeatures() {
   );
 
   const countEnabled = (f: SchoolFeatureData["enabled_features"]) =>
-    [f.results, f.cbt, f.finance, f.assignments, f.lesson_notes, f.careeraid, f.school_website].filter(Boolean).length;
+    [f.results, f.cbt, f.finance, f.assignments, f.lesson_notes, f.careeraid, f.school_website, f.curriculum, f.admissions].filter(Boolean).length;
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

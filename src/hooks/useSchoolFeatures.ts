@@ -10,6 +10,8 @@ interface SchoolFeatures {
   lesson_notes: boolean;
   careeraid: boolean;
   school_website: boolean;
+  curriculum: boolean;
+  admissions: boolean;
 }
 
 const DEFAULT_FEATURES: SchoolFeatures = {
@@ -20,6 +22,8 @@ const DEFAULT_FEATURES: SchoolFeatures = {
   lesson_notes: false,
   careeraid: false,
   school_website: false,
+  curriculum: false,
+  admissions: false,
 };
 
 export function useSchoolFeatures() {
@@ -103,6 +107,8 @@ export function useSchoolFeatures() {
               lesson_notes: ef.lesson_notes === true,
               careeraid: ef.careeraid === true,
               school_website: ef.school_website === true,
+              curriculum: ef.curriculum === true,
+              admissions: ef.admissions === true,
             });
           }
         }
