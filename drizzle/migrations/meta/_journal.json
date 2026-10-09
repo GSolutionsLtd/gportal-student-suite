@@ -15,6 +15,13 @@
       "when": 1791363718124,
       "tag": "0001_curriculum_files_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791562553518,
+      "tag": "0002_school_paystack_keys",
+      "breakpoints": true
     }
   ]
 }

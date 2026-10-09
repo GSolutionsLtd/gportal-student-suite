@@ -2998,6 +2998,41 @@ export type Database = {
           },
         ]
       }
+      school_payment_secrets: {
+        Row: {
+          is_live: boolean
+          key_last4: string
+          paystack_secret_key: string
+          school_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          is_live?: boolean
+          key_last4: string
+          paystack_secret_key: string
+          school_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          is_live?: boolean
+          key_last4?: string
+          paystack_secret_key?: string
+          school_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_payment_secrets_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: true
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_settings: {
         Row: {
           address: string | null
@@ -3819,6 +3854,15 @@ export type Database = {
         }[]
       }
       get_public_school_site: { Args: { _code: string }; Returns: Json }
+      get_school_paystack_status: {
+        Args: { _school_id: string }
+        Returns: {
+          configured: boolean
+          is_live: boolean
+          key_last4: string
+          updated_at: string
+        }[]
+      }
       get_teacher_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -3905,6 +3949,10 @@ export type Database = {
           _total: number
         }
         Returns: string
+      }
+      set_school_paystack_key: {
+        Args: { _key: string; _school_id: string }
+        Returns: undefined
       }
       start_cbt_attempt: { Args: { _exam_id: string }; Returns: string }
       submit_admission_application: {
