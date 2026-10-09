@@ -12,6 +12,7 @@ interface SchoolFeatures {
   school_website: boolean;
   curriculum: boolean;
   admissions: boolean;
+  attendance: boolean;
 }
 
 const DEFAULT_FEATURES: SchoolFeatures = {
@@ -24,6 +25,7 @@ const DEFAULT_FEATURES: SchoolFeatures = {
   school_website: false,
   curriculum: false,
   admissions: false,
+  attendance: true,
 };
 
 export function useSchoolFeatures() {
@@ -109,6 +111,7 @@ export function useSchoolFeatures() {
               school_website: ef.school_website === true,
               curriculum: ef.curriculum === true,
               admissions: ef.admissions === true,
+              attendance: ef.attendance !== false,
             });
           }
         }

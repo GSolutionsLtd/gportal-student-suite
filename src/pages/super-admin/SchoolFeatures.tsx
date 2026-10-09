@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save, FileText, BookOpen, Compass, Globe } from "lucide-react";
+import { Loader2, Search, Settings, School, ClipboardList, Monitor, CreditCard, Save, FileText, BookOpen, Compass, Globe, CalendarCheck } from "lucide-react";
 
 interface SchoolFeatureData {
   id: string;
@@ -25,6 +25,8 @@ interface SchoolFeatureData {
     school_website: boolean;
     curriculum: boolean;
     admissions: boolean;
+  attendance: boolean;
+    attendance: boolean;
   };
 }
 
@@ -92,6 +94,13 @@ const FEATURE_INFO = [
     icon: ClipboardList,
     tier: "premium" as const,
   },
+  {
+    key: "attendance" as const,
+    label: "Attendance Management",
+    description: "Daily class attendance, absence tracking and attendance reports",
+    icon: CalendarCheck,
+    tier: "core" as const,
+  },
 ];
 
 export default function SchoolFeatures() {
@@ -100,7 +109,7 @@ export default function SchoolFeatures() {
   const [schools, setSchools] = useState<SchoolFeatureData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editSchool, setEditSchool] = useState<SchoolFeatureData | null>(null);
-  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true, assignments: false, lesson_notes: false, careeraid: false, school_website: false, curriculum: false, admissions: false });
+  const [features, setFeatures] = useState({ results: true, cbt: true, finance: true, assignments: false, lesson_notes: false, careeraid: false, school_website: false, curriculum: false, admissions: false, attendance: true });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -132,6 +141,7 @@ export default function SchoolFeatures() {
               school_website: ef.school_website === true,
               curriculum: ef.curriculum === true,
               admissions: ef.admissions === true,
+              attendance: ef.attendance !== false,
             },
           };
         })
@@ -178,7 +188,7 @@ export default function SchoolFeatures() {
   );
 
   const countEnabled = (f: SchoolFeatureData["enabled_features"]) =>
-    [f.results, f.cbt, f.finance, f.assignments, f.lesson_notes, f.careeraid, f.school_website, f.curriculum, f.admissions].filter(Boolean).length;
+    [f.results, f.cbt, f.finance, f.assignments, f.lesson_notes, f.careeraid, f.school_website, f.curriculum, f.admissions, f.attendance].filter(Boolean).length;
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

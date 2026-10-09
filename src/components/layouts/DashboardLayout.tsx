@@ -40,7 +40,7 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   path: string;
-  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid" | "school_website" | "curriculum" | "admissions";
+  feature?: "results" | "cbt" | "finance" | "assignments" | "lesson_notes" | "careeraid" | "school_website" | "curriculum" | "admissions" | "attendance";
   children?: { label: string; path: string }[];
 }
 
@@ -85,7 +85,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
     { label: "Audit Trail", icon: Shield, path: "audit" },
     { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
-    { label: "Attendance ✨", icon: Calendar, path: "attendance" },
+    { label: "Attendance ✨", icon: Calendar, path: "attendance", feature: "attendance" },
     { label: "School Website", icon: Globe, path: "school-website" },
     { label: "Counselor Onboarding", icon: Users, path: "counselors", feature: "careeraid" },
     { label: "Curriculum", icon: BookOpen, path: "curriculum", feature: "curriculum" },
@@ -100,7 +100,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
     { label: "Audit Trail", icon: Shield, path: "audit" },
     { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
-    { label: "Attendance ✨", icon: Calendar, path: "attendance" },
+    { label: "Attendance ✨", icon: Calendar, path: "attendance", feature: "attendance" },
     { label: "Curriculum", icon: BookOpen, path: "curriculum", feature: "curriculum" },
     { label: "Parent Messages", icon: MessageSquare, path: "messages" },
     { label: "My Profile", icon: Users, path: "profile" },
@@ -114,7 +114,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
     { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
     { label: "Lesson Notes ✨", icon: BookOpen, path: "lesson-notes", feature: "lesson_notes" },
-    { label: "Attendance ✨", icon: Calendar, path: "attendance" },
+    { label: "Attendance ✨", icon: Calendar, path: "attendance", feature: "attendance" },
   ],
   parent: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },

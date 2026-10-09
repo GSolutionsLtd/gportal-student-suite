@@ -71,8 +71,29 @@ Deno.serve(async (req) => {
     const signature = req.headers.get("x-paystack-signature") || "";
     const body = await req.text();
     
-    // Verify signature
-    if (!(await verifyPaystackSignature(body, signature, paystackSecret))) {
+    // Company key signs subscriptions/CareerAid/payouts. School fee events are signed by the
+    // school's own Paystack key, so fall back to that school's key when the company key doesn't match.
+    let viaSchoolKey = false;
+    let validSig = await verifyPaystackSignature(body, signature, paystackSecret);
+    if (!validSig) {
+      try {
+        const peek = JSON.parse(body);
+        const md = peek?.data?.metadata || {};
+        let sid: string | undefined = md.school_id_fee;
+        if (!sid && md.application_id) {
+          const { data: a } = await supabase.from("admission_applications").select("school_id").eq("id", md.application_id).maybeSingle();
+          sid = a?.school_id;
+        }
+        if (sid && (md.type === "school_fee" || md.type === "admission_fee")) {
+          const { data: k } = await supabase.from("school_payment_secrets").select("paystack_secret_key").eq("school_id", sid).maybeSingle();
+          if (k?.paystack_secret_key) {
+            validSig = await verifyPaystackSignature(body, signature, k.paystack_secret_key);
+            viaSchoolKey = validSig;
+          }
+        }
+      } catch (_) { /* ignore */ }
+    }
+    if (!validSig) {
       console.error("Invalid Paystack signature");
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401,
@@ -87,6 +108,23 @@ Deno.serve(async (req) => {
       case "charge.success": {
         // Handle successful payment
         const { data: paymentData } = event;
+        const md: any = paymentData.metadata || {};
+        if (viaSchoolKey) {
+          if (md.type === "school_fee" && md.payment_id) {
+            const { data: receipt } = await supabase.rpc("generate_receipt_number");
+            await supabase.from("fee_payments").update({
+              status: "paid", paid_at: paymentData.paid_at || new Date().toISOString(),
+              verified_at: new Date().toISOString(), payment_reference: paymentData.reference,
+              paystack_reference: paymentData.reference, receipt_number: receipt || null,
+            }).eq("id", md.payment_id).neq("status", "paid");
+          } else if (md.type === "admission_fee" && md.application_id) {
+            await supabase.from("admission_applications").update({
+              payment_status: "paid", amount_paid: paymentData.amount / 100, paid_at: new Date().toISOString(),
+            }).eq("id", md.application_id).eq("payment_reference", paymentData.reference);
+          }
+          break;
+        }
+        // Only company-signed events below may touch subscriptions
         const schoolId = paymentData.metadata?.school_id;
         const durationMonths = paymentData.metadata?.duration_months || 1;
 
