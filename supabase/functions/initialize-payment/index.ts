@@ -123,6 +123,20 @@ Deno.serve(async (req) => {
         });
       }
 
+      // School fees go to the school's OWN Paystack account, never the company's
+      const { data: schoolKey } = await supabase
+        .from("school_payment_secrets")
+        .select("paystack_secret_key")
+        .eq("school_id", student.school_id)
+        .maybeSingle();
+      if (!schoolKey?.paystack_secret_key) {
+        return new Response(JSON.stringify({ error: "This school has not set up online fee payment yet. Please contact the school." }), {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const schoolPaystackSecret = schoolKey.paystack_secret_key;
+
       // Always use server-side amount from fee_structures
       const serverAmount = Number(feeStructure.amount);
 
@@ -153,7 +167,7 @@ Deno.serve(async (req) => {
       const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${paystackSecret}`,
+          Authorization: `Bearer ${schoolPaystackSecret}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -163,6 +177,7 @@ Deno.serve(async (req) => {
           callback_url: callback_url || `${req.headers.get("origin")}/payment/callback`,
           metadata: {
             type: "school_fee",
+            school_id_fee: student.school_id,
             payment_id: payment.id,
             student_id,
             fee_structure_id,

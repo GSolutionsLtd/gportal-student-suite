@@ -29,11 +29,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    // School fee references (FEE-<payment_id>) are verified with the school's own key
+    let verifySecret = paystackSecret;
+    const feeMatch = /^FEE-([0-9a-f-]{36})$/i.exec(String(reference));
+    if (feeMatch) {
+      const { data: pay } = await supabase.from("fee_payments")
+        .select("fee_structures(school_id)").eq("id", feeMatch[1]).maybeSingle();
+      const sid = (pay as any)?.fee_structures?.school_id;
+      const { data: k } = sid ? await supabase.from("school_payment_secrets")
+        .select("paystack_secret_key").eq("school_id", sid).maybeSingle() : { data: null };
+      if (!k?.paystack_secret_key) {
+        return new Response(JSON.stringify({ error: "School payment account not configured" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      verifySecret = k.paystack_secret_key;
+    }
+
     // Verify transaction with Paystack
     const paystackResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${paystackSecret}`,
+        Authorization: `Bearer ${verifySecret}`,
         "Content-Type": "application/json",
       },
     });

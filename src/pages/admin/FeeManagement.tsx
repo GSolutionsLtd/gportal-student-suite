@@ -1,3 +1,4 @@
+import SchoolPaystackKeyCard from "@/components/admin/SchoolPaystackKeyCard";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -139,6 +140,8 @@ export default function FeeManagement() {
         <h1 className="text-2xl font-bold text-foreground">School Fee Management</h1>
         <p className="text-muted-foreground">Manage fee structures, track payments, and generate receipts</p>
       </div>
+
+      <SchoolPaystackKeyCard />
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
