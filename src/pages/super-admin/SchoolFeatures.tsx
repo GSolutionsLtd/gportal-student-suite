@@ -25,7 +25,6 @@ interface SchoolFeatureData {
     school_website: boolean;
     curriculum: boolean;
     admissions: boolean;
-  attendance: boolean;
     attendance: boolean;
   };
 }
