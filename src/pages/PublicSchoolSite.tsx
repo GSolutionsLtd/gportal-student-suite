@@ -225,7 +225,7 @@ export default function PublicSchoolSite() {
                   <p className="text-lg text-muted-foreground">{site.tagline || school.motto}</p>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  <Button asChild><Link to={`/admissions/${school.code}`}>Apply for Admission</Link></Button>
+                  <Button asChild><Link to={`/admissions/${schoolCode}`}>Apply for Admission</Link></Button>
                   <Button asChild variant="outline"><Link to={`${base}/contact`}>Contact us</Link></Button>
                 </div>
               </div>
@@ -269,7 +269,7 @@ export default function PublicSchoolSite() {
                 {site.admissions_info || `Contact ${school.name} for current admission requirements and application dates.`}
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button asChild><Link to={`/admissions/${school.code}`}>Parent Portal: Apply, track &amp; pay</Link></Button>
+                <Button asChild><Link to={`/admissions/${schoolCode}`}>Parent Portal: Apply, track &amp; pay</Link></Button>
                 <Button asChild variant="outline"><Link to={`${base}/contact`}>Ask a question</Link></Button>
               </div>
             </div>
