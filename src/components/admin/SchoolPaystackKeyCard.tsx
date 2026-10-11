@@ -4,9 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { KeyRound, Loader2 } from "lucide-react";
+import { Copy, KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSchoolFeatures } from "@/hooks/useSchoolFeatures";
+
+const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/paystack-webhook`;
 
 export default function SchoolPaystackKeyCard() {
   const { schoolId } = useSchoolFeatures();
@@ -48,7 +50,17 @@ export default function SchoolPaystackKeyCard() {
           <Input type="password" autoComplete="off" placeholder="sk_live_..." value={key} onChange={(e) => setKey(e.target.value)} />
           <Button onClick={save} disabled={busy || !key.trim()}>{busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{status ? "Replace key" : "Save key"}</Button>
         </div>
-        <p className="text-xs text-muted-foreground">In your Paystack dashboard, also set the Webhook URL to: https://zjmxrcjlfdyasftmwdqd.supabase.co/functions/v1/paystack-webhook</p>
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2 text-sm">
+          <p className="font-medium">Connect your Paystack webhook (required)</p>
+          <p className="text-muted-foreground text-xs">So paid fees and admission fees update automatically: in Paystack go to Settings → API Keys & Webhooks, paste this into <strong>Webhook URL</strong> and save.</p>
+          <div className="flex gap-2">
+            <Input readOnly value={WEBHOOK_URL} className="font-mono text-xs" onFocus={(e) => e.target.select()} />
+            <Button type="button" variant="outline" size="icon" aria-label="Copy webhook URL"
+              onClick={() => { navigator.clipboard.writeText(WEBHOOK_URL); toast.success("Webhook URL copied"); }}>
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
