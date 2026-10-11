@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation, useParams, Outlet } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -59,37 +59,46 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   ],
   admin: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
-    { label: "School Admin Portal", icon: School, path: "portal" },
     { label: "Academic Setup", icon: Calendar, path: "academic" },
+    { label: "School Settings", icon: Settings, path: "settings" },
     { label: "Students", icon: GraduationCap, path: "students" },
     { label: "Teachers", icon: School, path: "teachers" },
-    { label: "Result Approval", icon: FileCheck, path: "results", feature: "results" },
-    { label: "Broadsheet & Cumulative", icon: ClipboardList, path: "broadsheet", feature: "results" },
-    { label: "Score Reset", icon: BarChart3, path: "score-reset", feature: "results" },
-    { label: "Bulk PDF Download", icon: ClipboardList, path: "bulk-download", feature: "results" },
-    { label: "PIN Management", icon: Key, path: "pins", feature: "results" },
     { label: "Class Promotion", icon: Layers, path: "promotion" },
-    { label: "School Settings", icon: Settings, path: "settings" },
-    { label: "Academic Intelligence", icon: BarChart3, path: "intelligence", feature: "results" },
-    { label: "Compliance & Reporting", icon: FileCheck, path: "compliance", feature: "results" },
-    { label: "Result Security", icon: Shield, path: "security", feature: "results" },
-    { label: "PIN Monetisation", icon: Key, path: "monetisation", feature: "results" },
-    { label: "Communications", icon: MessageSquare, path: "communications" },
-    { label: "Message Monitoring", icon: MessageSquare, path: "messages" },
-    { label: "Parent Linking", icon: Users, path: "parent-linking" },
-    { label: "Student Linking", icon: GraduationCap, path: "student-linking" },
-    { label: "CBT Management", icon: Monitor, path: "cbt", feature: "cbt" },
-    { label: "CBT Score Sync", icon: Monitor, path: "cbt-sync", feature: "cbt" },
+    { label: "Dashboard Linking", icon: Users, path: "", children: [
+      { label: "Parent Linking", path: "parent-linking" },
+      { label: "Student Linking", path: "student-linking" },
+    ] },
+    { label: "Result Management", icon: FileCheck, path: "", feature: "results", children: [
+      { label: "Result Approval", path: "results" },
+      { label: "Broadsheet & Cumulative", path: "broadsheet" },
+      { label: "Score Reset", path: "score-reset" },
+      { label: "Bulk PDF Download", path: "bulk-download" },
+      { label: "PIN Management", path: "pins" },
+      { label: "PIN Monetization", path: "monetisation" },
+      { label: "Academic Intelligence", path: "intelligence" },
+      { label: "Compliance & Reporting", path: "compliance" },
+      { label: "Result Security", path: "security" },
+    ] },
+    { label: "CBT Management", icon: Monitor, path: "", feature: "cbt", children: [
+      { label: "Exams and Test Setup", path: "cbt" },
+      { label: "CBT Score Sync", path: "cbt-sync" },
+    ] },
     { label: "Fee Management", icon: Key, path: "fees", feature: "finance" },
-    { label: "Assignments", icon: FileText, path: "assignments", feature: "assignments" },
-    { label: "CareerAid", icon: Briefcase, path: "careeraid", feature: "careeraid" },
-    { label: "Audit Trail", icon: Shield, path: "audit" },
-    { label: "AI Lesson Planner ✨", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
-    { label: "Attendance ✨", icon: Calendar, path: "attendance", feature: "attendance" },
-    { label: "School Website", icon: Globe, path: "school-website" },
-    { label: "Counselor Onboarding", icon: Users, path: "counselors", feature: "careeraid" },
+    { label: "Assignment", icon: FileText, path: "assignments", feature: "assignments" },
+    { label: "CareerAid", icon: Briefcase, path: "", feature: "careeraid", children: [
+      { label: "CareerAid", path: "careeraid" },
+      { label: "Counselor Onboarding", path: "counselors" },
+    ] },
+    { label: "AI Lesson Planner", icon: BookOpen, path: "lesson-planner", feature: "lesson_notes" },
+    { label: "Attendance", icon: Calendar, path: "attendance", feature: "attendance" },
+    { label: "Admission", icon: GraduationCap, path: "admissions", feature: "admissions" },
     { label: "Curriculum", icon: BookOpen, path: "curriculum", feature: "curriculum" },
-    { label: "Admissions", icon: GraduationCap, path: "admissions", feature: "admissions" },
+    { label: "School Website", icon: Globe, path: "school-website" },
+    { label: "Communication", icon: MessageSquare, path: "", children: [
+      { label: "Communication", path: "communications" },
+      { label: "Message Monitoring", path: "messages" },
+    ] },
+    { label: "Audit Trail", icon: Shield, path: "audit" },
   ],
   teacher: [
     { label: "Dashboard", icon: LayoutDashboard, path: "" },
@@ -163,6 +172,12 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
     );
   };
 
+  useEffect(() => {
+    const open = navItems.find((i) => isParentActive(i));
+    if (open) setExpandedItems((prev) => (prev.includes(open.label) ? prev : [...prev, open.label]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   const isActive = (relativePath: string) => {
     const href = buildHref(relativePath);
     return location.pathname === href;
@@ -229,7 +244,7 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
                     }}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                      isActive(item.path) || isParentActive(item)
+                      (!item.children && isActive(item.path)) || isParentActive(item)
                         ? "bg-sidebar-primary text-sidebar-primary-foreground"
                         : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     )}

@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import SchoolPaystackKeyCard from "@/components/admin/SchoolPaystackKeyCard";
 
 const db = supabase as any;
 const STATUSES = ["submitted", "under_review", "exam_scheduled", "accepted", "rejected", "enrolled"];
@@ -74,6 +75,7 @@ export default function AdminAdmissions() {
 
   return (
     <div className="space-y-6">
+      <SchoolPaystackKeyCard />
       <div><h1 className="text-2xl font-bold">Admissions</h1><p className="text-muted-foreground">Online applications, entrance exams and enrolment.</p></div>
 
       <Card>
