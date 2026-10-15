@@ -225,67 +225,28 @@ export default function CBTScoreSync() {
         const exam = examMap.get(attempt.exam_id);
         if (!exam) { processed++; continue; }
 
-        const examType = (exam as any).exam_type || "exam";
-        const scoreField = SCORE_FIELD_MAP[examType] || "exam_score";
-        const scoreValue = attempt.percentage != null ? Math.round(attempt.percentage) : attempt.score;
+        const examType = SCORE_FIELD_MAP[(exam as any).exam_type] ? (exam as any).exam_type : "exam";
+        const pct = attempt.percentage != null
+          ? Number(attempt.percentage)
+          : (exam.total_marks ? (Number(attempt.score || 0) / Number(exam.total_marks)) * 100 : 0);
+        let scoreValue = Math.round((pct * (examType === "exam" ? 70 : 10)) / 10) / 10;
         const student = studentMap.get(attempt.student_id);
         const studentName = student ? `${student.first_name} ${student.last_name}` : "Unknown";
         const admNo = student?.admission_number || "—";
 
         try {
-          let { data: result } = await supabase
-            .from("results")
-            .select("id")
-            .eq("student_id", attempt.student_id)
-            .eq("term_id", selectedTerm)
-            .eq("class_arm_id", exam.class_arm_id)
-            .maybeSingle();
-
-          if (!result) {
-            const { data: newResult, error: createErr } = await supabase
-              .from("results")
-              .insert({
-                student_id: attempt.student_id,
-                term_id: selectedTerm,
-                class_arm_id: exam.class_arm_id,
-                status: "draft",
-              })
-              .select("id")
-              .single();
-
-            if (createErr) {
-              errors++;
-              entries.push({ student_name: studentName, admission_number: admNo, class_arm_name: armMap.get(exam.class_arm_id) || "—", subject_name: subjectMap.get(exam.subject_id) || "—", score_field: EXAM_TYPE_LABELS[examType], score_value: scoreValue, status: "error", error_msg: createErr.message });
-              processed++;
-              setProgress(Math.round((processed / total) * 100));
-              continue;
-            }
-            result = newResult;
-          }
-
-          let { data: component } = await supabase
-            .from("result_components")
-            .select("id")
-            .eq("result_id", result.id)
-            .eq("subject_id", exam.subject_id)
-            .maybeSingle();
-
-          if (component) {
-            await supabase
-              .from("result_components")
-              .update({ [scoreField]: scoreValue, entered_by: user?.id, entered_at: new Date().toISOString() })
-              .eq("id", component.id);
-          } else {
-            await supabase
-              .from("result_components")
-              .insert({
-                result_id: result.id,
-                subject_id: exam.subject_id,
-                [scoreField]: scoreValue,
-                entered_by: user?.id,
-              });
-          }
-
+          // Same score table teachers use (results + result_components), scaled to
+          // the field max (Test/Other = 10, Exam = 70), other fields left untouched.
+          const { data: saved, error } = await (supabase as any).rpc("sync_cbt_score", {
+            _student_id: attempt.student_id,
+            _term_id: selectedTerm,
+            _class_arm_id: exam.class_arm_id,
+            _subject_id: exam.subject_id,
+            _field: examType,
+            _percentage: pct,
+          });
+          if (error) throw error;
+          if (saved != null) scoreValue = Number(saved);
           synced++;
           entries.push({ student_name: studentName, admission_number: admNo, class_arm_name: armMap.get(exam.class_arm_id) || "—", subject_name: subjectMap.get(exam.subject_id) || "—", score_field: EXAM_TYPE_LABELS[examType], score_value: scoreValue, status: "success" });
         } catch (err: any) {
