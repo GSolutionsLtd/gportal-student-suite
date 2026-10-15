@@ -3992,6 +3992,17 @@ export type Database = {
           website_sections: number
         }[]
       }
+      sync_cbt_score: {
+        Args: {
+          _class_arm_id: string
+          _field: string
+          _percentage: number
+          _student_id: string
+          _subject_id: string
+          _term_id: string
+        }
+        Returns: number
+      }
       validate_admin_invite: {
         Args: { _code: string }
         Returns: {
