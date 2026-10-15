@@ -182,8 +182,9 @@ export default function CBTScoreSync() {
     try {
       const { data: exams } = await supabase
         .from("cbt_exams")
-        .select("id, subject_id, class_arm_id, exam_type")
-        .eq("term_id", selectedTerm);
+        .select("id, subject_id, class_arm_id, exam_type, total_marks")
+        .eq("term_id", selectedTerm)
+        .eq("status", "published");
 
       const examMap = new Map((exams || []).map((e) => [e.id, e]));
 
