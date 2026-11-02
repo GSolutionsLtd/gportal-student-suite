@@ -187,16 +187,11 @@ export default function AdminAssignments() {
   const refresh = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("assignments")
-        .select(
-          "id, title, max_score, due_at, status, scores_approved, teacher_id, class_arm_id, subject_id, session_id, term_id, created_at, teachers(id, profiles:profiles!teachers_user_id_fkey(full_name)), class_arms(name, classes(name)), subjects(name)"
-        )
-        .eq("school_id", schoolId!)
-        .order("created_at", { ascending: false });
+      // teachers.user_id links to auth users, not profiles, so names are resolved separately below.
+      const error = true;
+      const data = null;
 
       if (error) {
-        // Fallback (FK alias may differ); fetch without nested profile
         const { data: simple } = await supabase
           .from("assignments")
           .select(
