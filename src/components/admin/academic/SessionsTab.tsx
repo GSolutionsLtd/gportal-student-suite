@@ -58,7 +58,7 @@ export const SessionsTab = () => {
       await supabase
         .from("academic_sessions")
         .update({ is_current: false })
-        .neq("id", editingSession?.id || "");
+        .neq("id", editingSession?.id || "00000000-0000-0000-0000-000000000000");
     }
 
     if (editingSession) {
@@ -80,7 +80,7 @@ export const SessionsTab = () => {
         .insert(formData);
 
       if (error) {
-        toast.error("Failed to create session");
+        toast.error(formData.end_date <= formData.start_date ? "End date must be after the start date" : `Failed to create session: ${error.message}`);
       } else {
         toast.success("Session created successfully");
         fetchSessions();
