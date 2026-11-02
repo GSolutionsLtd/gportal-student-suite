@@ -1,2 +1,2 @@
-- [ ] Fix security scan findings
-- [ ] Fix Create Academic Session failure
+- [x] Fix security scan findings
+- [x] Fix Create Academic Session failure
