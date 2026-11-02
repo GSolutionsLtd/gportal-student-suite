@@ -458,7 +458,22 @@ export type Database = {
           submitted_at?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assignment_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assignments: {
         Row: {
@@ -533,7 +548,43 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assignments_class_arm_id_fkey"
+            columns: ["class_arm_id"]
+            isOneToOne: false
+            referencedRelation: "class_arms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "academic_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance_records: {
         Row: {
