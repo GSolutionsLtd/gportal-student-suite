@@ -16,6 +16,7 @@ interface ScoreWeight {
   session_id: string;
   test1_weight: number;
   test2_weight: number;
+  other_assessment_weight: number;
   exam_weight: number;
 }
 
@@ -33,11 +34,12 @@ export const ScoreWeightsTab = () => {
   const [formData, setFormData] = useState({
     session_id: "",
     test1_weight: 10,
-    test2_weight: 20,
+    test2_weight: 10,
+    other_assessment_weight: 10,
     exam_weight: 70,
   });
 
-  const totalWeight = formData.test1_weight + formData.test2_weight + formData.exam_weight;
+  const totalWeight = formData.test1_weight + formData.test2_weight + formData.other_assessment_weight + formData.exam_weight;
   const isValidTotal = totalWeight === 100;
 
   useEffect(() => {
@@ -73,6 +75,7 @@ export const ScoreWeightsTab = () => {
         .update({
           test1_weight: formData.test1_weight,
           test2_weight: formData.test2_weight,
+          other_assessment_weight: formData.other_assessment_weight,
           exam_weight: formData.exam_weight,
         })
         .eq("id", editingWeight.id);
@@ -95,7 +98,7 @@ export const ScoreWeightsTab = () => {
       const { error } = await supabase.from("score_weights").insert(formData);
 
       if (error) {
-        toast.error("Failed to create score weights");
+        toast.error(`Failed to create score weights: ${error.message}`);
       } else {
         toast.success("Score weights created successfully");
         fetchData();
@@ -118,7 +121,7 @@ export const ScoreWeightsTab = () => {
   };
 
   const resetForm = () => {
-    setFormData({ session_id: "", test1_weight: 10, test2_weight: 20, exam_weight: 70 });
+    setFormData({ session_id: "", test1_weight: 10, test2_weight: 10, other_assessment_weight: 10, exam_weight: 70 });
     setEditingWeight(null);
     setDialogOpen(false);
   };
@@ -129,6 +132,7 @@ export const ScoreWeightsTab = () => {
       session_id: weight.session_id,
       test1_weight: Number(weight.test1_weight),
       test2_weight: Number(weight.test2_weight),
+      other_assessment_weight: Number(weight.other_assessment_weight ?? 0),
       exam_weight: Number(weight.exam_weight),
     });
     setDialogOpen(true);
@@ -183,7 +187,7 @@ export const ScoreWeightsTab = () => {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="test1">Test 1 (%)</Label>
                   <Input
@@ -205,6 +209,18 @@ export const ScoreWeightsTab = () => {
                     max="100"
                     value={formData.test2_weight}
                     onChange={(e) => setFormData({ ...formData, test2_weight: parseInt(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="other">Other (%)</Label>
+                  <Input
+                    id="other"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.other_assessment_weight}
+                    onChange={(e) => setFormData({ ...formData, other_assessment_weight: parseInt(e.target.value) || 0 })}
                     required
                   />
                 </div>
@@ -261,6 +277,7 @@ export const ScoreWeightsTab = () => {
                 <TableHead>Session</TableHead>
                 <TableHead className="text-center">Test 1</TableHead>
                 <TableHead className="text-center">Test 2</TableHead>
+                <TableHead className="text-center">Other</TableHead>
                 <TableHead className="text-center">Exam</TableHead>
                 <TableHead className="text-center">Total</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -272,9 +289,10 @@ export const ScoreWeightsTab = () => {
                   <TableCell className="font-medium">{getSessionName(weight.session_id)}</TableCell>
                   <TableCell className="text-center">{weight.test1_weight}%</TableCell>
                   <TableCell className="text-center">{weight.test2_weight}%</TableCell>
+                  <TableCell className="text-center">{weight.other_assessment_weight ?? 0}%</TableCell>
                   <TableCell className="text-center">{weight.exam_weight}%</TableCell>
                   <TableCell className="text-center font-medium">
-                    {Number(weight.test1_weight) + Number(weight.test2_weight) + Number(weight.exam_weight)}%
+                    {Number(weight.test1_weight) + Number(weight.test2_weight) + Number(weight.other_assessment_weight ?? 0) + Number(weight.exam_weight)}%
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => openEditDialog(weight)}>
