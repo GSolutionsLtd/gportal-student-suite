@@ -1,4 +1,4 @@
 - [x] Fix security scan findings
 - [x] Fix Create Academic Session failure
-- [ ] Fix school logo upload in School Settings (all schools)
-- [ ] Fix student registration error
+- [x] Fix school logo upload in School Settings (all schools)
+- [x] Fix student registration error
