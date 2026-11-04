@@ -49,22 +49,29 @@ export default function SchoolSettings() {
     }
   };
 
-  const uploadFile = async (file: File, folder: string): Promise<string | null> => {
+  // Images are resized in the browser and stored with the school's settings,
+  // so they display everywhere (public website, PDFs, result sheets) without file storage access.
+  const uploadFile = async (file: File, _folder: string): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('school-assets')
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('school-assets')
-        .getPublicUrl(fileName);
-
-      return publicUrl;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          const max = 512;
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Could not process image"));
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(objectUrl);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Could not read image")); };
+        img.src = objectUrl;
+      });
+      return dataUrl;
     } catch (error: any) {
       toast({ title: "Upload Error", description: error.message, variant: "destructive" });
       return null;
